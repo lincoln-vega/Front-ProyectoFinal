@@ -8,16 +8,23 @@ import CursoPage from "./pages/admin/CursoPage";
 import StudentLayout from "./components/StudentLayout";
 import StudentDashboardPage from "./pages/student/StudentDashboardPage";
 import ControlAsistenciasPage from "./pages/admin/ControIncidenciasPage";
-import HorariosSalonesPage from "./pages/admin/HorariosSalonesPage"; // (O ajusta la ruta según dónde hayas guardado el archivo)
+import HorariosSalonesPage from "./pages/admin/HorariosSalonesPage";
+
+import ProfesorLayout from "./components/ProfesorLayout";
+import InterfazProfesorPage from "./pages/profesor/InterfazProfesorPage";
+import CursosProfesorPage from "./pages/profesor/CursosPage";
+import AsistenciaProfesorPage from "./pages/profesor/AsistenciaPage";
+import ProgramacionProfesorPage from "./pages/profesor/ProgramacionPage";
+import PerfilProfesorPage from "./pages/profesor/PerfilPage";
 import MatriculasPagosPage from "./pages/admin/MatriculasPagosPage";
 
 export default function App() {
   return (
     <Routes>
-      {/* 1. Ruta de Autenticación / FakeLogin (SCRM-26) */}
+      {/* 1. Ruta de Autenticación / Login */}
       <Route path="/login" element={<Login />} />
 
-      {/* Redirección por defecto de la raíz */}
+      {/* Redirección por defecto de la raíz según el rol almacenado */}
       <Route
         path="/"
         element={
@@ -27,6 +34,8 @@ export default function App() {
                 ? "/admin/usuarios"
                 : localStorage.getItem("userRole") === "estudiante"
                 ? "/estudiante/panel"
+                : localStorage.getItem("userRole") === "docente"
+                ? "/docente/panel"
                 : "/login"
             }
             replace
@@ -34,7 +43,7 @@ export default function App() {
         }
       />
 
-      {/* 2. Rutas de Administrador Protegidas (Solo rol "admin") */}
+      {/* 2. Rutas de Administrador Protegidas */}
       <Route element={<ProtectedRoute allowedRoles={["admin"]} />}>
         <Route path="/admin" element={<AdminLayout />}>
           <Route index element={<Navigate to="/admin/usuarios" replace />} />
@@ -46,11 +55,23 @@ export default function App() {
         </Route>
       </Route>
 
-      {/* 3. Rutas de Estudiante Protegidas (Solo rol "estudiante") */}
+      {/* 3. Rutas de Estudiante Protegidas */}
       <Route element={<ProtectedRoute allowedRoles={["estudiante"]} />}>
         <Route path="/estudiante" element={<StudentLayout />}>
           <Route index element={<Navigate to="/estudiante/panel" replace />} />
           <Route path="panel" element={<StudentDashboardPage />} />
+        </Route>
+      </Route>
+
+      {/* 4. Rutas de Docente Protegidas */}
+      <Route element={<ProtectedRoute allowedRoles={["docente"]} />}>
+        <Route path="/docente" element={<ProfesorLayout />}>
+          <Route index element={<Navigate to="/docente/panel" replace />} />
+          <Route path="panel" element={<InterfazProfesorPage />} />
+          <Route path="cursos" element={<CursosProfesorPage />} />
+          <Route path="asistencia" element={<AsistenciaProfesorPage />} />
+          <Route path="programacion" element={<ProgramacionProfesorPage />} />
+          <Route path="perfil" element={<PerfilProfesorPage />} />
         </Route>
       </Route>
 

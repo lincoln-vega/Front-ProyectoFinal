@@ -23,6 +23,8 @@ export default function Login() {
         navigate('/admin/usuarios');
       } else if (userRoleLower === 'estudiante') {
         navigate('/estudiante/panel');
+      } else if (userRoleLower === 'docente') {
+        navigate('/docente/panel');
       } else {
         alert('Rol no autorizado para esta vista.');
       }
