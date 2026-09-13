@@ -53,10 +53,6 @@ export default function CourseFormModal({ formData, onChange, onSubmit, onClose 
               <input required value={formData.horario} onChange={(event) => updateField("horario", event.target.value)} placeholder="Lunes y Miércoles 08:00 - 10:00 AM" className={inputClassName} />
             </label>
             <label className="font-semibold text-slate-700">
-              Aula *
-              <input required value={formData.aula} onChange={(event) => updateField("aula", event.target.value)} placeholder="AULA A-101" className={inputClassName} />
-            </label>
-            <label className="font-semibold text-slate-700">
               Sala virtual
               <input value={formData.sala} onChange={(event) => updateField("sala", event.target.value)} placeholder="Meet Sala A" className={inputClassName} />
             </label>

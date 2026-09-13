@@ -3,7 +3,6 @@ import { courseService } from "../services/api";
 
 export const createInitialCourseForm = () => ({
   codigo: "",
-  aula: "",
   asignatura: "",
   area: "Ciencias Exactas",
   docente: "",
@@ -27,8 +26,23 @@ export default function useCurse() {
       ...courseData
     };
 
-    setCourses((currentCourses) => [newCourse, ...currentCourses]);
+    setCourses((currentCourses) => {
+      const updatedCourses = [newCourse, ...currentCourses];
+      courseService.saveCourses(updatedCourses);
+      return updatedCourses;
+    });
+    return newCourse;
   };
 
-  return { courses, addCourse };
+  const updateCourse = (updatedCourse) => {
+    setCourses((currentCourses) => {
+      const updatedCourses = currentCourses.map((course) => (
+        course.id === updatedCourse.id ? updatedCourse : course
+      ));
+      courseService.saveCourses(updatedCourses);
+      return updatedCourses;
+    });
+  };
+
+  return { courses, addCourse, updateCourse };
 }

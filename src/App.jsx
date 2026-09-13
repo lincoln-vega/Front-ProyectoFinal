@@ -9,6 +9,7 @@ import StudentLayout from "./components/StudentLayout";
 import StudentDashboardPage from "./pages/student/StudentDashboardPage";
 import ControlAsistenciasPage from "./pages/admin/ControIncidenciasPage";
 import HorariosSalonesPage from "./pages/admin/HorariosSalonesPage"; // (O ajusta la ruta según dónde hayas guardado el archivo)
+import MatriculasPagosPage from "./pages/admin/MatriculasPagosPage";
 
 export default function App() {
   return (
@@ -41,6 +42,7 @@ export default function App() {
           <Route path="cursos" element={<CursoPage />} />
           <Route path="incidentes" element= {<ControlAsistenciasPage/>} />
           <Route path="horarios" element= {<HorariosSalonesPage/>} />
+          <Route path="matriculas" element={<MatriculasPagosPage />} />
         </Route>
       </Route>
 

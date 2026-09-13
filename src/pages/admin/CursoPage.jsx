@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import {
   Search,
   RefreshCcw,
@@ -13,8 +13,7 @@ import useCurse from "../../hooks/useCurse";
 import CursoRegistroModal from "../../components/admin/CursoRegistroModal";
 
 export default function CursoPage() {
-  const { courses: initialCourses } = useCurse();
-  const [coursesList, setCoursesList] = useState([]);
+  const { courses: coursesList, addCourse, updateCourse } = useCurse();
   const [searchTerm, setSearchTerm] = useState("");
   const [areaFilter, setAreaFilter] = useState("Todas las Áreas Académicas");
   const [statusFilter, setStatusFilter] = useState("Todos los Estados");
@@ -23,16 +22,8 @@ export default function CursoPage() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [courseToEdit, setCourseToEdit] = useState(null);
 
-  // Inicializar el estado de cursos desde el hook o datos base
-  useEffect(() => {
-    if (initialCourses && initialCourses.length > 0) {
-      setCoursesList(initialCourses);
-    }
-  }, [initialCourses]);
-
-  // Agregar nuevo curso a la lista en tiempo real
   const handleAddCourse = (newCourse) => {
-    setCoursesList((prevList) => [newCourse, ...prevList]);
+    addCourse(newCourse);
   };
 
   const handleEditCourse = (course) => {
@@ -41,9 +32,7 @@ export default function CursoPage() {
   };
 
   const handleUpdateCourse = (updatedCourse) => {
-    setCoursesList((prevList) => prevList.map((course) => (
-      course.id === updatedCourse.id ? updatedCourse : course
-    )));
+    updateCourse(updatedCourse);
   };
 
   // Filtrado dinámico

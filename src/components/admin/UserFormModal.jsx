@@ -1,4 +1,5 @@
 import { X } from "lucide-react";
+import { UNIVERSITY_CAREERS, UNIVERSITIES, getCareerName, getUniversityFromCareer } from "../../data/academicCatalog";
 
 export default function UserFormModal({
   isEditing,
@@ -8,9 +9,14 @@ export default function UserFormModal({
   onSubmit,
   onClose
 }) {
+  const selectedUniversity = formData.universidad || getUniversityFromCareer(formData.carreraObjetivo);
+  const availableCareers = UNIVERSITY_CAREERS[selectedUniversity] || [];
+
   const handleChange = (e) => {
     const { name, value } = e.target;
-    onChange((prev) => ({ ...prev, [name]: value }));
+    onChange((prev) => name === "universidad"
+      ? { ...prev, universidad: value, carreraObjetivo: "" }
+      : { ...prev, [name]: value });
   };
 
   return (
@@ -113,15 +119,33 @@ export default function UserFormModal({
 
             <div>
               <label className="block text-xs font-semibold text-slate-700 mb-1">
+                Universidad
+              </label>
+              <select
+                name="universidad"
+                value={selectedUniversity}
+                onChange={handleChange}
+                className="w-full px-3 py-2 border border-slate-200 rounded-lg text-xs focus:ring-2 focus:ring-blue-500 focus:outline-hidden bg-white"
+              >
+                <option value="">Seleccionar universidad</option>
+                {UNIVERSITIES.map((university) => <option key={university} value={university}>{university}</option>)}
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-xs font-semibold text-slate-700 mb-1">
                 Carrera / Objetivo
               </label>
-              <input
-                type="text"
+              <select
                 name="carreraObjetivo"
-                value={formData.carreraObjetivo || ""}
+                value={getCareerName(formData.carreraObjetivo)}
                 onChange={handleChange}
+                disabled={!selectedUniversity || !availableCareers.length}
                 className="w-full px-3 py-2 border border-slate-200 rounded-lg text-xs focus:ring-2 focus:ring-blue-500 focus:outline-hidden"
-              />
+              >
+                <option value="">{selectedUniversity ? "Seleccionar carrera" : "Selecciona primero la universidad"}</option>
+                {availableCareers.map((career) => <option key={career} value={career}>{career}</option>)}
+              </select>
             </div>
 
             <div>

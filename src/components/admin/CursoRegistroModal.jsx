@@ -5,8 +5,7 @@ const emptyFormData = {
     asignatura: "",
     docente: "",
     codigo: "",
-    aula: "",
-    horario: "Lun / Mié",
+    dias: [],
     horaInicio: "08:00",
     horaFin: "10:00",
     area: "Ciencias Exactas",
@@ -15,18 +14,29 @@ const emptyFormData = {
     repositorio: "drive.google.com"
 };
 
+const DAY_NAMES = {
+  lunes: "Lunes", lun: "Lunes",
+  martes: "Martes", mar: "Martes",
+  miércoles: "Miércoles", miercoles: "Miércoles", mie: "Miércoles", mié: "Miércoles",
+  jueves: "Jueves", jue: "Jueves",
+  viernes: "Viernes", vie: "Viernes"
+};
+
 const getFormData = (course) => {
   if (!course) return { ...emptyFormData };
 
   const timeRange = course.horario?.match(/(\d{2}:\d{2})\s*-\s*(\d{2}:\d{2})/);
-  const days = course.horario?.replace(/\s*\d{2}:\d{2}\s*-\s*\d{2}:\d{2}\s*hrs?\.?/i, "").trim();
+  const dayText = course.horario?.replace(/\s*\d{2}:\d{2}\s*-\s*\d{2}:\d{2}(?:\s*(?:AM|PM|hrs?\.?)?)\s*$/i, "").trim();
+  const horarioDays = dayText?.split(/\s+y\s+|,\s*|\s*\/\s*/i)
+    .map((day) => DAY_NAMES[day.trim().toLowerCase()])
+    .filter(Boolean) || [];
+  const dias = (Array.isArray(course.dias) && course.dias.length > 0 ? course.dias : horarioDays).slice(0, 2);
 
   return {
     ...emptyFormData,
     ...course,
     codigo: course.codigo || "",
-    aula: course.aula || "",
-    horario: days || emptyFormData.horario,
+    dias,
     horaInicio: timeRange?.[1] || emptyFormData.horaInicio,
     horaFin: timeRange?.[2] || emptyFormData.horaFin
   };
@@ -46,16 +56,28 @@ export default function CursoRegistroModal({ isOpen, onClose, onAddCourse, onUpd
     setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
+  const handleDayToggle = (day) => {
+    setFormData((prev) => {
+      const selectedDays = Array.isArray(prev.dias) ? prev.dias : [];
+      const isSelected = selectedDays.includes(day);
+
+      if (isSelected) {
+        return { ...prev, dias: selectedDays.filter((selectedDay) => selectedDay !== day) };
+      }
+
+      return selectedDays.length < 2 ? { ...prev, dias: [...selectedDays, day] } : prev;
+    });
+  };
+
   const handleSubmit = (e) => {
     e.preventDefault();
-    if (!formData.asignatura || !formData.docente || !formData.horario || !formData.horaInicio || !formData.horaFin) return;
+      if (!formData.asignatura || !formData.docente || !formData.dias?.length || formData.dias.length > 2 || !formData.horaInicio || !formData.horaFin) return;
 
     const course = {
       id: courseToEdit?.id || Date.now(),
       ...formData,
-      horario: `${formData.horario} ${formData.horaInicio} - ${formData.horaFin} hrs`,
+      horario: `${formData.dias.join(" y ")} ${formData.horaInicio} - ${formData.horaFin}`,
       codigo: formData.codigo.toUpperCase() || "CURSO-NEW",
-      aula: formData.aula.toUpperCase() || "AULA-00"
     };
 
     if (courseToEdit) {
@@ -113,9 +135,8 @@ export default function CursoRegistroModal({ isOpen, onClose, onAddCourse, onUpd
             />
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="block text-xs font-semibold text-slate-700 mb-1">Código</label>
+          <div>
+            <label className="block text-xs font-semibold text-slate-700 mb-1">Código</label>
               <input
                 type="text"
                 name="codigo"
@@ -124,33 +145,30 @@ export default function CursoRegistroModal({ isOpen, onClose, onAddCourse, onUpd
                 placeholder="Ej. MAT-101"
                 className="w-full px-3 py-2 border border-slate-200 rounded-lg text-xs bg-slate-50 focus:bg-white focus:outline-hidden focus:border-[#1E3A8A] transition-all"
               />
-            </div>
-            <div>
-              <label className="block text-xs font-semibold text-slate-700 mb-1">Aula</label>
-              <input
-                type="text"
-                name="aula"
-                value={formData.aula}
-                onChange={handleChange}
-                placeholder="Ej. A-201"
-                className="w-full px-3 py-2 border border-slate-200 rounded-lg text-xs bg-slate-50 focus:bg-white focus:outline-hidden focus:border-[#1E3A8A] transition-all"
-              />
-            </div>
           </div>
 
-          <div className="grid grid-cols-3 gap-3">
-            <div>
-              <label className="block text-xs font-semibold text-slate-700 mb-1">Días de la semana *</label>
-              <input
-                type="text"
-                name="horario"
-                value={formData.horario}
-                onChange={handleChange}
-                placeholder="Lun / Mié"
-                required
-                className="w-full px-3 py-2 border border-slate-200 rounded-lg text-xs bg-slate-50 focus:bg-white focus:outline-hidden focus:border-[#1E3A8A] transition-all"
-              />
+          <div>
+            <label className="block text-xs font-semibold text-slate-700 mb-2">Días * <span className="font-normal text-slate-400">(máximo 2)</span></label>
+            <div className="grid grid-cols-5 gap-2">
+                {[{ name: "Lunes", initial: "L" }, { name: "Martes", initial: "M" }, { name: "Miércoles", initial: "X" }, { name: "Jueves", initial: "J" }, { name: "Viernes", initial: "V" }].map(({ name, initial }) => {
+                  const day = name;
+                  const checked = formData.dias?.includes(day);
+                  return (
+                    <label key={day} title={day} className={`flex items-center justify-center gap-2 px-2.5 py-2 rounded-lg border text-xs font-semibold cursor-pointer transition-colors ${checked ? "border-blue-200 bg-blue-50 text-[#1E3A8A]" : "border-slate-200 bg-slate-50 text-slate-600"}`}>
+                      <input
+                        type="checkbox"
+                        checked={checked}
+                        onChange={() => handleDayToggle(day)}
+                        className="accent-[#1E3A8A]"
+                      />
+                      {initial}
+                    </label>
+                  );
+                })}
+              </div>
             </div>
+
+          <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="block text-xs font-semibold text-slate-700 mb-1">Hora inicio *</label>
               <input

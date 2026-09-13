@@ -72,11 +72,17 @@ export const incidentService = {
 };
 
 // --- SERVICIO DE CURSOS Y ESTUDIANTES ---
+const removeClassroomField = (courses) => courses.map(({ aula, ...course }) => course);
+
 export const courseService = {
   getCourses: () => {
     const saved = localStorage.getItem(KEYS.COURSES);
-    return saved ? JSON.parse(saved) : db.courses;
-  }
+    const courses = saved ? JSON.parse(saved) : db.courses;
+    const normalizedCourses = removeClassroomField(courses);
+    localStorage.setItem(KEYS.COURSES, JSON.stringify(normalizedCourses));
+    return normalizedCourses;
+  },
+  saveCourses: (courses) => localStorage.setItem(KEYS.COURSES, JSON.stringify(removeClassroomField(courses)))
 };
 
 export const studentService = {

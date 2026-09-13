@@ -35,7 +35,7 @@ export default function AdminLayout() {
     { name: "Cursos y Materias", path: "/admin/cursos", icon: BookOpen },
     { name: "Horarios y Salones", path: "/admin/horarios", icon: Calendar },
     { name: "Control de Asistencias", path: "/admin/incidentes", icon: ClipboardCheck },
-    { name: "Matrículas y Pagos", path: null, icon: CreditCard },
+    { name: "Matrículas y Pagos", path: "/admin/matriculas", icon: CreditCard },
     { name: "Métricas y Reportes", path: null, icon: BarChart3 },
     { name: "Configuración", path: null, icon: Settings },
   ];

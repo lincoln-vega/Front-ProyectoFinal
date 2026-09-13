@@ -8,6 +8,7 @@ export const createInitialUserForm = () => ({
   fechaNacimiento: "",
   correo: "",
   celular: "",
+  universidad: "",
   carreraObjetivo: "",
   cicloVirtual: "Anual San Marcos 2026",
   rol: "Estudiante",

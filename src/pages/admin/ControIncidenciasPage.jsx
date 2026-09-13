@@ -99,7 +99,7 @@ export default function ControlAsistenciasPage() {
                     </div>
 
                     <div className="bg-slate-50 p-4 rounded-xl border border-slate-200/80">
-                        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Aulas en Funcionamiento</span>
+                        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Salas virtuales activas</span>
                         <div className="flex items-center justify-between mt-2">
                             <span className="text-xl font-extrabold text-slate-800">12 / 12 salas</span>
                             <ShieldCheck className="w-5 h-5 text-emerald-600" />

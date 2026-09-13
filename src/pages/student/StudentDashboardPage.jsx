@@ -90,9 +90,6 @@ export default function StudentDashboardPage() {
               {/* Encabezado de la Tarjeta */}
               <div className="p-5 space-y-3">
                 <div className="flex items-center justify-between">
-                  <span className="text-[11px] font-bold text-[#1E3A8A] bg-blue-50 px-2.5 py-1 rounded-md border border-blue-100 uppercase tracking-wide">
-                    {course.aula}
-                  </span>
                   <span className="text-[11px] font-medium text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200 flex items-center gap-1">
                     <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
                     En vivo hoy
@@ -220,7 +217,7 @@ export default function StudentDashboardPage() {
           </div>
           
           <div className="p-3 bg-slate-50 border-t border-slate-100 text-center text-xs text-slate-500">
-            Mostrando las últimas 6 asistencias sincronizadas con el aula virtual.
+            Mostrando las últimas 6 asistencias sincronizadas con las salas virtuales.
           </div>
         </div>
       </section>

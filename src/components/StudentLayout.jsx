@@ -42,7 +42,7 @@ export default function StudentLayout() {
                 </span>
               </div>
               <p className="text-xs text-slate-500 hidden sm:block">
-                Ciclo Anual San Marcos 2026 • Aula A-101
+                Ciclo Anual San Marcos 2026 • Campus Virtual
               </p>
             </div>
           </div>

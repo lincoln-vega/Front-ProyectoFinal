@@ -65,7 +65,8 @@
       "correo": "estudiante@gmail.com",
       "password": "estudiante123",
       "celular": "987654321",
-      "carreraObjetivo": "Medicina Humana (UNMSM)",
+      "universidad": "UNMSM",
+      "carreraObjetivo": "Medicina Humana",
       "cicloVirtual": "123ABC",
       "rol": "estudiante",
       "estado": "Activo"
@@ -79,7 +80,8 @@
       "correo": "v.quispe@academia.edu.pe",
       "password": "estudiante123",
       "celular": "912345678",
-      "carreraObjetivo": "Ing. de Sistemas (UNI)",
+      "universidad": "UNI",
+      "carreraObjetivo": "Ingeniería de Sistemas",
       "cicloVirtual": "123ABC",
       "rol": "estudiante",
       "estado": "Activo"
@@ -93,7 +95,8 @@
       "correo": "l.gomez@academia.edu.pe",
       "password": "estudiante123",
       "celular": "945612378",
-      "carreraObjetivo": "Derecho (PUCP)",
+      "universidad": "PUCP",
+      "carreraObjetivo": "Derecho",
       "cicloVirtual": "123ABC",
       "rol": "estudiante",
       "estado": "Activo"
@@ -161,7 +164,6 @@
       "materia": "Álgebra y Funciones",
       "docente": "Prof. Carmen Rosa Herrera",
       "horario": "Lunes y Miércoles 08:00 - 10:00 AM",
-      "aula": "Aula Virtual A-101",
       "temaActual": "Ecuaciones Cuadráticas y Polinomios",
       "meetUrl": "https://meet.google.com/abc-defg-hij",
       "badge": "En curso"
@@ -171,7 +173,6 @@
       "materia": "Física Fundamental",
       "docente": "Prof. Miguel Ángel Paredes",
       "horario": "Martes y Jueves 08:00 - 10:00 AM",
-      "aula": "Aula Virtual B-204",
       "temaActual": "Cinemática y Dinámica Lineal",
       "meetUrl": "https://meet.google.com/klm-nopq-rst",
       "badge": "En curso"
@@ -181,7 +182,6 @@
       "materia": "Biología y Anatomía",
       "docente": "Dra. Elena Sofía Torres",
       "horario": "Lunes y Viernes 03:00 - 05:00 PM",
-      "aula": "Aula Virtual C-302",
       "temaActual": "Anatomía del Sistema Nervioso",
       "meetUrl": "https://meet.google.com/uvw-xyza-bcd",
       "badge": "En curso"
