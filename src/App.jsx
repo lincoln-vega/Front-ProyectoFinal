@@ -9,6 +9,7 @@ import StudentLayout from "./components/StudentLayout";
 import StudentDashboardPage from "./pages/student/StudentDashboardPage";
 import ControlAsistenciasPage from "./pages/admin/ControIncidenciasPage";
 import HorariosSalonesPage from "./pages/admin/HorariosSalonesPage";
+import DocentesPage from "./pages/admin/DocentesPage";
 
 import ProfesorLayout from "./components/ProfesorLayout";
 import InterfazProfesorPage from "./pages/profesor/InterfazProfesorPage";
@@ -48,6 +49,7 @@ export default function App() {
           <Route index element={<Navigate to="/admin/usuarios" replace />} />
           <Route path="usuarios" element={<AdminUsersPage />} />
           <Route path="cursos" element={<CursoPage />} />
+          <Route path="docentes" element={<DocentesPage />} />
           <Route path="incidentes" element={<ControlAsistenciasPage />} />
           <Route path="horarios" element={<HorariosSalonesPage />} />
         </Route>
