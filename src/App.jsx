@@ -10,6 +10,9 @@ import StudentDashboardPage from "./pages/student/StudentDashboardPage";
 import ControlAsistenciasPage from "./pages/admin/ControIncidenciasPage";
 import DocentesPage from "./pages/admin/DocentesPage";
 
+import DocenteLayout from "./components/DocenteLayout";
+import DocenteDashboardPage from "./pages/docente/DocenteDashboardPage";
+
 export default function App() {
   return (
     <Routes>
@@ -24,6 +27,8 @@ export default function App() {
             to={
               localStorage.getItem("userRole") === "admin"
                 ? "/admin/usuarios"
+                : localStorage.getItem("userRole") === "docente"
+                ? "/docente/panel"
                 : localStorage.getItem("userRole") === "estudiante"
                 ? "/estudiante/panel"
                 : "/login"
@@ -41,6 +46,14 @@ export default function App() {
           <Route path="cursos" element={<CursoPage />} />
           <Route path="docentes" element={<DocentesPage />} />
           <Route path="incidentes" element= {<ControlAsistenciasPage/>} />
+        </Route>
+      </Route>
+
+      {/* Rutas de Docente Protegidas (Solo rol "docente") */}
+      <Route element={<ProtectedRoute allowedRoles={["docente"]} />}>
+        <Route path="/docente" element={<DocenteLayout />}>
+          <Route index element={<Navigate to="/docente/panel" replace />} />
+          <Route path="panel" element={<DocenteDashboardPage />} />
         </Route>
       </Route>
 
