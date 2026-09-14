@@ -11,6 +11,7 @@ import {
 } from "lucide-react";
 import useCurse from "../../hooks/useCurse";
 import CursoRegistroModal from "../../components/admin/CursoRegistroModal";
+import { ACADEMIC_AREAS } from "../../data/academicCatalog";
 
 export default function CursoPage() {
   const { courses: coursesList, addCourse, updateCourse } = useCurse();
@@ -51,14 +52,6 @@ export default function CursoPage() {
       <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-2xs">
         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
           <div>
-            <div className="flex items-center space-x-2">
-              <h2 className="text-xl font-bold text-slate-800">
-                Catálogo Institucional de Cursos Virtuales
-              </h2>
-            </div>
-            <p className="text-xs text-slate-500 mt-1">
-              Monitoreo de salas síncronas y gestión de recursos académicos.
-            </p>
           </div>
 
           <div className="flex flex-wrap items-center gap-2">
@@ -93,9 +86,7 @@ export default function CursoPage() {
               className="w-full py-2 px-3 text-xs border border-slate-200 rounded-lg bg-slate-50 focus:bg-white focus:outline-hidden focus:border-[#1E3A8A] cursor-pointer"
             >
               <option value="Todas las Áreas Académicas">Todas las Áreas</option>
-              <option value="Ciencias Exactas">Ciencias Exactas</option>
-              <option value="Ciencias Médicas">Ciencias Médicas</option>
-              <option value="Humanidades y Letras">Humanidades y Letras</option>
+              {ACADEMIC_AREAS.map((area) => <option key={area} value={area}>{area}</option>)}
             </select>
           </div>
 

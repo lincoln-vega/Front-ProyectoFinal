@@ -7,8 +7,6 @@ export const createInitialCourseForm = () => ({
   area: "Ciencias Exactas",
   docente: "",
   horario: "",
-  sala: "Meet Sala A",
-  tipoSala: "meet",
   repositorio: "",
   estado: "Activo"
 });

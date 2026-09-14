@@ -105,20 +105,6 @@ export default function AdminUsersPage() {
 
       <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-2xs">
         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
-          <div>
-            <div className="flex items-center space-x-2">
-              <span className="px-2 py-0.5 rounded bg-blue-100 text-[#1E3A8A] text-xs font-bold uppercase tracking-wider">
-                Requerimiento SCRM-4
-              </span>
-              <h2 className="text-xl font-bold text-slate-800">
-                Padrón General de Usuarios de la Academia
-              </h2>
-            </div>
-            <p className="text-xs text-slate-500 mt-1">
-              Administración de matrículas, docentes y personal académico con persistencia en LocalStorage.
-            </p>
-          </div>
-
           <div className="flex flex-wrap items-center gap-2">
             <button
               type="button"

@@ -1,3 +1,5 @@
+import { ACADEMIC_AREAS, getCareersByArea } from "../../data/academicCatalog";
+
 const inputClassName = "w-full mt-1 p-2 border border-slate-200 rounded font-normal focus:border-[#1E3A8A] focus:outline-hidden";
 
 export default function CourseFormModal({ formData, onChange, onSubmit, onClose }) {
@@ -38,10 +40,14 @@ export default function CourseFormModal({ formData, onChange, onSubmit, onClose 
             <label className="font-semibold text-slate-700">
               Área académica *
               <select value={formData.area} onChange={(event) => updateField("area", event.target.value)} className={inputClassName}>
-                <option>Ciencias Exactas</option>
-                <option>Ciencias Médicas</option>
-                <option>Humanidades y Letras</option>
-                <option>Ciencias e Ingeniería</option>
+                {ACADEMIC_AREAS.map((area) => <option key={area} value={area}>{area}</option>)}
+              </select>
+            </label>
+            <label className="font-semibold text-slate-700">
+              Carrera asociada
+              <select value={formData.carrera || ""} onChange={(event) => updateField("carrera", event.target.value)} className={inputClassName}>
+                <option value="">Seleccionar carrera</option>
+                {getCareersByArea(formData.area).map((career) => <option key={career} value={career}>{career}</option>)}
               </select>
             </label>
             <label className="font-semibold text-slate-700">
@@ -51,17 +57,6 @@ export default function CourseFormModal({ formData, onChange, onSubmit, onClose 
             <label className="font-semibold text-slate-700">
               Horario *
               <input required value={formData.horario} onChange={(event) => updateField("horario", event.target.value)} placeholder="Lunes y Miércoles 08:00 - 10:00 AM" className={inputClassName} />
-            </label>
-            <label className="font-semibold text-slate-700">
-              Sala virtual
-              <input value={formData.sala} onChange={(event) => updateField("sala", event.target.value)} placeholder="Meet Sala A" className={inputClassName} />
-            </label>
-            <label className="font-semibold text-slate-700">
-              Tipo de sala
-              <select value={formData.tipoSala} onChange={(event) => updateField("tipoSala", event.target.value)} className={inputClassName}>
-                <option value="meet">Google Meet</option>
-                <option value="zoom">Zoom</option>
-              </select>
             </label>
             <label className="font-semibold text-slate-700">
               Repositorio digital

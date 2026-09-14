@@ -5,7 +5,6 @@ import {
   BookOpen,
   Calendar,
   ClipboardCheck,
-  CreditCard,
   BarChart3,
   Settings,
   LogOut,
@@ -35,7 +34,6 @@ export default function AdminLayout() {
     { name: "Cursos y Materias", path: "/admin/cursos", icon: BookOpen },
     { name: "Horarios y Salones", path: "/admin/horarios", icon: Calendar },
     { name: "Control de Asistencias", path: "/admin/incidentes", icon: ClipboardCheck },
-    { name: "Matrículas y Pagos", path: "/admin/matriculas", icon: CreditCard },
     { name: "Métricas y Reportes", path: null, icon: BarChart3 },
     { name: "Configuración", path: null, icon: Settings },
   ];
@@ -81,11 +79,6 @@ export default function AdminLayout() {
                     <Icon className="w-4 h-4 text-amber-300" />
                     <span>{item.name}</span>
                   </div>
-                  {item.path === "/admin/usuarios" && (
-                    <span className="text-[10px] bg-amber-400 text-blue-950 font-bold px-1.5 py-0.5 rounded">
-                      SCRM-4
-                    </span>
-                  )}
                 </NavLink>
               ) : (
                 <div

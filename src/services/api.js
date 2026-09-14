@@ -9,23 +9,25 @@ const KEYS = {
 };
 
 // --- SERVICIO DE USUARIOS ---
+const removeVirtualCycleField = (users) => users.map(({ cicloVirtual, ...user }) => user);
+
 export const userService = {
   getUsers: () => {
     const saved = localStorage.getItem(KEYS.USERS);
-    if (!saved) {
-      localStorage.setItem(KEYS.USERS, JSON.stringify(db.users));
-      return db.users;
-    }
+    if (!saved) return removeVirtualCycleField(db.users);
     try {
-      return JSON.parse(saved);
+      const users = removeVirtualCycleField(JSON.parse(saved));
+      localStorage.setItem(KEYS.USERS, JSON.stringify(users));
+      return users;
     } catch {
-      return db.users;
+      return removeVirtualCycleField(db.users);
     }
   },
-  saveUsers: (users) => localStorage.setItem(KEYS.USERS, JSON.stringify(users)),
+  saveUsers: (users) => localStorage.setItem(KEYS.USERS, JSON.stringify(removeVirtualCycleField(users))),
   resetUsers: () => {
-    localStorage.setItem(KEYS.USERS, JSON.stringify(db.users));
-    return db.users;
+    const users = removeVirtualCycleField(db.users);
+    localStorage.setItem(KEYS.USERS, JSON.stringify(users));
+    return users;
   }
 };
 

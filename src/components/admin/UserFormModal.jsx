@@ -1,5 +1,5 @@
 import { X } from "lucide-react";
-import { UNIVERSITY_CAREERS, UNIVERSITIES, getCareerName, getUniversityFromCareer } from "../../data/academicCatalog";
+import { ACADEMIC_AREAS, getCareersByArea } from "../../data/academicCatalog";
 
 export default function UserFormModal({
   isEditing,
@@ -9,13 +9,12 @@ export default function UserFormModal({
   onSubmit,
   onClose
 }) {
-  const selectedUniversity = formData.universidad || getUniversityFromCareer(formData.carreraObjetivo);
-  const availableCareers = UNIVERSITY_CAREERS[selectedUniversity] || [];
+  const availableCareers = getCareersByArea(formData.areaAcademica);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
-    onChange((prev) => name === "universidad"
-      ? { ...prev, universidad: value, carreraObjetivo: "" }
+    onChange((prev) => name === "areaAcademica"
+      ? { ...prev, areaAcademica: value, carreraObjetivo: "" }
       : { ...prev, [name]: value });
   };
 
@@ -119,46 +118,25 @@ export default function UserFormModal({
 
             <div>
               <label className="block text-xs font-semibold text-slate-700 mb-1">
-                Universidad
+                Área académica
               </label>
               <select
-                name="universidad"
-                value={selectedUniversity}
+                name="areaAcademica"
+                value={formData.areaAcademica || ""}
                 onChange={handleChange}
                 className="w-full px-3 py-2 border border-slate-200 rounded-lg text-xs focus:ring-2 focus:ring-blue-500 focus:outline-hidden bg-white"
               >
-                <option value="">Seleccionar universidad</option>
-                {UNIVERSITIES.map((university) => <option key={university} value={university}>{university}</option>)}
+                <option value="">Seleccionar área</option>
+                {ACADEMIC_AREAS.map((area) => <option key={area} value={area}>{area}</option>)}
               </select>
             </div>
 
             <div>
-              <label className="block text-xs font-semibold text-slate-700 mb-1">
-                Carrera / Objetivo
-              </label>
-              <select
-                name="carreraObjetivo"
-                value={getCareerName(formData.carreraObjetivo)}
-                onChange={handleChange}
-                disabled={!selectedUniversity || !availableCareers.length}
-                className="w-full px-3 py-2 border border-slate-200 rounded-lg text-xs focus:ring-2 focus:ring-blue-500 focus:outline-hidden"
-              >
-                <option value="">{selectedUniversity ? "Seleccionar carrera" : "Selecciona primero la universidad"}</option>
+              <label className="block text-xs font-semibold text-slate-700 mb-1">Carrera / Objetivo</label>
+              <select name="carreraObjetivo" value={formData.carreraObjetivo || ""} onChange={handleChange} className="w-full px-3 py-2 border border-slate-200 rounded-lg text-xs focus:ring-2 focus:ring-blue-500 focus:outline-hidden bg-white">
+                <option value="">Seleccionar carrera</option>
                 {availableCareers.map((career) => <option key={career} value={career}>{career}</option>)}
               </select>
-            </div>
-
-            <div>
-              <label className="block text-xs font-semibold text-slate-700 mb-1">
-                Ciclo Virtual
-              </label>
-              <input
-                type="text"
-                name="cicloVirtual"
-                value={formData.cicloVirtual || ""}
-                onChange={handleChange}
-                className="w-full px-3 py-2 border border-slate-200 rounded-lg text-xs focus:ring-2 focus:ring-blue-500 focus:outline-hidden"
-              />
             </div>
 
             {/* Mapeo dinámico de Roles */}

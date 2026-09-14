@@ -10,7 +10,6 @@
       "password": "admin123",
       "celular": "998877665",
       "carreraObjetivo": "Dirección Académica",
-      "cicloVirtual": "Turno Mañana / Tarde",
       "rol": "admin",
       "estado": "Activo"
     },
@@ -24,7 +23,6 @@
       "password": "docente123",
       "celular": "976543210",
       "carreraObjetivo": "Cátedra de Álgebra",
-      "cicloVirtual": "Todos los ciclos",
       "rol": "docente",
       "estado": "Activo"
     },
@@ -38,7 +36,6 @@
       "password": "docente123",
       "celular": "965412389",
       "carreraObjetivo": "Cátedra de Física",
-      "cicloVirtual": "Todos los ciclos",
       "rol": "docente",
       "estado": "Activo"
     },
@@ -52,7 +49,6 @@
       "password": "docente123",
       "celular": "934567890",
       "carreraObjetivo": "Cátedra de Biología",
-      "cicloVirtual": "Todos los ciclos",
       "rol": "docente",
       "estado": "Activo"
     },
@@ -67,7 +63,7 @@
       "celular": "987654321",
       "universidad": "UNMSM",
       "carreraObjetivo": "Medicina Humana",
-      "cicloVirtual": "123ABC",
+      "areaAcademica": "Ciencias Médicas",
       "rol": "estudiante",
       "estado": "Activo"
     },
@@ -82,7 +78,7 @@
       "celular": "912345678",
       "universidad": "UNI",
       "carreraObjetivo": "Ingeniería de Sistemas",
-      "cicloVirtual": "123ABC",
+      "areaAcademica": "Ciencias Exactas",
       "rol": "estudiante",
       "estado": "Activo"
     },
@@ -97,7 +93,7 @@
       "celular": "945612378",
       "universidad": "PUCP",
       "carreraObjetivo": "Derecho",
-      "cicloVirtual": "123ABC",
+      "areaAcademica": "Humanidades y Letras",
       "rol": "estudiante",
       "estado": "Activo"
     }
@@ -127,33 +123,30 @@
     {
       "id": "CRS-001",
       "asignatura": "Álgebra y Funciones",
-      "area": "Ciencias Exactas (UNI / SM)",
+      "area": "Ciencias Exactas",
+      "carrera": "Ingeniería de Sistemas",
       "docente": "Prof. Carmen Rosa Herrera",
       "horario": "Lunes y Miércoles 08:00 - 10:00 AM",
-      "sala": "Zoom Activo",
-      "tipoSala": "zoom",
       "repositorio": "drive.google.com/mat101",
       "estado": "Activo"
     },
     {
       "id": "CRS-002",
       "asignatura": "Física Fundamental",
-      "area": "Ciencias Exactas (UNI)",
+      "area": "Ciencias Exactas",
+      "carrera": "Ingeniería de Sistemas",
       "docente": "Prof. Miguel Ángel Paredes",
       "horario": "Martes y Jueves 08:00 - 10:00 AM",
-      "sala": "Meet Sala A",
-      "tipoSala": "meet",
       "repositorio": "campus.pre.pe/fisica",
       "estado": "Activo"
     },
     {
       "id": "CRS-003",
       "asignatura": "Biología y Anatomía",
-      "area": "Ciencias Médicas (UNMSM)",
+      "area": "Ciencias Médicas",
+      "carrera": "Medicina Humana",
       "docente": "Dra. Elena Sofía Torres",
       "horario": "Lunes y Viernes 03:00 - 05:00 PM",
-      "sala": "Zoom Sala B",
-      "tipoSala": "zoom",
       "repositorio": "campus.pre.pe/bio",
       "estado": "Activo"
     }
@@ -212,8 +205,5 @@
       "estado": "Asistió Puntual",
       "modalidad": "Virtual en vivo"
     }
-  ],
-  "secciones": [
-    { "id": "1", "nombre": "123ABC" }
   ]
 }

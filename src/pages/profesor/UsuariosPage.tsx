@@ -3,28 +3,28 @@ const mockUsers = [
     id: 1, iniciales: 'AM', colorClass: 'avatar-purple', 
     apellido: 'Martínez', nombre: 'Ana', documento: '70123456', 
     fechaNacimiento: '15/04/1998', correo: 'ana.martinez@eduadmin.com', 
-    celular: '987654321', carrera: 'Ingeniería de Sistemas', ciclo: 'Ciclo 5', 
+    celular: '987654321', carrera: 'Ingeniería de Sistemas',
     rol: 'ADMINISTRADOR', estado: 'Activo' 
   },
   { 
     id: 2, iniciales: 'CG', colorClass: 'avatar-orange', 
     apellido: 'Gómez', nombre: 'Carlos', documento: '45678912', 
     fechaNacimiento: '22/08/1990', correo: 'cgomez.prof@escuela.edu', 
-    celular: '912345678', carrera: 'Ingeniería de Software', ciclo: 'Docencia', 
+    celular: '912345678', carrera: 'Ingeniería de Software',
     rol: 'DOCENTE', estado: 'Activo' 
   },
   { 
     id: 3, iniciales: 'LR', colorClass: 'avatar-gray', 
     apellido: 'Rodríguez', nombre: 'Laura', documento: '74185296', 
     fechaNacimiento: '10/11/2004', correo: 'lrodriguez@alumnos.edu', 
-    celular: '998877665', carrera: 'Ingeniería de Sistemas', ciclo: 'Ciclo 3', 
+    celular: '998877665', carrera: 'Ingeniería de Sistemas',
     rol: 'ESTUDIANTE', estado: 'Inactivo' 
   },
   { 
     id: 4, iniciales: 'JP', colorClass: 'avatar-gray', 
     apellido: 'Pérez', nombre: 'Javier', documento: '78945612', 
     fechaNacimiento: '05/01/2003', correo: 'javier.perez@alumnos.edu', 
-    celular: '955443322', carrera: 'Ingeniería de Sistemas', ciclo: 'Ciclo 4', 
+    celular: '955443322', carrera: 'Ingeniería de Sistemas',
     rol: 'ESTUDIANTE', estado: 'Activo' 
   },
 ];
@@ -104,7 +104,6 @@ export default function UsuariosView() {
                 <th className="p-4">Correo</th>
                 <th className="p-4">Número celular</th>
                 <th className="p-4">Carrera</th>
-                <th className="p-4">Ciclo virtual</th>
                 <th className="p-4">Rol</th>
                 <th className="p-4">Estado</th>
                 <th className="p-4 text-right">Acciones</th>
@@ -141,7 +140,6 @@ export default function UsuariosView() {
                     <td className="p-4 text-slate-300 font-mono text-[11px]">{user.correo}</td>
                     <td className="p-4 font-mono text-slate-300">{user.celular}</td>
                     <td className="p-4 text-slate-300">{user.carrera}</td>
-                    <td className="p-4 text-slate-300">{user.ciclo}</td>
                     <td className="p-4">
                       <span className={`inline-block px-2.5 py-0.5 rounded text-[10px] font-bold border tracking-wide ${badgeRolStyle}`}>
                         {user.rol}

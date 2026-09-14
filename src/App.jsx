@@ -16,7 +16,6 @@ import CursosProfesorPage from "./pages/profesor/CursosPage";
 import AsistenciaProfesorPage from "./pages/profesor/AsistenciaPage";
 import ProgramacionProfesorPage from "./pages/profesor/ProgramacionPage";
 import PerfilProfesorPage from "./pages/profesor/PerfilPage";
-import MatriculasPagosPage from "./pages/admin/MatriculasPagosPage";
 
 export default function App() {
   return (
@@ -51,7 +50,6 @@ export default function App() {
           <Route path="cursos" element={<CursoPage />} />
           <Route path="incidentes" element= {<ControlAsistenciasPage/>} />
           <Route path="horarios" element= {<HorariosSalonesPage/>} />
-          <Route path="matriculas" element={<MatriculasPagosPage />} />
         </Route>
       </Route>
 

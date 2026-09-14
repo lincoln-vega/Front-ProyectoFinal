@@ -8,7 +8,7 @@ export default function UsersTable({ users, totalUsers, activeUsers, inactiveUse
           Mostrando {users.length} de {totalUsers} registros cargados
         </span>
         <span className="text-[11px] text-slate-400">
-          * 11 columnas reglamentarias de usuario
+          * 10 columnas de usuario
         </span>
       </div>
 
@@ -16,24 +16,23 @@ export default function UsersTable({ users, totalUsers, activeUsers, inactiveUse
         <table className="w-full text-left border-collapse text-xs">
           <thead>
             <tr className="bg-[#1E3A8A] text-white border-b border-blue-950 font-semibold tracking-wider uppercase text-[11px] select-none">
-              <th scope="col" className="py-3 px-3.5 whitespace-nowrap">1. Apellidos</th>
-              <th scope="col" className="py-3 px-3.5 whitespace-nowrap">2. Nombres</th>
-              <th scope="col" className="py-3 px-3.5 whitespace-nowrap">3. DNI</th>
-              <th scope="col" className="py-3 px-3.5 whitespace-nowrap">4. F. Nacimiento</th>
-              <th scope="col" className="py-3 px-3.5 whitespace-nowrap">5. Correo</th>
-              <th scope="col" className="py-3 px-3.5 whitespace-nowrap">6. Celular</th>
-              <th scope="col" className="py-3 px-3.5 whitespace-nowrap">7. Carrera / Objetivo</th>
-              <th scope="col" className="py-3 px-3.5 whitespace-nowrap">8. Ciclo Virtual</th>
-              <th scope="col" className="py-3 px-3.5 whitespace-nowrap text-center">9. Rol</th>
-              <th scope="col" className="py-3 px-3.5 whitespace-nowrap text-center">10. Estado</th>
-              <th scope="col" className="py-3 px-3.5 whitespace-nowrap text-center">11. Acciones</th>
+              <th scope="col" className="py-3 px-3.5 whitespace-nowrap">Apellidos</th>
+              <th scope="col" className="py-3 px-3.5 whitespace-nowrap">Nombres</th>
+              <th scope="col" className="py-3 px-3.5 whitespace-nowrap">DNI</th>
+              <th scope="col" className="py-3 px-3.5 whitespace-nowrap">F. Nacimiento</th>
+              <th scope="col" className="py-3 px-3.5 whitespace-nowrap">Correo</th>
+              <th scope="col" className="py-3 px-3.5 whitespace-nowrap">Celular</th>
+              <th scope="col" className="py-3 px-3.5 whitespace-nowrap">Carrera / Objetivo</th>
+              <th scope="col" className="py-3 px-3.5 whitespace-nowrap text-center">Rol</th>
+              <th scope="col" className="py-3 px-3.5 whitespace-nowrap text-center">Estado</th>
+              <th scope="col" className="py-3 px-3.5 whitespace-nowrap text-center">Acciones</th>
             </tr>
           </thead>
 
           <tbody className="divide-y divide-slate-100 text-slate-700">
             {users.length === 0 ? (
               <tr>
-                <td colSpan={11} className="py-8 text-center text-slate-400">
+                <td colSpan={10} className="py-8 text-center text-slate-400">
                   <AlertCircle className="w-6 h-6 mx-auto mb-2 text-slate-300" />
                   No se encontraron usuarios con los criterios de búsqueda seleccionados.
                 </td>
@@ -56,9 +55,6 @@ export default function UsersTable({ users, totalUsers, activeUsers, inactiveUse
                     <span className="inline-block max-w-[200px] truncate text-slate-800 font-medium" title={user.carreraObjetivo}>
                       {user.carreraObjetivo}
                     </span>
-                  </td>
-                  <td className="py-2.5 px-3.5 whitespace-nowrap text-slate-600">
-                    <span className="px-2 py-0.5 rounded bg-slate-100 border border-slate-200 text-[11px]">{user.cicloVirtual}</span>
                   </td>
                   <td className="py-2.5 px-3.5 whitespace-nowrap text-center">
                     <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold tracking-wide ${

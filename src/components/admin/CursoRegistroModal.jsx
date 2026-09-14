@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { X } from "lucide-react";
+import { ACADEMIC_AREAS, getCareersByArea } from "../../data/academicCatalog";
 
 const emptyFormData = {
     asignatura: "",
@@ -9,8 +10,8 @@ const emptyFormData = {
     horaInicio: "08:00",
     horaFin: "10:00",
     area: "Ciencias Exactas",
+    carrera: "",
     estado: "Activo",
-    tipoSala: "zoom",
     repositorio: "drive.google.com"
 };
 
@@ -44,6 +45,7 @@ const getFormData = (course) => {
 
 export default function CursoRegistroModal({ isOpen, onClose, onAddCourse, onUpdateCourse, courseToEdit }) {
   const [formData, setFormData] = useState({ ...emptyFormData });
+  const availableCareers = getCareersByArea(formData.area);
 
   useEffect(() => {
     if (isOpen) setFormData(getFormData(courseToEdit));
@@ -53,7 +55,9 @@ export default function CursoRegistroModal({ isOpen, onClose, onAddCourse, onUpd
 
   const handleChange = (e) => {
     const { name, value } = e.target;
-    setFormData((prev) => ({ ...prev, [name]: value }));
+    setFormData((prev) => name === "area"
+      ? { ...prev, area: value, carrera: "" }
+      : { ...prev, [name]: value });
   };
 
   const handleDayToggle = (day) => {
@@ -77,6 +81,7 @@ export default function CursoRegistroModal({ isOpen, onClose, onAddCourse, onUpd
       id: courseToEdit?.id || Date.now(),
       ...formData,
       horario: `${formData.dias.join(" y ")} ${formData.horaInicio} - ${formData.horaFin}`,
+      carrera: formData.carrera,
       codigo: formData.codigo.toUpperCase() || "CURSO-NEW",
     };
 
@@ -204,9 +209,15 @@ export default function CursoRegistroModal({ isOpen, onClose, onAddCourse, onUpd
                 onChange={handleChange}
                 className="w-full px-3 py-2 border border-slate-200 rounded-lg text-xs bg-slate-50 focus:bg-white focus:outline-hidden focus:border-[#1E3A8A] cursor-pointer"
               >
-                <option value="Ciencias Exactas">Ciencias Exactas</option>
-                <option value="Ciencias Médicas">Ciencias Médicas</option>
-                <option value="Humanidades y Letras">Humanidades y Letras</option>
+                {ACADEMIC_AREAS.map((area) => <option key={area} value={area}>{area}</option>)}
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-xs font-semibold text-slate-700 mb-1">Carrera</label>
+              <select name="carrera" value={formData.carrera} onChange={handleChange} className="w-full px-3 py-2 border border-slate-200 rounded-lg text-xs bg-slate-50 focus:bg-white focus:outline-hidden focus:border-[#1E3A8A]">
+                <option value="">Seleccionar carrera</option>
+                {availableCareers.map((career) => <option key={career} value={career}>{career}</option>)}
               </select>
             </div>
 
