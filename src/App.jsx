@@ -1,7 +1,7 @@
 import React from "react";
 import { Routes, Route, Navigate } from "react-router-dom";
 import Login from "./pages/Login";
-import ProtectedRoute from "./components/ProtectedRoute";
+import ProtectedRoute, { normalizeRole } from "./components/ProtectedRoute";
 import AdminLayout from "./components/AdminLayout";
 import AdminUsersPage from "./pages/admin/AdminUsersPage";
 import CursoPage from "./pages/admin/CursoPage";
@@ -10,6 +10,7 @@ import StudentDashboardPage from "./pages/student/StudentDashboardPage";
 import ControlAsistenciasPage from "./pages/admin/ControIncidenciasPage";
 import HorariosSalonesPage from "./pages/admin/HorariosSalonesPage";
 import DocentesPage from "./pages/admin/DocentesPage";
+import MatriculasPagosPage from "./pages/admin/MatriculasPagosPage";
 
 import ProfesorLayout from "./components/ProfesorLayout";
 import InterfazProfesorPage from "./pages/profesor/InterfazProfesorPage";
@@ -30,11 +31,11 @@ export default function App() {
         element={
           <Navigate
             to={
-              localStorage.getItem("userRole") === "admin"
+              normalizeRole(localStorage.getItem("userRole")) === "admin"
                 ? "/admin/usuarios"
-                : localStorage.getItem("userRole") === "estudiante"
+                : normalizeRole(localStorage.getItem("userRole")) === "estudiante"
                 ? "/estudiante/panel"
-                : localStorage.getItem("userRole") === "docente"
+                : normalizeRole(localStorage.getItem("userRole")) === "docente"
                 ? "/docente/panel"
                 : "/login"
             }
@@ -44,7 +45,7 @@ export default function App() {
       />
 
       {/* 2. Rutas de Administrador Protegidas */}
-      <Route element={<ProtectedRoute allowedRoles={["admin"]} />}>
+      <Route element={<ProtectedRoute allowedRoles={["admin", "docente"]} />}>
         <Route path="/admin" element={<AdminLayout />}>
           <Route index element={<Navigate to="/admin/usuarios" replace />} />
           <Route path="usuarios" element={<AdminUsersPage />} />
@@ -52,6 +53,7 @@ export default function App() {
           <Route path="docentes" element={<DocentesPage />} />
           <Route path="incidentes" element={<ControlAsistenciasPage />} />
           <Route path="horarios" element={<HorariosSalonesPage />} />
+          <Route path="matriculas" element={<MatriculasPagosPage />} />
         </Route>
       </Route>
 
@@ -64,7 +66,7 @@ export default function App() {
       </Route>
 
       {/* 4. Rutas de Docente Protegidas */}
-      <Route element={<ProtectedRoute allowedRoles={["docente"]} />}>
+      <Route element={<ProtectedRoute allowedRoles={["docente", "admin"]} />}>
         <Route path="/docente" element={<ProfesorLayout />}>
           <Route index element={<Navigate to="/docente/panel" replace />} />
           <Route path="panel" element={<InterfazProfesorPage />} />
@@ -72,6 +74,7 @@ export default function App() {
           <Route path="asistencia" element={<AsistenciaProfesorPage />} />
           <Route path="programacion" element={<ProgramacionProfesorPage />} />
           <Route path="perfil" element={<PerfilProfesorPage />} />
+          <Route path="matriculas" element={<MatriculasPagosPage />} />
         </Route>
       </Route>
 

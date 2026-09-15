@@ -1,11 +1,12 @@
 import React, { useState } from "react";
-import { Outlet, NavLink, useNavigate } from "react-router-dom";
+import { Outlet, NavLink, useNavigate, useLocation } from "react-router-dom";
 import {
   Users,
   BookOpen,
   Calendar,
   ClipboardCheck,
   CreditCard,
+  Wallet,
   BarChart3,
   Settings,
   LogOut,
@@ -19,6 +20,7 @@ import {
 
 export default function AdminLayout() {
   const navigate = useNavigate();
+  const location = useLocation();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const userName = localStorage.getItem("userName") || "Administrador General";
   const userEmail = localStorage.getItem("userEmail") || "admin@academia.edu.pe";
@@ -30,13 +32,25 @@ export default function AdminLayout() {
     navigate("/login");
   };
 
+  const getHeaderInfo = () => {
+    if (location.pathname.includes("/admin/cursos")) return { title: "Catálogo de Cursos y Materias", icon: BookOpen };
+    if (location.pathname.includes("/admin/horarios")) return { title: "Horarios y Salones de Clase", icon: Calendar };
+    if (location.pathname.includes("/admin/docentes")) return { title: "Gestión de Docentes y Nóminas", icon: CreditCard };
+    if (location.pathname.includes("/admin/incidentes")) return { title: "Control de Asistencias e Incidencias", icon: ClipboardCheck };
+    if (location.pathname.includes("/admin/matriculas")) return { title: "Gestión de Matrículas y Pagos", icon: Wallet };
+    return { title: "Directorio Institucional de Usuarios", icon: Users };
+  };
+
+  const headerInfo = getHeaderInfo();
+  const HeaderIcon = headerInfo.icon;
+
   const navItems = [
     { name: "Gestión de Usuarios", path: "/admin/usuarios", icon: Users },
     { name: "Cursos y Materias", path: "/admin/cursos", icon: BookOpen },
     { name: "Horarios y Salones", path: "/admin/horarios", icon: Calendar },
     { name: "Docentes y Nóminas", path: "/admin/docentes", icon: CreditCard },
     { name: "Control de Asistencias", path: "/admin/incidentes", icon: ClipboardCheck },
-    { name: "Matrículas y Pagos", path: null, icon: CreditCard },
+    { name: "Matrículas y Pagos", path: "/admin/matriculas", icon: Wallet },
     { name: "Métricas y Reportes", path: null, icon: BarChart3 },
     { name: "Configuración", path: null, icon: Settings },
   ];
@@ -177,6 +191,13 @@ export default function AdminLayout() {
           >
             Control de Asistencias
           </NavLink>
+          <NavLink
+            to="/admin/matriculas"
+            onClick={() => setMobileMenuOpen(false)}
+            className="block px-3 py-2 rounded bg-blue-800 text-sm font-medium"
+          >
+            Matrículas y Pagos
+          </NavLink>
           <button
             onClick={handleLogout}
             className="w-full text-left px-3 py-2 rounded bg-red-600/30 text-red-200 text-sm font-medium"
@@ -192,8 +213,8 @@ export default function AdminLayout() {
         <header className="h-16 bg-white border-b border-slate-200 px-6 flex items-center justify-between shadow-2xs">
           <div className="flex items-center space-x-3">
             <h1 className="text-lg font-bold text-slate-800 flex items-center gap-2">
-              <Users className="w-5 h-5 text-[#1E3A8A]" />
-              Directorio Institucional de Usuarios
+              <HeaderIcon className="w-5 h-5 text-[#1E3A8A]" />
+              {headerInfo.title}
             </h1>
             <span className="hidden lg:inline-flex text-xs px-2.5 py-0.5 rounded-full bg-blue-100 text-[#1E3A8A] font-semibold">
               Ciclo 2026-I
