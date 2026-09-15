@@ -1,10 +1,12 @@
 import React, { useEffect, useState } from "react";
 import { X } from "lucide-react";
 import { ACADEMIC_AREAS, getCareersByArea } from "../../data/academicCatalog";
+import { userService } from "../../services/api";
 
 const emptyFormData = {
     asignatura: "",
     docente: "",
+    docenteId: "",
     codigo: "",
     dias: [],
     horaInicio: "08:00",
@@ -12,7 +14,8 @@ const emptyFormData = {
     area: "Ciencias Exactas",
     carrera: "",
     estado: "Activo",
-    repositorio: "drive.google.com"
+    repositorio: "drive.google.com",
+    meetUrl: ""
 };
 
 const DAY_NAMES = {
@@ -46,6 +49,7 @@ const getFormData = (course) => {
 export default function CursoRegistroModal({ isOpen, onClose, onAddCourse, onUpdateCourse, courseToEdit }) {
   const [formData, setFormData] = useState({ ...emptyFormData });
   const availableCareers = getCareersByArea(formData.area);
+  const docentes = userService.getUsers().filter((user) => String(user.rol).toLowerCase() === "docente");
 
   useEffect(() => {
     if (isOpen) setFormData(getFormData(courseToEdit));
@@ -77,9 +81,11 @@ export default function CursoRegistroModal({ isOpen, onClose, onAddCourse, onUpd
     e.preventDefault();
       if (!formData.asignatura || !formData.docente || !formData.dias?.length || formData.dias.length > 2 || !formData.horaInicio || !formData.horaFin) return;
 
+    const selectedTeacher = docentes.find((docente) => `${docente.nombres} ${docente.apellidos}` === formData.docente);
     const course = {
       id: courseToEdit?.id || Date.now(),
       ...formData,
+      docenteId: formData.docenteId || selectedTeacher?.id || courseToEdit?.docenteId || "",
       horario: `${formData.dias.join(" y ")} ${formData.horaInicio} - ${formData.horaFin}`,
       carrera: formData.carrera,
       codigo: formData.codigo.toUpperCase() || "CURSO-NEW",
@@ -129,12 +135,35 @@ export default function CursoRegistroModal({ isOpen, onClose, onAddCourse, onUpd
             <label className="block text-xs font-semibold text-slate-700 mb-1">
               Docente Titular *
             </label>
-            <input
-              type="text"
+            <select
               name="docente"
               value={formData.docente}
               onChange={handleChange}
-              placeholder="Ej. Ing. Carlos Pérez"
+              required
+              className="w-full px-3 py-2 border border-slate-200 rounded-lg text-xs bg-slate-50 focus:bg-white focus:outline-hidden focus:border-[#1E3A8A] transition-all"
+            >
+              <option value="">Seleccionar docente</option>
+              {formData.docente && !docentes.some((docente) => `${docente.nombres} ${docente.apellidos}` === formData.docente) && (
+                <option value={formData.docente}>{formData.docente}</option>
+              )}
+              {docentes.map((docente) => (
+                <option key={docente.id} value={`${docente.nombres} ${docente.apellidos}`}>
+                  {docente.nombres} {docente.apellidos}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div>
+            <label className="block text-xs font-semibold text-slate-700 mb-1">
+              Enlace de Google Meet *
+            </label>
+            <input
+              type="url"
+              name="meetUrl"
+              value={formData.meetUrl || ""}
+              onChange={handleChange}
+              placeholder="https://meet.google.com/..."
               required
               className="w-full px-3 py-2 border border-slate-200 rounded-lg text-xs bg-slate-50 focus:bg-white focus:outline-hidden focus:border-[#1E3A8A] transition-all"
             />

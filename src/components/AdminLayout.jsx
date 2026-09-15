@@ -1,10 +1,12 @@
 import React, { useState } from "react";
-import { Outlet, NavLink, useNavigate } from "react-router-dom";
+import { Outlet, NavLink, useNavigate, useLocation } from "react-router-dom";
 import {
   Users,
   BookOpen,
   Calendar,
   ClipboardCheck,
+  CreditCard,
+  Wallet,
   BarChart3,
   Settings,
   LogOut,
@@ -18,6 +20,7 @@ import {
 
 export default function AdminLayout() {
   const navigate = useNavigate();
+  const location = useLocation();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const userName = localStorage.getItem("userName") || "Administrador General";
   const userEmail = localStorage.getItem("userEmail") || "admin@academia.edu.pe";
@@ -29,13 +32,28 @@ export default function AdminLayout() {
     navigate("/login");
   };
 
+  const getHeaderInfo = () => {
+    if (location.pathname.includes("/admin/cursos")) return { title: "Catálogo de Cursos y Materias", icon: BookOpen };
+    if (location.pathname.includes("/admin/horarios")) return { title: "Horarios y Salones de Clase", icon: Calendar };
+    if (location.pathname.includes("/admin/docentes")) return { title: "Gestión de Docentes y Nóminas", icon: CreditCard };
+    if (location.pathname.includes("/admin/incidentes")) return { title: "Control de Asistencias e Incidencias", icon: ClipboardCheck };
+    if (location.pathname.includes("/admin/matriculas")) return { title: "Matrículas y Pagos", icon: Wallet };
+    if (location.pathname.includes("/admin/usuarios")) return { title: "Cuentas y Accesos", icon: Users };
+    return { title: "Directorio Institucional de Usuarios", icon: Users };
+  };
+
+  const headerInfo = getHeaderInfo();
+  const HeaderIcon = headerInfo.icon;
+
   const navItems = [
-    { name: "Gestión de Usuarios", path: "/admin/usuarios", icon: Users },
+    { name: "Cuentas y Accesos", path: "/admin/usuarios", icon: Users },
+    { name: "Estudiantes", path: "/admin/estudiantes", icon: Users },
     { name: "Cursos y Materias", path: "/admin/cursos", icon: BookOpen },
     { name: "Horarios y Salones", path: "/admin/horarios", icon: Calendar },
+    { name: "Docentes y Nóminas", path: "/admin/docentes", icon: CreditCard },
     { name: "Control de Asistencias", path: "/admin/incidentes", icon: ClipboardCheck },
-    { name: "Métricas y Reportes", path: null, icon: BarChart3 },
-    { name: "Configuración", path: null, icon: Settings },
+    { name: "Matrículas y Pagos", path: "/admin/matriculas", icon: Wallet },
+
   ];
 
   return (
@@ -146,7 +164,7 @@ export default function AdminLayout() {
             onClick={() => setMobileMenuOpen(false)}
             className="block px-3 py-2 rounded bg-blue-800 text-sm font-medium"
           >
-            Gestión de Usuarios 
+            Cuentas y Accesos
           </NavLink>
           <NavLink
             to="/admin/cursos"
@@ -156,11 +174,32 @@ export default function AdminLayout() {
             Cursos y Materias
           </NavLink>
           <NavLink
+            to="/admin/estudiantes"
+            onClick={() => setMobileMenuOpen(false)}
+            className="block px-3 py-2 rounded bg-blue-800 text-sm font-medium"
+          >
+            Estudiantes
+          </NavLink>
+          <NavLink
+            to="/admin/docentes"
+            onClick={() => setMobileMenuOpen(false)}
+            className="block px-3 py-2 rounded bg-blue-800 text-sm font-medium"
+          >
+            Docentes y Nóminas
+          </NavLink>
+          <NavLink
             to="/admin/incidentes"
             onClick={() => setMobileMenuOpen(false)}
             className="block px-3 py-2 rounded bg-blue-800 text-sm font-medium"
           >
             Control de Asistencias
+          </NavLink>
+          <NavLink
+            to="/admin/matriculas"
+            onClick={() => setMobileMenuOpen(false)}
+            className="block px-3 py-2 rounded bg-blue-800 text-sm font-medium"
+          >
+            Matrículas y Pagos
           </NavLink>
           <button
             onClick={handleLogout}
@@ -177,8 +216,8 @@ export default function AdminLayout() {
         <header className="h-16 bg-white border-b border-slate-200 px-6 flex items-center justify-between shadow-2xs">
           <div className="flex items-center space-x-3">
             <h1 className="text-lg font-bold text-slate-800 flex items-center gap-2">
-              <Users className="w-5 h-5 text-[#1E3A8A]" />
-              Directorio Institucional de Usuarios
+              <HeaderIcon className="w-5 h-5 text-[#1E3A8A]" />
+              {headerInfo.title}
             </h1>
             <span className="hidden lg:inline-flex text-xs px-2.5 py-0.5 rounded-full bg-blue-100 text-[#1E3A8A] font-semibold">
               Ciclo 2026-I

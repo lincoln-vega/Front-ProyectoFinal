@@ -8,6 +8,8 @@ const KEYS = {
   SECTIONS: "academia_sections"
 };
 
+const SYSTEM_ROLES = ["Admin", "Docente", "Estudiante"];
+
 // --- SERVICIO DE USUARIOS ---
 const removeVirtualCycleField = (users) => users.map(({ cicloVirtual, ...user }) => user);
 
@@ -37,18 +39,23 @@ export const roleService = {
     const saved = localStorage.getItem(KEYS.ROLES);
     if (!saved) {
       localStorage.setItem(KEYS.ROLES, JSON.stringify(db.roles));
-      return db.roles;
+      return SYSTEM_ROLES;
     }
     try {
-      return JSON.parse(saved);
+      const roles = JSON.parse(saved)
+        .map((role) => String(role).trim())
+        .filter((role) => SYSTEM_ROLES.includes(role));
+      const resolvedRoles = roles.length ? roles : SYSTEM_ROLES;
+      localStorage.setItem(KEYS.ROLES, JSON.stringify(resolvedRoles));
+      return resolvedRoles;
     } catch {
-      return db.roles;
+      return SYSTEM_ROLES;
     }
   },
   saveRoles: (roles) => localStorage.setItem(KEYS.ROLES, JSON.stringify(roles)),
   resetRoles: () => {
-    localStorage.setItem(KEYS.ROLES, JSON.stringify(db.roles));
-    return db.roles;
+    localStorage.setItem(KEYS.ROLES, JSON.stringify(SYSTEM_ROLES));
+    return SYSTEM_ROLES;
   }
 };
 
@@ -80,7 +87,11 @@ export const courseService = {
   getCourses: () => {
     const saved = localStorage.getItem(KEYS.COURSES);
     const courses = saved ? JSON.parse(saved) : db.courses;
-    const normalizedCourses = removeClassroomField(courses);
+    const normalizedCourses = removeClassroomField(courses).map((course) => ({
+      ...course,
+      docenteId: course.docenteId || db.courses.find((initialCourse) => initialCourse.id === course.id)?.docenteId || "",
+      meetUrl: course.meetUrl || db.courses.find((initialCourse) => initialCourse.id === course.id)?.meetUrl || ""
+    }));
     localStorage.setItem(KEYS.COURSES, JSON.stringify(normalizedCourses));
     return normalizedCourses;
   },

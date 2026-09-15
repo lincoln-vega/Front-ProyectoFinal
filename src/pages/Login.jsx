@@ -17,7 +17,9 @@ export default function Login() {
     if (foundUser) {
       const userRoleLower = foundUser.rol.toLowerCase();
       localStorage.setItem('userRole', userRoleLower);
+      localStorage.setItem('userId', foundUser.id);
       localStorage.setItem('userName', `${foundUser.nombres} ${foundUser.apellidos}`);
+      localStorage.setItem('userEmail', foundUser.correo);
 
       if (userRoleLower === 'admin') {
         navigate('/admin/usuarios');

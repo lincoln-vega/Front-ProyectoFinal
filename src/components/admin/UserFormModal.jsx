@@ -7,7 +7,8 @@ export default function UserFormModal({
   roles = [],
   onChange,
   onSubmit,
-  onClose
+  onClose,
+  showRole = true
 }) {
   const availableCareers = getCareersByArea(formData.areaAcademica);
 
@@ -139,8 +140,7 @@ export default function UserFormModal({
               </select>
             </div>
 
-            {/* Mapeo dinámico de Roles */}
-            <div>
+            {showRole && <div>
               <label className="block text-xs font-semibold text-slate-700 mb-1">
                 Rol *
               </label>
@@ -156,7 +156,7 @@ export default function UserFormModal({
                   </option>
                 ))}
               </select>
-            </div>
+            </div>}
 
             <div>
               <label className="block text-xs font-semibold text-slate-700 mb-1">

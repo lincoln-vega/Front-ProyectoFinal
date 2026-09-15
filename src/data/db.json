@@ -99,10 +99,9 @@
     }
   ],
   "roles": [
-    "Estudiante",
+    "Admin",
     "Docente",
-    "Administrativo",
-    "Super Admin"
+    "Estudiante"
   ],
   "incidents": [
     {
@@ -125,8 +124,10 @@
       "asignatura": "Álgebra y Funciones",
       "area": "Ciencias Exactas",
       "carrera": "Ingeniería de Sistemas",
+      "docenteId": "USR-002",
       "docente": "Prof. Carmen Rosa Herrera",
       "horario": "Lunes y Miércoles 08:00 - 10:00 AM",
+      "meetUrl": "https://meet.google.com/abc-defg-hij",
       "repositorio": "drive.google.com/mat101",
       "estado": "Activo"
     },
@@ -135,8 +136,10 @@
       "asignatura": "Física Fundamental",
       "area": "Ciencias Exactas",
       "carrera": "Ingeniería de Sistemas",
+      "docenteId": "USR-003",
       "docente": "Prof. Miguel Ángel Paredes",
       "horario": "Martes y Jueves 08:00 - 10:00 AM",
+      "meetUrl": "https://meet.google.com/klm-nopq-rst",
       "repositorio": "campus.pre.pe/fisica",
       "estado": "Activo"
     },
@@ -145,8 +148,10 @@
       "asignatura": "Biología y Anatomía",
       "area": "Ciencias Médicas",
       "carrera": "Medicina Humana",
+      "docenteId": "USR-004",
       "docente": "Dra. Elena Sofía Torres",
       "horario": "Lunes y Viernes 03:00 - 05:00 PM",
+      "meetUrl": "https://meet.google.com/uvw-xyza-bcd",
       "repositorio": "campus.pre.pe/bio",
       "estado": "Activo"
     }

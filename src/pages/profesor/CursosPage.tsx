@@ -1,56 +1,59 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import CursoDetalleView from './CursoDetallePage';
+import { Video } from 'lucide-react';
+import { courseService } from '../../services/api';
+import { getTeacherAttendances, saveTeacherAttendance } from '../../services/asistencia';
 
 interface Curso {
   id: string;
-  nombre: string;
-  codigo: string;
-  modalidad: string;
-  profesor: string;
-  inscritos: number;
-  capacidad: number;
+  asignatura: string;
+  codigo?: string;
+  docente: string;
   horario: string;
-  estado: 'Publicado' | 'Borrador';
+  estado: string;
+  meetUrl?: string;
 }
+
+const normalizeName = (value: string) => value
+  .toLowerCase()
+  .replace(/^(prof\.|dra\.|dr\.|ing\.|lic\.)\s*/i, '')
+  .trim();
 
 export default function CursosProfesorPage() {
   const [cursoSeleccionado, setCursoSeleccionado] = useState<Curso | null>(null);
+  const userId = localStorage.getItem('userId') || '';
+  const userName = localStorage.getItem('userName') || '';
+  const userEmail = localStorage.getItem('userEmail') || '';
+  const [startedCourses, setStartedCourses] = useState<string[]>(() => {
+    const today = new Date().toISOString().slice(0, 10);
+    return getTeacherAttendances()
+      .filter((attendance) => attendance.docenteId === userEmail || attendance.docente === userName)
+      .filter((attendance) => attendance.fecha === today)
+      .map((attendance) => attendance.cursoId);
+  });
+  const listaCursos = useMemo(() => courseService.getCourses()
+    .filter((course) => course.estado === 'Activo')
+    .filter((course) => {
+      const assignedTeacher = normalizeName(course.docente || '');
+      return course.docenteId === userId || assignedTeacher === normalizeName(userName) || Boolean(userEmail && course.docente?.toLowerCase().includes(userEmail.toLowerCase()));
+    }), [userEmail, userId, userName]);
 
-  const listaCursos: Curso[] = [
-    {
-      id: '1',
-      nombre: 'Introducción al Cálculo Avanzado',
-      codigo: 'MAT-301',
-      modalidad: 'Semestre A',
-      profesor: 'Dra. Elena Ramírez',
-      inscritos: 45,
-      capacidad: 50,
-      horario: 'Mar/Jue',
-      estado: 'Publicado'
-    },
-    {
-      id: '2',
-      nombre: 'Desarrollo Web Full Stack',
-      codigo: 'CS-405',
-      modalidad: 'Bootcamp',
-      profesor: 'Ing. Carlos Mendoza',
-      inscritos: 0,
-      capacidad: 30,
-      horario: 'Por definir',
-      estado: 'Borrador'
-    },
-    {
-      id: '3',
-      nombre: 'Historia Contemporánea',
-      codigo: 'HUM-102',
-      modalidad: 'Semestre B',
-      profesor: 'Lic. Sofía Bernal',
-      inscritos: 120,
-      capacidad: 150,
-      horario: 'Lun/Mie/Vie',
-      estado: 'Publicado'
-    }
-  ];
+  const handleStartMeet = (curso: Curso) => {
+    const now = new Date();
+    saveTeacherAttendance({
+      id: `TATT-${now.getTime()}`,
+      docenteId: userEmail || userName,
+      docente: userName,
+      cursoId: curso.id,
+      curso: curso.asignatura,
+      fecha: now.toISOString().slice(0, 10),
+      horaIngreso: now.toLocaleTimeString('es-PE'),
+      estado: 'Presente',
+      meetUrl: curso.meetUrl
+    });
+    setStartedCourses((current) => current.includes(curso.id) ? current : [...current, curso.id]);
+    window.open(curso.meetUrl, '_blank', 'noopener,noreferrer');
+  };
 
   if (cursoSeleccionado) {
     return (
@@ -117,7 +120,7 @@ export default function CursosProfesorPage() {
             <div>
               <div className="flex items-start justify-between gap-2 pb-3 border-b border-slate-800">
                 <h3 className="font-bold text-white text-sm group-hover:text-indigo-400 transition-colors">
-                  {curso.nombre}
+                  {curso.asignatura}
                 </h3>
                 <button
                   type="button"
@@ -132,27 +135,30 @@ export default function CursosProfesorPage() {
 
               <div className="my-3 space-y-1.5">
                 <p className="text-xs text-slate-400 font-medium">
-                  {curso.codigo} • <span className="text-indigo-400">{curso.modalidad}</span>
+                  {curso.codigo || 'Sin código'}
                 </p>
                 <p className="text-xs text-slate-300 flex items-center gap-1.5">
-                  <span className="text-slate-500">👤</span> {curso.profesor}
+                  <span className="text-slate-500">👤</span> Docente asignado: {curso.docente}
                 </p>
               </div>
             </div>
 
             <div className="pt-3 border-t border-slate-800 flex items-center justify-between text-xs">
               <span className="text-slate-400 flex items-center gap-1">
-                👥 <span className="text-slate-200 font-semibold">{curso.inscritos}/{curso.capacidad}</span>
+                🗓️ <span className="text-slate-200 font-semibold">{curso.horario}</span>
               </span>
-              {curso.estado === 'Borrador' ? (
-                <span className="px-2 py-0.5 rounded bg-amber-950/60 text-amber-400 border border-amber-800/50 text-[11px] font-medium">
-                  📄 Borrador
-                </span>
-              ) : (
-                <span className="text-emerald-400 font-medium flex items-center gap-1">
-                  🕒 {curso.horario}
-                </span>
-              )}
+              <button
+                type="button"
+                disabled={!curso.meetUrl}
+                onClick={(event) => {
+                  event.stopPropagation();
+                  handleStartMeet(curso);
+                }}
+                className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-600 px-3 py-1.5 text-[11px] font-semibold text-white transition-colors hover:bg-emerald-700 disabled:cursor-not-allowed disabled:bg-slate-700"
+              >
+                <Video className="h-3.5 w-3.5" />
+                {startedCourses.includes(curso.id) ? 'Asistencia registrada' : curso.meetUrl ? 'Iniciar Meet' : 'Sin enlace Meet'}
+              </button>
             </div>
           </div>
         ))}
