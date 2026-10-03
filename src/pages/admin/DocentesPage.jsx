@@ -150,18 +150,18 @@ export default function DocentesPage() {
   return (
     <div className="space-y-6">
       {/* HEADER */}
-      <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-2xs">
+      <div className="bg-white/60 dark:bg-white/5 backdrop-blur-2xl p-5 rounded-xl border border-slate-200 dark:border-white/10 shadow-2xs">
         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
           <div>
             <div className="flex items-center space-x-2">
-              <span className="px-2 py-0.5 rounded bg-amber-100 text-amber-800 text-xs font-bold uppercase tracking-wider">
+              <span className="px-2 py-0.5 rounded bg-amber-100 dark:bg-amber-900/30 text-amber-800 dark:text-amber-400 text-xs font-bold uppercase tracking-wider">
                 Nóminas e Incidencias
               </span>
-              <h2 className="text-xl font-bold text-slate-800">
+              <h2 className="text-xl font-bold text-slate-800 dark:text-white">
                 Gestión de Docentes
               </h2>
             </div>
-            <p className="text-xs text-slate-500 mt-1">
+            <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
               Control de información de docentes, salarios y registro de incidencias laborales.
             </p>
           </div>
@@ -178,15 +178,15 @@ export default function DocentesPage() {
         </div>
 
         {/* SEARCH */}
-        <div className="mt-5 grid grid-cols-1 gap-3 pt-4 border-t border-slate-100">
+        <div className="mt-5 grid grid-cols-1 gap-3 pt-4 border-t border-slate-100 dark:border-white/10">
           <div className="relative">
-            <Search className="w-4 h-4 text-slate-400 absolute left-3 top-2.5" />
+            <Search className="w-4 h-4 text-slate-400 dark:text-slate-500 absolute left-3 top-2.5" />
             <input
               type="text"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               placeholder="Buscar docente por nombre o documento..."
-              className="w-full pl-9 pr-4 py-2 text-xs border border-slate-200 rounded-lg bg-slate-50 focus:bg-white focus:outline-hidden focus:border-[#1E3A8A] focus:ring-1 focus:ring-[#1E3A8A] transition-all"
+              className="w-full pl-9 pr-4 py-2 text-xs border border-slate-200 dark:border-white/10 rounded-lg bg-slate-50 dark:bg-white/5 dark:text-white focus:bg-white dark:focus:bg-slate-900 focus:outline-hidden focus:border-[#1E3A8A] focus:ring-1 focus:ring-[#1E3A8A] transition-all"
             />
           </div>
         </div>
@@ -195,67 +195,67 @@ export default function DocentesPage() {
       {/* LIST OF DOCENTES */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
         {filteredDocentes.map((docente) => (
-          <div key={docente.id} className="bg-white border border-slate-200 rounded-xl overflow-hidden shadow-xs hover:shadow-md transition-shadow flex flex-col">
-            <div className="p-4 border-b border-slate-100 bg-slate-50/50 flex items-start justify-between">
+          <div key={docente.id} className="bg-white/60 dark:bg-white/5 backdrop-blur-2xl border border-slate-200 dark:border-white/10 rounded-xl overflow-hidden shadow-xs hover:shadow-md transition-shadow flex flex-col">
+            <div className="p-4 border-b border-slate-100 dark:border-white/10 bg-slate-50/50 dark:bg-white/5 flex items-start justify-between">
               <div className="flex items-center space-x-3">
-                <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center text-blue-700 font-bold border border-blue-200">
+                <div className="w-10 h-10 rounded-full bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center text-blue-700 dark:text-blue-400 font-bold border border-blue-200 dark:border-blue-900/50">
                   {docente.nombre.charAt(0)}
                 </div>
                 <div>
-                  <h3 className="text-sm font-bold text-slate-800 line-clamp-1">
+                  <h3 className="text-sm font-bold text-slate-800 dark:text-white line-clamp-1">
                     {docente.nombre}
                   </h3>
-                  <div className="flex items-center text-xs text-slate-500 mt-0.5">
+                  <div className="flex items-center text-xs text-slate-500 dark:text-slate-400 mt-0.5">
                     <Briefcase className="w-3 h-3 mr-1" />
                     {docente.especialidad}
                   </div>
                 </div>
               </div>
-              <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase ${docente.estado === 'Activo' ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-700'}`}>
+              <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase ${docente.estado === 'Activo' ? 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400' : 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400'}`}>
                 {docente.estado}
               </span>
             </div>
             
             <div className="p-4 flex-1 space-y-3">
-              <div className="flex items-center justify-between text-xs border-b border-dashed border-slate-200 pb-2">
-                <span className="text-slate-500 flex items-center"><User className="w-3.5 h-3.5 mr-1"/> Documento:</span>
-                <span className="font-semibold text-slate-700">{docente.documento}</span>
+              <div className="flex items-center justify-between text-xs border-b border-dashed border-slate-200 dark:border-white/10 pb-2">
+                <span className="text-slate-500 dark:text-slate-400 flex items-center"><User className="w-3.5 h-3.5 mr-1"/> Documento:</span>
+                <span className="font-semibold text-slate-700 dark:text-slate-300">{docente.documento}</span>
               </div>
               
-              <div className="flex items-center justify-between text-xs border-b border-dashed border-slate-200 pb-2">
-                <span className="text-slate-500 flex items-center"><DollarSign className="w-3.5 h-3.5 mr-1"/> Nómina/Salario:</span>
-                <span className="font-bold text-emerald-600">S/ {docente.salario.toFixed(2)}</span>
+              <div className="flex items-center justify-between text-xs border-b border-dashed border-slate-200 dark:border-white/10 pb-2">
+                <span className="text-slate-500 dark:text-slate-400 flex items-center"><DollarSign className="w-3.5 h-3.5 mr-1"/> Nómina/Salario:</span>
+                <span className="font-bold text-emerald-600 dark:text-emerald-400">S/ {docente.salario.toFixed(2)}</span>
               </div>
 
               <div className="pt-1">
-                <span className="text-xs text-slate-500 flex items-center mb-1">
+                <span className="text-xs text-slate-500 dark:text-slate-400 flex items-center mb-1">
                   <AlertTriangle className="w-3.5 h-3.5 mr-1 text-amber-500"/> Incidencias ({docente.incidencias.length}):
                 </span>
                 {docente.incidencias.length > 0 ? (
                   <ul className="text-[11px] space-y-1 mt-2">
                     {docente.incidencias.map((inc) => (
-                      <li key={inc.id} className="bg-amber-50 text-amber-800 p-1.5 rounded flex gap-1 border border-amber-100">
+                      <li key={inc.id} className="bg-amber-50 dark:bg-amber-900/10 text-amber-800 dark:text-amber-400 p-1.5 rounded flex gap-1 border border-amber-100 dark:border-amber-900/30">
                         <span className="font-bold">{inc.fecha}:</span> {inc.descripcion}
                       </li>
                     ))}
                   </ul>
                 ) : (
-                  <p className="text-[11px] text-slate-400 italic">Sin incidencias registradas.</p>
+                  <p className="text-[11px] text-slate-400 dark:text-slate-500 italic">Sin incidencias registradas.</p>
                 )}
               </div>
             </div>
 
-            <div className="p-3 border-t border-slate-100 bg-slate-50 flex gap-2 justify-end">
+            <div className="p-3 border-t border-slate-100 dark:border-white/10 bg-slate-50 dark:bg-white/5 flex gap-2 justify-end">
               <button 
                 onClick={() => handleOpenModal(docente)}
-                className="p-1.5 text-blue-600 hover:bg-blue-100 rounded transition-colors"
+                className="p-1.5 text-blue-600 dark:text-blue-400 hover:bg-blue-100 dark:hover:bg-blue-900/30 rounded transition-colors"
                 title="Editar docente e incidencias"
               >
                 <Edit2 className="w-4 h-4" />
               </button>
               <button 
                 onClick={() => handleDelete(docente.id)}
-                className="p-1.5 text-red-600 hover:bg-red-100 rounded transition-colors"
+                className="p-1.5 text-red-600 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-900/30 rounded transition-colors"
                 title="Eliminar docente"
               >
                 <Trash2 className="w-4 h-4" />
@@ -267,13 +267,13 @@ export default function DocentesPage() {
 
       {/* MODAL FORM */}
       {isModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-xs">
-          <div className="bg-white rounded-xl shadow-xl w-full max-w-md overflow-hidden flex flex-col max-h-[90vh]">
-            <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50">
-              <h3 className="font-bold text-slate-800 flex items-center">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-xs">
+          <div className="bg-white/60 dark:bg-white/5 backdrop-blur-2xl rounded-xl shadow-xl w-full max-w-md overflow-hidden flex flex-col max-h-[90vh] border dark:border-white/10">
+            <div className="px-5 py-4 border-b border-slate-100 dark:border-white/10 flex items-center justify-between bg-slate-50 dark:bg-white/5">
+              <h3 className="font-bold text-slate-800 dark:text-white flex items-center">
                 {currentDocente ? "Editar Docente" : "Nuevo Docente"}
               </h3>
-              <button onClick={handleCloseModal} className="text-slate-400 hover:text-slate-600">
+              <button onClick={handleCloseModal} className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-300">
                 ✕
               </button>
             </div>
@@ -281,28 +281,28 @@ export default function DocentesPage() {
             <div className="p-5 overflow-y-auto flex-1">
               <form id="docente-form" onSubmit={handleSaveDocente} className="space-y-4">
                 <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-1">Nombre Completo</label>
-                  <input required type="text" value={nombre} onChange={e => setNombre(e.target.value)} className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:ring-1 focus:ring-blue-500 focus:border-blue-500 outline-hidden" />
+                  <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">Nombre Completo</label>
+                  <input required type="text" value={nombre} onChange={e => setNombre(e.target.value)} className="w-full px-3 py-2 text-sm border border-slate-200 dark:border-white/10 rounded-lg focus:ring-1 focus:ring-blue-500 focus:border-blue-500 outline-hidden bg-white/60 dark:bg-white/5 backdrop-blur-2xl/50 dark:text-white" />
                 </div>
                 
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-xs font-semibold text-slate-700 mb-1">Documento</label>
-                    <input required type="text" value={documento} onChange={e => setDocumento(e.target.value)} className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:ring-1 focus:ring-blue-500 focus:border-blue-500 outline-hidden" />
+                    <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">Documento</label>
+                    <input required type="text" value={documento} onChange={e => setDocumento(e.target.value)} className="w-full px-3 py-2 text-sm border border-slate-200 dark:border-white/10 rounded-lg focus:ring-1 focus:ring-blue-500 focus:border-blue-500 outline-hidden bg-white/60 dark:bg-white/5 backdrop-blur-2xl/50 dark:text-white" />
                   </div>
                   <div>
-                    <label className="block text-xs font-semibold text-slate-700 mb-1">Salario (S/)</label>
-                    <input required type="number" step="0.01" min="0" value={salario} onChange={e => setSalario(e.target.value)} className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:ring-1 focus:ring-blue-500 focus:border-blue-500 outline-hidden" />
+                    <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">Salario (S/)</label>
+                    <input required type="number" step="0.01" min="0" value={salario} onChange={e => setSalario(e.target.value)} className="w-full px-3 py-2 text-sm border border-slate-200 dark:border-white/10 rounded-lg focus:ring-1 focus:ring-blue-500 focus:border-blue-500 outline-hidden bg-white/60 dark:bg-white/5 backdrop-blur-2xl/50 dark:text-white" />
                   </div>
                 </div>
 
                 <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-1">Especialidad</label>
-                  <input required type="text" value={especialidad} onChange={e => setEspecialidad(e.target.value)} className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:ring-1 focus:ring-blue-500 focus:border-blue-500 outline-hidden" />
+                  <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">Especialidad</label>
+                  <input required type="text" value={especialidad} onChange={e => setEspecialidad(e.target.value)} className="w-full px-3 py-2 text-sm border border-slate-200 dark:border-white/10 rounded-lg focus:ring-1 focus:ring-blue-500 focus:border-blue-500 outline-hidden bg-white/60 dark:bg-white/5 backdrop-blur-2xl/50 dark:text-white" />
                 </div>
 
-                <div className="border-t border-slate-100 pt-4 mt-4">
-                  <label className="block text-xs font-semibold text-slate-700 mb-1 flex items-center">
+                <div className="border-t border-slate-100 dark:border-white/10 pt-4 mt-4">
+                  <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1 flex items-center">
                     <AlertTriangle className="w-3.5 h-3.5 mr-1 text-amber-500"/>
                     Registrar Nueva Incidencia (Opcional)
                   </label>
@@ -310,17 +310,17 @@ export default function DocentesPage() {
                     value={incidenciaDesc} 
                     onChange={e => setIncidenciaDesc(e.target.value)}
                     placeholder="Ej. Lleganza tardía, falta justificada, etc."
-                    className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:ring-1 focus:ring-blue-500 focus:border-blue-500 outline-hidden h-20 resize-none"
+                    className="w-full px-3 py-2 text-sm border border-slate-200 dark:border-white/10 rounded-lg focus:ring-1 focus:ring-blue-500 focus:border-blue-500 outline-hidden h-20 resize-none bg-white/60 dark:bg-white/5 backdrop-blur-2xl/50 dark:text-white"
                   ></textarea>
                 </div>
               </form>
             </div>
             
-            <div className="px-5 py-4 border-t border-slate-100 bg-slate-50 flex justify-end gap-2">
-              <button type="button" onClick={handleCloseModal} className="px-4 py-2 text-xs font-semibold text-slate-600 bg-white border border-slate-300 rounded-lg hover:bg-slate-50">
+            <div className="px-5 py-4 border-t border-slate-100 dark:border-white/10 bg-slate-50 dark:bg-white/5 flex justify-end gap-2">
+              <button type="button" onClick={handleCloseModal} className="px-4 py-2 text-xs font-semibold text-slate-600 dark:text-slate-300 bg-white dark:bg-white/5 border border-slate-300 dark:border-white/10 rounded-lg hover:bg-slate-50 dark:hover:bg-white/5">
                 Cancelar
               </button>
-              <button type="submit" form="docente-form" className="px-4 py-2 text-xs font-semibold text-white bg-blue-600 rounded-lg hover:bg-blue-700">
+              <button type="submit" form="docente-form" className="px-4 py-2 text-xs font-semibold text-white bg-blue-600 hover:bg-blue-700 rounded-lg">
                 Guardar Docente
               </button>
             </div>
