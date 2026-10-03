@@ -1,12 +1,11 @@
 import React, { useState } from "react";
-import { Outlet, NavLink, useNavigate, useLocation } from "react-router-dom";
+import { Outlet, NavLink, useNavigate } from "react-router-dom";
 import {
   Users,
   BookOpen,
   Calendar,
   ClipboardCheck,
   CreditCard,
-  Wallet,
   BarChart3,
   Settings,
   LogOut,
@@ -17,10 +16,10 @@ import {
   Search,
   ShieldCheck
 } from "lucide-react";
+import ThemeToggle from "./ThemeToggle";
 
 export default function AdminLayout() {
   const navigate = useNavigate();
-  const location = useLocation();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const userName = localStorage.getItem("userName") || "Administrador General";
   const userEmail = localStorage.getItem("userEmail") || "admin@academia.edu.pe";
@@ -32,34 +31,20 @@ export default function AdminLayout() {
     navigate("/login");
   };
 
-  const getHeaderInfo = () => {
-    if (location.pathname.includes("/admin/cursos")) return { title: "Catálogo de Cursos y Materias", icon: BookOpen };
-    if (location.pathname.includes("/admin/horarios")) return { title: "Horarios y Salones de Clase", icon: Calendar };
-    if (location.pathname.includes("/admin/docentes")) return { title: "Gestión de Docentes y Nóminas", icon: CreditCard };
-    if (location.pathname.includes("/admin/incidentes")) return { title: "Control de Asistencias e Incidencias", icon: ClipboardCheck };
-    if (location.pathname.includes("/admin/matriculas")) return { title: "Matrículas y Pagos", icon: Wallet };
-    if (location.pathname.includes("/admin/usuarios")) return { title: "Cuentas y Accesos", icon: Users };
-    return { title: "Directorio Institucional de Usuarios", icon: Users };
-  };
-
-  const headerInfo = getHeaderInfo();
-  const HeaderIcon = headerInfo.icon;
-
   const navItems = [
-    { name: "Cuentas y Accesos", path: "/admin/usuarios", icon: Users },
-    { name: "Estudiantes", path: "/admin/estudiantes", icon: Users },
+    { name: "Gestión de Usuarios", path: "/admin/usuarios", icon: Users },
     { name: "Cursos y Materias", path: "/admin/cursos", icon: BookOpen },
-    { name: "Horarios y Salones", path: "/admin/horarios", icon: Calendar },
     { name: "Docentes y Nóminas", path: "/admin/docentes", icon: CreditCard },
     { name: "Control de Asistencias", path: "/admin/incidentes", icon: ClipboardCheck },
-    { name: "Matrículas y Pagos", path: "/admin/matriculas", icon: Wallet },
-
+    { name: "Matrículas y Pagos", path: "/admin/matriculas", icon: CreditCard },
+    { name: "Métricas y Reportes", path: "/admin/reportes", icon: BarChart3 },
+    { name: "Configuración", path: "/admin/configuracion", icon: Settings },
   ];
 
   return (
-    <div className="min-h-screen bg-slate-100 flex flex-col md:flex-row">
+    <div className="min-h-screen bg-slate-100 dark:bg-[#0a0a0e] flex flex-col md:flex-row transition-colors duration-500">
       {/* SIDEBAR PARA ESCRITORIO */}
-      <aside className="hidden md:flex md:w-64 bg-[#1E3A8A] flex-col justify-between text-white shadow-xl z-20 shrink-0">
+      <aside className="hidden md:flex md:w-64 bg-[#1E3A8A] dark:bg-white/5 dark:backdrop-blur-2xl dark:border-r dark:border-white/10 flex-col justify-between text-white shadow-xl z-20 shrink-0">
         <div>
           {/* Logo Corporativo */}
           <div className="h-16 px-6 flex items-center space-x-3 border-b border-blue-800/80 bg-blue-950/40">
@@ -89,14 +74,19 @@ export default function AdminLayout() {
                   to={item.path}
                   className={({ isActive }) => `flex items-center justify-between px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${
                     isActive
-                      ? "bg-blue-800 text-white shadow-xs border-l-4 border-amber-400"
-                      : "text-blue-100 hover:bg-blue-800/50 hover:text-white"
+                      ? "bg-blue-800 dark:bg-white/10 text-white shadow-xs border-l-4 border-amber-400"
+                      : "text-blue-100 dark:text-slate-300 hover:bg-blue-800/50 dark:hover:bg-white/5 hover:text-white"
                   }`}
                 >
                   <div className="flex items-center space-x-3">
                     <Icon className="w-4 h-4 text-amber-300" />
                     <span>{item.name}</span>
                   </div>
+                  {item.path === "/admin/usuarios" && (
+                    <span className="text-[10px] bg-amber-400 text-blue-950 font-bold px-1.5 py-0.5 rounded">
+                      SCRM-4
+                    </span>
+                  )}
                 </NavLink>
               ) : (
                 <div
@@ -142,7 +132,7 @@ export default function AdminLayout() {
       </aside>
 
       {/* HEADER MÓVIL */}
-      <div className="md:hidden bg-[#1E3A8A] text-white px-4 py-3 flex items-center justify-between shadow-md">
+      <div className="md:hidden bg-[#1E3A8A] dark:bg-white/5 dark:backdrop-blur-2xl dark:border-b dark:border-white/10 text-white px-4 py-3 flex items-center justify-between shadow-md">
         <div className="flex items-center space-x-2">
           <School className="w-6 h-6 text-amber-300" />
           <span className="font-bold text-sm">Academia Pre - Admin</span>
@@ -157,81 +147,63 @@ export default function AdminLayout() {
 
       {/* MENÚ MÓVIL DESPLEGABLE */}
       {mobileMenuOpen && (
-        <div className="md:hidden bg-blue-900 text-white border-b border-blue-800 p-4 space-y-3">
-          <div className="text-xs text-blue-200">Conectado como: {userName}</div>
-          <NavLink
-            to="/admin/usuarios"
-            onClick={() => setMobileMenuOpen(false)}
-            className="block px-3 py-2 rounded bg-blue-800 text-sm font-medium"
-          >
-            Cuentas y Accesos
-          </NavLink>
-          <NavLink
-            to="/admin/cursos"
-            onClick={() => setMobileMenuOpen(false)}
-            className="block px-3 py-2 rounded bg-blue-800 text-sm font-medium"
-          >
-            Cursos y Materias
-          </NavLink>
-          <NavLink
-            to="/admin/estudiantes"
-            onClick={() => setMobileMenuOpen(false)}
-            className="block px-3 py-2 rounded bg-blue-800 text-sm font-medium"
-          >
-            Estudiantes
-          </NavLink>
-          <NavLink
-            to="/admin/docentes"
-            onClick={() => setMobileMenuOpen(false)}
-            className="block px-3 py-2 rounded bg-blue-800 text-sm font-medium"
-          >
-            Docentes y Nóminas
-          </NavLink>
-          <NavLink
-            to="/admin/incidentes"
-            onClick={() => setMobileMenuOpen(false)}
-            className="block px-3 py-2 rounded bg-blue-800 text-sm font-medium"
-          >
-            Control de Asistencias
-          </NavLink>
-          <NavLink
-            to="/admin/matriculas"
-            onClick={() => setMobileMenuOpen(false)}
-            className="block px-3 py-2 rounded bg-blue-800 text-sm font-medium"
-          >
-            Matrículas y Pagos
-          </NavLink>
-          <button
-            onClick={handleLogout}
-            className="w-full text-left px-3 py-2 rounded bg-red-600/30 text-red-200 text-sm font-medium"
-          >
-            Cerrar Sesión
-          </button>
+        <div className="md:hidden bg-blue-900 dark:bg-[#0a0a0e]/95 dark:backdrop-blur-2xl text-white border-b border-blue-800 dark:border-white/10 p-4 space-y-3 relative z-50">
+          <div className="text-xs text-blue-200 dark:text-slate-400 pb-2 border-b border-blue-800/50 dark:border-white/10">Conectado como: {userName}</div>
+          {navItems.map((item) => {
+            const Icon = item.icon;
+            return item.path ? (
+              <NavLink
+                key={item.name}
+                to={item.path}
+                onClick={() => setMobileMenuOpen(false)}
+                className={({ isActive }) => `flex items-center space-x-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+                  isActive
+                    ? "bg-blue-800 dark:bg-white/10 text-white shadow-xs border-l-4 border-amber-400"
+                    : "text-blue-100 dark:text-slate-300 hover:bg-blue-800/50 dark:hover:bg-white/5 hover:text-white"
+                }`}
+              >
+                <Icon className="w-4 h-4 text-amber-300" />
+                <span>{item.name}</span>
+              </NavLink>
+            ) : null;
+          })}
+          <div className="pt-2">
+            <button
+              onClick={handleLogout}
+              className="w-full flex items-center justify-center space-x-2 px-3 py-2 rounded bg-red-600/30 dark:bg-red-900/40 text-red-200 dark:text-red-400 text-sm font-medium hover:bg-red-600/50 dark:hover:bg-red-900/60 transition-colors"
+            >
+              <LogOut className="w-4 h-4" />
+              <span>Cerrar Sesión</span>
+            </button>
+          </div>
         </div>
       )}
 
       {/* CONTENIDO PRINCIPAL */}
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
         {/* Top Navbar */}
-        <header className="h-16 bg-white border-b border-slate-200 px-6 flex items-center justify-between shadow-2xs">
+        <header className="h-16 bg-white dark:bg-white/5 dark:backdrop-blur-2xl border-b border-slate-200 dark:border-white/10 px-6 flex items-center justify-between shadow-2xs">
           <div className="flex items-center space-x-3">
-            <h1 className="text-lg font-bold text-slate-800 flex items-center gap-2">
-              <HeaderIcon className="w-5 h-5 text-[#1E3A8A]" />
-              {headerInfo.title}
+            <h1 className="text-lg font-bold text-slate-800 dark:text-white flex items-center gap-2">
+              <Users className="w-5 h-5 text-[#1E3A8A] dark:text-blue-400" />
+              Directorio Institucional
             </h1>
-            <span className="hidden lg:inline-flex text-xs px-2.5 py-0.5 rounded-full bg-blue-100 text-[#1E3A8A] font-semibold">
+            <span className="hidden lg:inline-flex text-xs px-2.5 py-0.5 rounded-full bg-blue-100 dark:bg-blue-900/40 text-[#1E3A8A] dark:text-blue-300 font-semibold border dark:border-blue-700/50">
               Ciclo 2026-I
             </span>
           </div>
 
           <div className="flex items-center space-x-4">
-            <div className="hidden sm:flex items-center text-xs text-slate-500 bg-slate-100 px-3 py-1.5 rounded-lg border border-slate-200">
+            <div className="hidden sm:flex items-center text-xs text-slate-500 dark:text-slate-300 bg-slate-100 dark:bg-white/5 px-3 py-1.5 rounded-lg border border-slate-200 dark:border-white/10">
               <span className="w-2 h-2 rounded-full bg-emerald-500 mr-2 animate-pulse" />
               Servidor Local Simulado Activo
             </div>
+            
+            <ThemeToggle />
+
             <button
               onClick={handleLogout}
-              className="text-xs font-medium text-slate-600 hover:text-red-600 flex items-center space-x-1 p-2 rounded-md hover:bg-slate-100 transition-colors cursor-pointer"
+              className="text-xs font-medium text-slate-600 dark:text-slate-300 hover:text-red-600 dark:hover:text-red-400 flex items-center space-x-1 p-2 rounded-md hover:bg-slate-100 dark:hover:bg-white/5 transition-colors cursor-pointer"
               title="Cerrar sesión"
             >
               <LogOut className="w-4 h-4" />
@@ -241,7 +213,7 @@ export default function AdminLayout() {
         </header>
 
         {/* Área del cuerpo con scroll independiente */}
-        <main className="flex-1 overflow-y-auto p-4 md:p-6 bg-slate-50">
+        <main className="flex-1 overflow-y-auto p-4 md:p-6 bg-slate-50 dark:bg-[#0a0a0e]/50">
           <Outlet />
         </main>
       </div>

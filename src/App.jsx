@@ -1,43 +1,41 @@
 import React from "react";
 import { Routes, Route, Navigate } from "react-router-dom";
 import Login from "./pages/Login";
-import ProtectedRoute, { normalizeRole } from "./components/ProtectedRoute";
+import ProtectedRoute from "./components/ProtectedRoute";
 import AdminLayout from "./components/AdminLayout";
 import AdminUsersPage from "./pages/admin/AdminUsersPage";
-import AdminStudentsPage from "./pages/admin/AdminStudentsPage";
 import CursoPage from "./pages/admin/CursoPage";
 import StudentLayout from "./components/StudentLayout";
 import StudentDashboardPage from "./pages/student/StudentDashboardPage";
 import ControlAsistenciasPage from "./pages/admin/ControIncidenciasPage";
-import HorariosSalonesPage from "./pages/admin/HorariosSalonesPage";
 import DocentesPage from "./pages/admin/DocentesPage";
-import MatriculasPagosPage from "./pages/admin/MatriculasPagosPage";
 
-import ProfesorLayout from "./components/ProfesorLayout";
-import InterfazProfesorPage from "./pages/profesor/InterfazProfesorPage";
-import CursosProfesorPage from "./pages/profesor/CursosPage";
-import AsistenciaProfesorPage from "./pages/profesor/AsistenciaPage";
-import ProgramacionProfesorPage from "./pages/profesor/ProgramacionPage";
-import PerfilProfesorPage from "./pages/profesor/PerfilPage";
+import DocenteLayout from "./components/DocenteLayout";
+import DocenteDashboardPage from "./pages/docente/DocenteDashboardPage";
+import AdminMatriculasPage from "./pages/admin/AdminMatriculasPage";
+import AdminReportesPage from "./pages/admin/AdminReportesPage";
+import AdminConfiguracionPage from "./pages/admin/AdminConfiguracionPage";
+import DocenteCursosPage from "./pages/docente/DocenteCursosPage";
+import DocenteHorariosPage from "./pages/docente/DocenteHorariosPage";
 
 export default function App() {
   return (
     <Routes>
-      {/* 1. Ruta de Autenticación / Login */}
+      {/* 1. Ruta de Autenticación / FakeLogin (SCRM-26) */}
       <Route path="/login" element={<Login />} />
 
-      {/* Redirección por defecto de la raíz según el rol almacenado */}
+      {/* Redirección por defecto de la raíz */}
       <Route
         path="/"
         element={
           <Navigate
             to={
-              normalizeRole(localStorage.getItem("userRole")) === "admin"
+              localStorage.getItem("userRole") === "admin"
                 ? "/admin/usuarios"
-                : normalizeRole(localStorage.getItem("userRole")) === "estudiante"
-                ? "/estudiante/panel"
-                : normalizeRole(localStorage.getItem("userRole")) === "docente"
+                : localStorage.getItem("userRole") === "docente"
                 ? "/docente/panel"
+                : localStorage.getItem("userRole") === "estudiante"
+                ? "/estudiante/panel"
                 : "/login"
             }
             replace
@@ -45,39 +43,35 @@ export default function App() {
         }
       />
 
-      {/* 2. Rutas de Administrador Protegidas */}
+      {/* 2. Rutas de Administrador Protegidas (Solo rol "admin") */}
       <Route element={<ProtectedRoute allowedRoles={["admin"]} />}>
         <Route path="/admin" element={<AdminLayout />}>
           <Route index element={<Navigate to="/admin/usuarios" replace />} />
           <Route path="usuarios" element={<AdminUsersPage />} />
-          <Route path="estudiantes" element={<AdminStudentsPage />} />
           <Route path="cursos" element={<CursoPage />} />
           <Route path="docentes" element={<DocentesPage />} />
-          <Route path="incidentes" element={<ControlAsistenciasPage />} />
-          <Route path="horarios" element={<HorariosSalonesPage />} />
-          <Route path="matriculas" element={<MatriculasPagosPage />} />
-          <Route path="pagos" element={<Navigate to="/admin/matriculas" replace />} />
+          <Route path="incidentes" element= {<ControlAsistenciasPage/>} />
+          <Route path="matriculas" element={<AdminMatriculasPage />} />
+          <Route path="reportes" element={<AdminReportesPage />} />
+          <Route path="configuracion" element={<AdminConfiguracionPage />} />
         </Route>
       </Route>
 
-      {/* 3. Rutas de Estudiante Protegidas */}
+      {/* Rutas de Docente Protegidas (Solo rol "docente") */}
+      <Route element={<ProtectedRoute allowedRoles={["docente"]} />}>
+        <Route path="/docente" element={<DocenteLayout />}>
+          <Route index element={<Navigate to="/docente/panel" replace />} />
+          <Route path="panel" element={<DocenteDashboardPage />} />
+          <Route path="cursos" element={<DocenteCursosPage />} />
+          <Route path="horarios" element={<DocenteHorariosPage />} />
+        </Route>
+      </Route>
+
+      {/* 3. Rutas de Estudiante Protegidas (Solo rol "estudiante") */}
       <Route element={<ProtectedRoute allowedRoles={["estudiante"]} />}>
         <Route path="/estudiante" element={<StudentLayout />}>
           <Route index element={<Navigate to="/estudiante/panel" replace />} />
           <Route path="panel" element={<StudentDashboardPage />} />
-        </Route>
-      </Route>
-
-      {/* 4. Rutas de Docente Protegidas */}
-      <Route element={<ProtectedRoute allowedRoles={["docente", "admin"]} />}>
-        <Route path="/docente" element={<ProfesorLayout />}>
-          <Route index element={<Navigate to="/docente/panel" replace />} />
-          <Route path="panel" element={<InterfazProfesorPage />} />
-          <Route path="cursos" element={<CursosProfesorPage />} />
-          <Route path="asistencia" element={<AsistenciaProfesorPage />} />
-          <Route path="programacion" element={<ProgramacionProfesorPage />} />
-          <Route path="perfil" element={<PerfilProfesorPage />} />
-          <Route path="matriculas" element={<MatriculasPagosPage />} />
         </Route>
       </Route>
 

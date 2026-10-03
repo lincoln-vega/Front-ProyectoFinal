@@ -1,23 +1,32 @@
 import { useState } from "react";
-import { UserPlus, ShieldCheck, GraduationCap, BriefcaseBusiness } from "lucide-react";
+import { RotateCcw, UserPlus, ShieldCheck } from "lucide-react";
 import Notification from "../../components/admin/Notification";
 import UserFilters from "../../components/admin/UserFilters";
 import UserFormModal from "../../components/admin/UserFormModal";
+import RolesModal from "../../components/admin/RolesModal";
 import UsersTable from "../../components/admin/UsersTable";
 import useUsers, { createInitialUserForm } from "../../hooks/useUsers";
 
 export default function AdminUsersPage() {
   const {
     users,
+    roles,
+    addRole,
+    editRole,
+    deleteRole,
+    resetUsers,
     deleteUser,
     saveUser
   } = useUsers();
 
   const [searchTerm, setSearchTerm] = useState("");
+  const [roleFilter, setRoleFilter] = useState("TODOS");
   const [statusFilter, setStatusFilter] = useState("TODOS");
   const [notification, setNotification] = useState(null);
   
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isRolesModalOpen, setIsRolesModalOpen] = useState(false);
+  
   const [editingUserId, setEditingUserId] = useState(null);
   const [formData, setFormData] = useState(createInitialUserForm);
 
@@ -29,12 +38,12 @@ export default function AdminUsersPage() {
   const closeModal = () => {
     setIsModalOpen(false);
     setEditingUserId(null);
-    setFormData({ ...createInitialUserForm(), rol: "admin" });
+    setFormData(createInitialUserForm());
   };
 
   const openNewUserModal = () => {
     setEditingUserId(null);
-    setFormData({ ...createInitialUserForm(), rol: "admin" });
+    setFormData(createInitialUserForm());
     setIsModalOpen(true);
   };
 
@@ -50,6 +59,11 @@ export default function AdminUsersPage() {
       deleteUser(user.id);
       showNotification(`Usuario "${fullName}" eliminado del registro.`);
     }
+  };
+
+  const handleResetData = () => {
+    resetUsers();
+    showNotification("Se han restaurado los datos iniciales de prueba.");
   };
 
   const handleSubmitForm = (event) => {
@@ -77,7 +91,7 @@ export default function AdminUsersPage() {
     const matchesSearch = searchableFields.some((field) =>
       String(field || "").toLowerCase().includes(normalizedSearchTerm)
     );
-    const matchesRole = String(user.rol).toLowerCase() === "admin";
+    const matchesRole = roleFilter === "TODOS" || user.rol === roleFilter;
     const matchesStatus = statusFilter === "TODOS" || user.estado === statusFilter;
 
     return matchesSearch && matchesRole && matchesStatus;
@@ -89,43 +103,61 @@ export default function AdminUsersPage() {
         <Notification message={notification} onClose={() => setNotification(null)} />
       )}
 
-      <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-2xs">
+      <div className="bg-white/60 dark:bg-white/5 backdrop-blur-2xl p-5 rounded-xl border border-slate-200 dark:border-white/10 shadow-2xs">
         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+          <div>
+            <div className="flex items-center space-x-2">
+              <span className="px-2 py-0.5 rounded bg-blue-100 text-[#1E3A8A] text-xs font-bold uppercase tracking-wider">
+                Requerimiento SCRM-4
+              </span>
+              <h2 className="text-xl font-bold text-slate-800 dark:text-white">
+                Padrón General de Usuarios de la Academia
+              </h2>
+            </div>
+            <p className="text-xs text-slate-500 mt-1">
+              Administración de matrículas, docentes y personal académico con persistencia en LocalStorage.
+            </p>
+          </div>
+
           <div className="flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              onClick={handleResetData}
+              className="inline-flex items-center space-x-1.5 px-3 py-2 border border-slate-300 text-slate-700 bg-white hover:bg-slate-50 rounded-lg text-xs font-medium shadow-2xs transition-colors cursor-pointer"
+              title="Restaurar datos JSON simulados por defecto"
+            >
+              <RotateCcw className="w-3.5 h-3.5 text-slate-500" />
+              <span>Restablecer Mock</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setIsRolesModalOpen(true)}
+              className="inline-flex items-center space-x-1.5 px-3 py-2 border border-slate-300 text-slate-700 bg-white hover:bg-slate-50 rounded-lg text-xs font-medium shadow-2xs transition-colors cursor-pointer"
+            >
+              <ShieldCheck className="w-4 h-4 text-slate-600" />
+              <span>Gestionar Roles</span>
+            </button>
+
             <button
               type="button"
               onClick={openNewUserModal}
               className="inline-flex items-center space-x-2 px-4 py-2 bg-[#1E3A8A] text-white hover:bg-blue-800 rounded-lg text-xs font-semibold shadow-xs transition-colors cursor-pointer"
             >
               <UserPlus className="w-4 h-4 text-amber-300" />
-              <span>Nueva cuenta Admin</span>
+              <span>Nuevo Usuario</span>
             </button>
-          </div>
-        </div>
-
-        <div className="mt-5 grid grid-cols-1 md:grid-cols-3 gap-3 pt-4 border-t border-slate-100">
-          <div className="rounded-lg border border-blue-100 bg-blue-50/60 p-3">
-            <div className="flex items-center gap-2 text-xs font-bold text-[#1E3A8A]"><ShieldCheck className="w-4 h-4" />Cuentas y accesos</div>
-            <p className="mt-1 text-[11px] leading-relaxed text-slate-600">Aquí se activan, bloquean o editan las cuentas administrativas. No se registran alumnos ni docentes.</p>
-          </div>
-          <div className="rounded-lg border border-emerald-100 bg-emerald-50/60 p-3">
-            <div className="flex items-center gap-2 text-xs font-bold text-emerald-800"><GraduationCap className="w-4 h-4" />Matrículas</div>
-            <p className="mt-1 text-[11px] leading-relaxed text-slate-600">El alta del estudiante comienza al crear una matrícula y genera su acceso automáticamente.</p>
-          </div>
-          <div className="rounded-lg border border-amber-100 bg-amber-50/60 p-3">
-            <div className="flex items-center gap-2 text-xs font-bold text-amber-800"><BriefcaseBusiness className="w-4 h-4" />Docentes y nóminas</div>
-            <p className="mt-1 text-[11px] leading-relaxed text-slate-600">El docente se registra en su módulo laboral, junto con especialidad, salario e incidencias.</p>
           </div>
         </div>
 
         <UserFilters
           searchTerm={searchTerm}
-          roleFilter="admin"
+          roleFilter={roleFilter}
           statusFilter={statusFilter}
-          roles={[]}
+          roles={roles}
           onSearchChange={setSearchTerm}
+          onRoleChange={setRoleFilter}
           onStatusChange={setStatusFilter}
-          showRoleFilter={false}
         />
       </div>
 
@@ -142,14 +174,22 @@ export default function AdminUsersPage() {
         <UserFormModal
           isEditing={Boolean(editingUserId)}
           formData={formData}
-          roles={["admin"]}
-          showRole={false}
+          roles={roles}
           onChange={setFormData}
           onSubmit={handleSubmitForm}
           onClose={closeModal}
         />
       )}
 
+      {isRolesModalOpen && (
+        <RolesModal
+          roles={roles}
+          onAddRole={addRole}
+          onEditRole={editRole}
+          onDeleteRole={deleteRole}
+          onClose={() => setIsRolesModalOpen(false)}
+        />
+      )}
     </div>
   );
 }
