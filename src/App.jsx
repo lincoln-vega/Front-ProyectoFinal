@@ -12,6 +12,11 @@ import DocentesPage from "./pages/admin/DocentesPage";
 
 import DocenteLayout from "./components/DocenteLayout";
 import DocenteDashboardPage from "./pages/docente/DocenteDashboardPage";
+import AdminMatriculasPage from "./pages/admin/AdminMatriculasPage";
+import AdminReportesPage from "./pages/admin/AdminReportesPage";
+import AdminConfiguracionPage from "./pages/admin/AdminConfiguracionPage";
+import DocenteCursosPage from "./pages/docente/DocenteCursosPage";
+import DocenteHorariosPage from "./pages/docente/DocenteHorariosPage";
 
 export default function App() {
   return (
@@ -46,6 +51,9 @@ export default function App() {
           <Route path="cursos" element={<CursoPage />} />
           <Route path="docentes" element={<DocentesPage />} />
           <Route path="incidentes" element= {<ControlAsistenciasPage/>} />
+          <Route path="matriculas" element={<AdminMatriculasPage />} />
+          <Route path="reportes" element={<AdminReportesPage />} />
+          <Route path="configuracion" element={<AdminConfiguracionPage />} />
         </Route>
       </Route>
 
@@ -54,6 +62,8 @@ export default function App() {
         <Route path="/docente" element={<DocenteLayout />}>
           <Route index element={<Navigate to="/docente/panel" replace />} />
           <Route path="panel" element={<DocenteDashboardPage />} />
+          <Route path="cursos" element={<DocenteCursosPage />} />
+          <Route path="horarios" element={<DocenteHorariosPage />} />
         </Route>
       </Route>
 

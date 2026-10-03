@@ -103,14 +103,14 @@ export default function AdminUsersPage() {
         <Notification message={notification} onClose={() => setNotification(null)} />
       )}
 
-      <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-2xs">
+      <div className="bg-white/60 dark:bg-white/5 backdrop-blur-2xl p-5 rounded-xl border border-slate-200 dark:border-white/10 shadow-2xs">
         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
           <div>
             <div className="flex items-center space-x-2">
               <span className="px-2 py-0.5 rounded bg-blue-100 text-[#1E3A8A] text-xs font-bold uppercase tracking-wider">
                 Requerimiento SCRM-4
               </span>
-              <h2 className="text-xl font-bold text-slate-800">
+              <h2 className="text-xl font-bold text-slate-800 dark:text-white">
                 Padrón General de Usuarios de la Academia
               </h2>
             </div>

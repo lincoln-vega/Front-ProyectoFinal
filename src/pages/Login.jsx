@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { ShieldCheck, GraduationCap, School, User, Lock, ArrowRight, Briefcase } from "lucide-react";
+import { ShieldCheck, GraduationCap, User, Lock, ArrowRight, Briefcase } from "lucide-react";
+import ThemeToggle from "../components/ThemeToggle";
 
 export default function Login() {
   const navigate = useNavigate();
@@ -44,87 +45,88 @@ export default function Login() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-100 flex flex-col justify-center items-center p-4">
-      <div className="w-full max-w-md bg-white rounded-2xl shadow-xl border border-slate-200 overflow-hidden">
-        <div className="bg-[#1E3A8A] text-white p-8 text-center relative overflow-hidden">
-          <div className="absolute -right-8 -top-8 w-32 h-32 bg-blue-800 rounded-full opacity-40 pointer-events-none" />
-          <div className="absolute -left-8 -bottom-8 w-24 h-24 bg-blue-700 rounded-full opacity-30 pointer-events-none" />
-          
-          <div className="inline-flex items-center justify-center w-16 h-16 bg-white/10 rounded-2xl mb-4 backdrop-blur-xs border border-white/20">
-            <School className="w-9 h-9 text-white" />
-          </div>
-          <h1 className="text-2xl font-bold tracking-tight">Academia Preuniversitaria</h1>
-          <p className="text-blue-200 text-sm mt-1">
-            Sistema Integrado de Gestión Académica (SCRM)
-          </p>
-        </div>
+    <div className="min-h-screen bg-slate-50 dark:bg-[#0a0a0e] relative flex items-center justify-center p-4 overflow-hidden transition-colors duration-500">
+      {/* Luces Ambientales (Glows) */}
+      <div className="absolute top-1/4 left-1/4 w-[500px] h-[500px] bg-blue-600/20 dark:bg-blue-600/10 rounded-full blur-[120px] pointer-events-none" />
+      <div className="absolute bottom-1/4 right-1/4 w-[400px] h-[400px] bg-purple-600/20 dark:bg-purple-600/10 rounded-full blur-[100px] pointer-events-none" />
+      
+      {/* Theme Toggle Superior */}
+      <div className="absolute top-6 right-6 z-50">
+        <ThemeToggle />
+      </div>
 
-        <div className="p-8 space-y-6">
-          <form onSubmit={handleLogin} className="space-y-4">
+      <div className="w-full max-w-sm z-10">
+        {/* Glassmorphism Card */}
+        <div className="bg-white/60 dark:bg-white/5 backdrop-blur-2xl border border-white/40 dark:border-white/10 p-8 rounded-3xl shadow-2xl dark:shadow-[0_0_40px_rgba(0,0,0,0.5)]">
+          
+          <div className="text-center mb-10">
+            <div className="inline-flex items-center justify-center w-12 h-12 bg-blue-600/10 dark:bg-white/5 rounded-xl mb-4 border border-blue-600/20 dark:border-white/10">
+              <ShieldCheck className="w-6 h-6 text-blue-600 dark:text-blue-400" />
+            </div>
+            <h1 className="text-2xl font-semibold tracking-tight text-slate-900 dark:text-white">Academia SCRM</h1>
+            <p className="text-sm text-slate-500 dark:text-slate-400 mt-1 font-light">Dev Environment v2.4</p>
+          </div>
+
+          <form onSubmit={handleLogin} className="space-y-6">
             {error && (
-              <div className="p-3 bg-red-50 text-red-600 text-sm rounded-lg border border-red-200 text-center">
+              <div className="p-3 bg-red-500/10 border border-red-500/20 text-red-600 dark:text-red-400 text-sm rounded-xl text-center backdrop-blur-md">
                 {error}
               </div>
             )}
             
-            <div className="space-y-1">
-              <label className="text-sm font-semibold text-slate-700">Correo Electrónico</label>
-              <div className="relative">
-                <User className="w-5 h-5 text-slate-400 absolute left-3 top-2.5" />
+            <div className="space-y-4">
+              <div className="relative group">
+                <User className="w-4 h-4 text-slate-400 dark:text-slate-500 absolute left-0 top-3" />
                 <input 
                   type="email" 
                   required
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  placeholder="ej. admin@academia.edu.pe" 
-                  className="w-full pl-10 pr-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-hidden transition-all"
+                  placeholder="Correo institucional" 
+                  className="w-full pl-7 pr-4 py-2 bg-transparent border-b border-slate-300 dark:border-slate-700 text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 focus:border-blue-500 dark:focus:border-blue-400 outline-none transition-colors"
                 />
               </div>
-            </div>
 
-            <div className="space-y-1">
-              <label className="text-sm font-semibold text-slate-700">Contraseña</label>
-              <div className="relative">
-                <Lock className="w-5 h-5 text-slate-400 absolute left-3 top-2.5" />
+              <div className="relative group">
+                <Lock className="w-4 h-4 text-slate-400 dark:text-slate-500 absolute left-0 top-3" />
                 <input 
                   type="password" 
                   required
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  placeholder="••••••••" 
-                  className="w-full pl-10 pr-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-hidden transition-all"
+                  placeholder="Contraseña" 
+                  className="w-full pl-7 pr-4 py-2 bg-transparent border-b border-slate-300 dark:border-slate-700 text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 focus:border-blue-500 dark:focus:border-blue-400 outline-none transition-colors"
                 />
               </div>
             </div>
 
-            <button type="submit" className="w-full bg-[#1E3A8A] text-white font-bold py-3 px-4 rounded-lg hover:bg-blue-800 transition-colors shadow-md flex justify-center items-center gap-2 cursor-pointer">
-              Iniciar Sesión <ArrowRight className="w-5 h-5" />
+            <button type="submit" className="w-full bg-slate-900 dark:bg-white text-white dark:text-black font-medium py-2.5 px-4 rounded-xl hover:bg-slate-800 dark:hover:bg-gray-100 transition-all flex justify-center items-center gap-2 group shadow-[0_0_15px_rgba(0,0,0,0.1)] dark:shadow-[0_0_20px_rgba(255,255,255,0.1)]">
+              Ingresar a la Plataforma <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
             </button>
           </form>
 
-          <div className="relative">
-            <div className="absolute inset-0 flex items-center">
-              <div className="w-full border-t border-slate-200"></div>
+          <div className="mt-8 pt-6 border-t border-slate-200 dark:border-white/10">
+            <p className="text-xs text-center text-slate-500 dark:text-slate-400 mb-4 font-light tracking-wide uppercase">Accesos Rápidos (Sandbox)</p>
+            <div className="flex justify-center gap-2">
+              <button onClick={() => loginDirecto("admin", "admin@academia.edu.pe", "admin123", "Roberto Morales")} className="flex-1 py-2 bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/20 rounded-lg flex flex-col items-center justify-center transition-colors group">
+                <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 mb-1" />
+                <span className="text-[10px] font-medium text-slate-600 dark:text-slate-300">Admin</span>
+              </button>
+              <button onClick={() => loginDirecto("docente", "docente@academia.edu.pe", "docente123", "Lincoln Vega")} className="flex-1 py-2 bg-blue-500/10 hover:bg-blue-500/20 border border-blue-500/20 rounded-lg flex flex-col items-center justify-center transition-colors group">
+                <div className="w-1.5 h-1.5 rounded-full bg-blue-500 mb-1" />
+                <span className="text-[10px] font-medium text-slate-600 dark:text-slate-300">Docente</span>
+              </button>
+              <button onClick={() => loginDirecto("estudiante", "estudiante@academia.edu.pe", "estudiante123", "Juan Carlos Flores")} className="flex-1 py-2 bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/20 rounded-lg flex flex-col items-center justify-center transition-colors group">
+                <div className="w-1.5 h-1.5 rounded-full bg-amber-500 mb-1" />
+                <span className="text-[10px] font-medium text-slate-600 dark:text-slate-300">Estudiante</span>
+              </button>
             </div>
-            <div className="relative flex justify-center text-xs">
-              <span className="bg-white px-2 text-slate-500">O accesos rápidos de prueba</span>
-            </div>
+          </div>
+          
+          <div className="mt-6 text-center">
+            <span className="text-[10px] text-slate-400 dark:text-slate-500 font-mono">SCRM Core • Conexión Segura TLS 1.3</span>
           </div>
 
-          <div className="grid grid-cols-3 gap-2">
-            <button onClick={() => loginDirecto("admin", "admin@academia.edu.pe", "admin123", "Roberto Morales")} className="p-2 border border-slate-200 rounded-lg flex flex-col items-center hover:bg-blue-50 hover:border-blue-300 transition-colors cursor-pointer group">
-              <ShieldCheck className="w-5 h-5 text-slate-500 group-hover:text-blue-600 mb-1" />
-              <span className="text-[10px] font-semibold text-slate-600">Admin</span>
-            </button>
-            <button onClick={() => loginDirecto("docente", "docente@academia.edu.pe", "docente123", "Lincoln Vega")} className="p-2 border border-slate-200 rounded-lg flex flex-col items-center hover:bg-amber-50 hover:border-amber-300 transition-colors cursor-pointer group">
-              <Briefcase className="w-5 h-5 text-slate-500 group-hover:text-amber-600 mb-1" />
-              <span className="text-[10px] font-semibold text-slate-600">Docente</span>
-            </button>
-            <button onClick={() => loginDirecto("estudiante", "estudiante@academia.edu.pe", "estudiante123", "Juan Carlos Flores")} className="p-2 border border-slate-200 rounded-lg flex flex-col items-center hover:bg-emerald-50 hover:border-emerald-300 transition-colors cursor-pointer group">
-              <GraduationCap className="w-5 h-5 text-slate-500 group-hover:text-emerald-600 mb-1" />
-              <span className="text-[10px] font-semibold text-slate-600">Estudiante</span>
-            </button>
-          </div>
         </div>
       </div>
     </div>
