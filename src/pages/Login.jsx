@@ -9,31 +9,41 @@ export default function Login() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
 
-  const handleLogin = (e) => {
+  const handleLogin = async (e) => {
     e.preventDefault();
     setError("");
 
-    // Credenciales hardcodeadas para demostración sin backend
-    const credentials = [
-      { email: "admin@academia.edu.pe", pass: "admin123", role: "admin", name: "Roberto Morales" },
-      { email: "docente@academia.edu.pe", pass: "docente123", role: "docente", name: "Lincoln Vega" },
-      { email: "estudiante@academia.edu.pe", pass: "estudiante123", role: "estudiante", name: "Juan Carlos Flores" }
-    ];
+    try {
+      const response = await fetch("http://localhost:8000/usuarios/login", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        // IMPORTANTE: Tu backend espera "correo", no "email"
+        body: JSON.stringify({ correo: email, password: password }),
+      });
 
-    const user = credentials.find(u => u.email === email && u.pass === password);
+      const data = await response.json();
 
-    if (user) {
-      localStorage.setItem("userRole", user.role);
-      localStorage.setItem("userName", user.name);
-      localStorage.setItem("userEmail", user.email);
-      
-      if (user.role === "admin") navigate("/admin/usuarios");
-      else if (user.role === "docente") navigate("/docente/panel");
-      else navigate("/estudiante/panel");
-    } else {
-      setError("Credenciales incorrectas. Inténtalo de nuevo.");
+      if (response.ok) {
+        localStorage.setItem("token_acceso", data.access_token);
+
+        localStorage.setItem("userRole", data.role);
+        localStorage.setItem("userName", data.name);
+        localStorage.setItem("userEmail", email);
+
+        if (data.role === "admin") navigate("/admin/usuarios");
+        else if (data.role === "docente") navigate("/docente/panel");
+        else navigate("/estudiante/panel");
+      } else {
+        setError(data.detail || "Error al iniciar sesión.");
+      }
+    } catch (err) {
+      console.error("Error de red:", err);
+      setError("No se pudo conectar con el servidor. Verifica que el backend esté encendido.");
     }
   };
+
 
   const loginDirecto = (role, email, pass, name) => {
     localStorage.setItem("userRole", role);
@@ -49,7 +59,7 @@ export default function Login() {
       {/* Luces Ambientales (Glows) */}
       <div className="absolute top-1/4 left-1/4 w-[500px] h-[500px] bg-blue-600/20 dark:bg-blue-600/10 rounded-full blur-[120px] pointer-events-none" />
       <div className="absolute bottom-1/4 right-1/4 w-[400px] h-[400px] bg-purple-600/20 dark:bg-purple-600/10 rounded-full blur-[100px] pointer-events-none" />
-      
+
       {/* Theme Toggle Superior */}
       <div className="absolute top-6 right-6 z-50">
         <ThemeToggle />
@@ -58,7 +68,7 @@ export default function Login() {
       <div className="w-full max-w-sm z-10">
         {/* Glassmorphism Card */}
         <div className="bg-white/60 dark:bg-white/5 backdrop-blur-2xl border border-white/40 dark:border-white/10 p-8 rounded-3xl shadow-2xl dark:shadow-[0_0_40px_rgba(0,0,0,0.5)]">
-          
+
           <div className="text-center mb-10">
             <div className="inline-flex items-center justify-center w-12 h-12 bg-blue-600/10 dark:bg-white/5 rounded-xl mb-4 border border-blue-600/20 dark:border-white/10">
               <ShieldCheck className="w-6 h-6 text-blue-600 dark:text-blue-400" />
@@ -73,28 +83,28 @@ export default function Login() {
                 {error}
               </div>
             )}
-            
+
             <div className="space-y-4">
               <div className="relative group">
                 <User className="w-4 h-4 text-slate-400 dark:text-slate-500 absolute left-0 top-3" />
-                <input 
-                  type="email" 
+                <input
+                  type="email"
                   required
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  placeholder="Correo institucional" 
+                  placeholder="Correo institucional"
                   className="w-full pl-7 pr-4 py-2 bg-transparent border-b border-slate-300 dark:border-slate-700 text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 focus:border-blue-500 dark:focus:border-blue-400 outline-none transition-colors"
                 />
               </div>
 
               <div className="relative group">
                 <Lock className="w-4 h-4 text-slate-400 dark:text-slate-500 absolute left-0 top-3" />
-                <input 
-                  type="password" 
+                <input
+                  type="password"
                   required
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  placeholder="Contraseña" 
+                  placeholder="Contraseña"
                   className="w-full pl-7 pr-4 py-2 bg-transparent border-b border-slate-300 dark:border-slate-700 text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 focus:border-blue-500 dark:focus:border-blue-400 outline-none transition-colors"
                 />
               </div>
@@ -122,7 +132,7 @@ export default function Login() {
               </button>
             </div>
           </div>
-          
+
           <div className="mt-6 text-center">
             <span className="text-[10px] text-slate-400 dark:text-slate-500 font-mono">SCRM Core • Conexión Segura TLS 1.3</span>
           </div>

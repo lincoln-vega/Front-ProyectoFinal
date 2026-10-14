@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import CursoDetalleView from './CursoDetallePage';
 import { Video } from 'lucide-react';
 import { courseService } from '../../services/api';
@@ -12,6 +12,11 @@ interface Curso {
   horario: string;
   estado: string;
   meetUrl?: string;
+  docenteId?: string;
+  dias?: string[];
+  horaInicio?: string;
+  horaFin?: string;
+  horario?: string;
 }
 
 const normalizeName = (value: string) => value
@@ -21,6 +26,9 @@ const normalizeName = (value: string) => value
 
 export default function CursosProfesorPage() {
   const [cursoSeleccionado, setCursoSeleccionado] = useState<Curso | null>(null);
+  const [courses, setCourses] = useState<Curso[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
   const userId = localStorage.getItem('userId') || '';
   const userName = localStorage.getItem('userName') || '';
   const userEmail = localStorage.getItem('userEmail') || '';
@@ -31,12 +39,31 @@ export default function CursosProfesorPage() {
       .filter((attendance) => attendance.fecha === today)
       .map((attendance) => attendance.cursoId);
   });
-  const listaCursos = useMemo(() => courseService.getCourses()
+  useEffect(() => {
+    let mounted = true;
+
+    courseService.getCourses()
+      .then((data) => {
+        if (mounted) setCourses(data);
+      })
+      .catch((requestError) => {
+        if (mounted) setError(requestError.message || 'No se pudieron cargar los cursos.');
+      })
+      .finally(() => {
+        if (mounted) setLoading(false);
+      });
+
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
+  const listaCursos = useMemo(() => courses
     .filter((course) => course.estado === 'Activo')
     .filter((course) => {
       const assignedTeacher = normalizeName(course.docente || '');
       return course.docenteId === userId || assignedTeacher === normalizeName(userName) || Boolean(userEmail && course.docente?.toLowerCase().includes(userEmail.toLowerCase()));
-    }), [userEmail, userId, userName]);
+    }), [courses, userEmail, userId, userName]);
 
   const handleStartMeet = (curso: Curso) => {
     const now = new Date();
@@ -66,6 +93,11 @@ export default function CursosProfesorPage() {
 
   return (
     <div className="space-y-6 text-slate-100">
+      {error && (
+        <div className="rounded-lg border border-red-900 bg-red-950/50 p-3 text-sm text-red-300">
+          {error}
+        </div>
+      )}
       {/* Cabecera */}
       <div className="bg-slate-900 p-6 rounded-xl border border-slate-800 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
@@ -111,7 +143,9 @@ export default function CursosProfesorPage() {
 
       {/* Cuadrícula de Cursos */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        {listaCursos.map((curso) => (
+        {loading ? (
+          <p className="text-sm text-slate-400">Cargando cursos...</p>
+        ) : listaCursos.map((curso) => (
           <div
             key={curso.id}
             onClick={() => setCursoSeleccionado(curso)}
@@ -135,7 +169,7 @@ export default function CursosProfesorPage() {
 
               <div className="my-3 space-y-1.5">
                 <p className="text-xs text-slate-400 font-medium">
-                  {curso.codigo || 'Sin código'}
+                  {curso.id}
                 </p>
                 <p className="text-xs text-slate-300 flex items-center gap-1.5">
                   <span className="text-slate-500">👤</span> Docente asignado: {curso.docente}
@@ -145,7 +179,10 @@ export default function CursosProfesorPage() {
 
             <div className="pt-3 border-t border-slate-800 flex items-center justify-between text-xs">
               <span className="text-slate-400 flex items-center gap-1">
-                🗓️ <span className="text-slate-200 font-semibold">{curso.horario}</span>
+                🗓️ <span className="text-slate-200 font-semibold">
+                  {curso.dias?.join(' / ') || curso.horario || 'Horario pendiente'}
+                  {curso.horaInicio && curso.horaFin ? ` ${curso.horaInicio} - ${curso.horaFin}` : ''}
+                </span>
               </span>
               <button
                 type="button"

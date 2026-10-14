@@ -1,169 +1,240 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { X } from "lucide-react";
+import { ACADEMIC_AREAS, getCareersByArea } from "../../data/academicCatalog";
 
-export default function CursoRegistroModal({ isOpen, onClose, onAddCourse }) {
-  const [formData, setFormData] = useState({
-    asignatura: "",
-    docente: "",
-    codigo: "",
-    aula: "",
-    horario: "Lun / Mié 08:00 - 10:00 hrs",
-    area: "Ciencias Exactas",
-    estado: "Activo",
-    tipoSala: "zoom",
-    repositorio: "drive.google.com"
-  });
+const emptyForm = {
+  id: "",
+  asignatura: "",
+  area: "Ciencias Exactas",
+  carrera: "",
+  docenteId: "",
+  docente: "",
+  dias: [],
+  horaInicio: "",
+  horaFin: "",
+  meetUrl: "",
+  repositorio: "",
+  estado: "Activo"
+};
+
+const inputClassName =
+  "w-full px-3 py-2 border border-slate-200 rounded-lg text-xs bg-slate-50 focus:bg-white focus:outline-hidden focus:border-[#1E3A8A]";
+
+export default function CursoRegistroModal({
+  isOpen,
+  onClose,
+  onSaveCourse,
+  courseToEdit
+}) {
+  const [formData, setFormData] = useState(emptyForm);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    if (!isOpen) return;
+    setFormData({ ...emptyForm, ...(courseToEdit || {}) });
+    setError("");
+  }, [courseToEdit, isOpen]);
 
   if (!isOpen) return null;
 
-  const handleChange = (e) => {
-    const { name, value } = e.target;
-    setFormData((prev) => ({ ...prev, [name]: value }));
+  const updateField = (field, value) => {
+    setFormData((current) => ({ ...current, [field]: value }));
   };
 
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    if (!formData.asignatura || !formData.docente) return;
-
-    // Crea el objeto del curso estructurado
-    const newCourse = {
-      id: Date.now(),
-      ...formData,
-      codigo: formData.codigo.toUpperCase() || "CURSO-NEW",
-      aula: formData.aula.toUpperCase() || "AULA-00"
-    };
-
-    onAddCourse(newCourse);
-    onClose();
-
-    // Resetear formulario
-    setFormData({
-      asignatura: "",
-      docente: "",
-      codigo: "",
-      aula: "",
-      horario: "Lun / Mié 08:00 - 10:00 hrs",
-      area: "Ciencias Exactas",
-      estado: "Activo",
-      tipoSala: "zoom",
-      repositorio: "drive.google.com"
-    });
+  const toggleDay = (day) => {
+    setFormData((current) => ({
+      ...current,
+      dias: current.dias.includes(day)
+        ? current.dias.filter((item) => item !== day)
+        : [...current.dias, day]
+    }));
   };
+
+  const handleSubmit = async (event) => {
+    event.preventDefault();
+    setError("");
+
+    if (!formData.dias.length) {
+      setError("Selecciona al menos un día de clases.");
+      return;
+    }
+
+    setSaving(true);
+    try {
+      await onSaveCourse({
+        ...formData,
+        id: formData.id.trim(),
+        dias: formData.dias
+      });
+      onClose();
+    } catch (requestError) {
+      setError(requestError.message || "No se pudo guardar el curso.");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const days = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado"];
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
-      <div className="bg-white dark:bg-white/5 dark:backdrop-blur-2xl rounded-xl shadow-xl border border-slate-200 dark:border-white/10 w-full max-w-md overflow-hidden animate-in fade-in zoom-in-95 duration-150">
-        <div className="flex items-center justify-between p-4 border-b border-slate-100 dark:border-white/10 bg-slate-50/50 dark:bg-white/5">
-          <h3 className="text-base font-bold text-slate-800 dark:text-white">Registrar Nuevo Curso</h3>
-          <button 
-            type="button" 
-            onClick={onClose} 
-            className="p-1 text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300 rounded-lg hover:bg-slate-200/50 dark:hover:bg-white/10 transition-colors cursor-pointer"
-          >
-            <X className="w-5 h-5" />
+      <div className="bg-white rounded-xl shadow-xl border border-slate-200 w-full max-w-3xl max-h-[90vh] overflow-y-auto">
+        <div className="flex items-center justify-between p-4 border-b border-slate-100 bg-slate-50">
+          <h3 className="text-base font-bold text-slate-800">
+            {courseToEdit ? "Editar curso" : "Registrar nuevo curso"}
+          </h3>
+          <button type="button" onClick={onClose} aria-label="Cerrar formulario">
+            <X className="w-5 h-5 text-slate-500" />
           </button>
         </div>
 
         <form onSubmit={handleSubmit} className="p-5 space-y-4">
-          <div>
-            <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-              Nombre de la Asignatura *
-            </label>
-            <input
-              type="text"
-              name="asignatura"
-              value={formData.asignatura}
-              onChange={handleChange}
-              placeholder="Ej. Matemática Discreta"
-              required
-              className="w-full px-3 py-2 border border-slate-200 dark:border-white/10 rounded-lg text-xs bg-slate-50 dark:bg-white/5 dark:text-white focus:bg-white dark:focus:bg-white/10 focus:outline-hidden focus:border-[#1E3A8A] dark:focus:border-blue-500 transition-all"
-            />
-          </div>
+          {error && (
+            <p className="rounded-lg border border-red-200 bg-red-50 p-3 text-xs text-red-700">
+              {error}
+            </p>
+          )}
 
-          <div>
-            <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-              Docente Titular *
-            </label>
-            <input
-              type="text"
-              name="docente"
-              value={formData.docente}
-              onChange={handleChange}
-              placeholder="Ej. Ing. Carlos Pérez"
-              required
-              className="w-full px-3 py-2 border border-slate-200 dark:border-white/10 rounded-lg text-xs bg-slate-50 dark:bg-white/5 dark:text-white focus:bg-white dark:focus:bg-white/10 focus:outline-hidden focus:border-[#1E3A8A] dark:focus:border-blue-500 transition-all"
-            />
-          </div>
-
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">Código</label>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
+            <label className="font-semibold text-slate-700">
+              ID del curso *
               <input
-                type="text"
-                name="codigo"
-                value={formData.codigo}
-                onChange={handleChange}
-                placeholder="Ej. MAT-101"
-                className="w-full px-3 py-2 border border-slate-200 dark:border-white/10 rounded-lg text-xs bg-slate-50 dark:bg-white/5 dark:text-white focus:bg-white dark:focus:bg-white/10 focus:outline-hidden focus:border-[#1E3A8A] dark:focus:border-blue-500 transition-all"
+                required
+                disabled={Boolean(courseToEdit)}
+                value={formData.id}
+                onChange={(event) => updateField("id", event.target.value)}
+                className={inputClassName}
               />
-            </div>
-            <div>
-              <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">Aula</label>
+            </label>
+            <label className="font-semibold text-slate-700">
+              Asignatura *
               <input
-                type="text"
-                name="aula"
-                value={formData.aula}
-                onChange={handleChange}
-                placeholder="Ej. A-201"
-                className="w-full px-3 py-2 border border-slate-200 dark:border-white/10 rounded-lg text-xs bg-slate-50 dark:bg-white/5 dark:text-white focus:bg-white dark:focus:bg-white/10 focus:outline-hidden focus:border-[#1E3A8A] dark:focus:border-blue-500 transition-all"
+                required
+                value={formData.asignatura}
+                onChange={(event) => updateField("asignatura", event.target.value)}
+                className={inputClassName}
               />
-            </div>
-          </div>
-
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                Área Académica
-              </label>
+            </label>
+            <label className="font-semibold text-slate-700">
+              Área *
               <select
-                name="area"
                 value={formData.area}
-                onChange={handleChange}
-                className="w-full px-3 py-2 border border-slate-200 dark:border-white/10 rounded-lg text-xs bg-slate-50 dark:bg-white/5 dark:text-white focus:bg-white dark:focus:bg-white/10 focus:outline-hidden focus:border-[#1E3A8A] dark:focus:border-blue-500 cursor-pointer"
+                onChange={(event) => updateField("area", event.target.value)}
+                className={inputClassName}
               >
-                <option value="Ciencias Exactas" className="dark:bg-[#0a0a0e] dark:text-white">Ciencias Exactas</option>
-                <option value="Ciencias Médicas" className="dark:bg-[#0a0a0e] dark:text-white">Ciencias Médicas</option>
-                <option value="Humanidades y Letras" className="dark:bg-[#0a0a0e] dark:text-white">Humanidades y Letras</option>
+                {ACADEMIC_AREAS.map((area) => (
+                  <option key={area} value={area}>{area}</option>
+                ))}
               </select>
-            </div>
-
-            <div>
-              <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">Estado</label>
+            </label>
+            <label className="font-semibold text-slate-700">
+              Carrera
               <select
-                name="estado"
-                value={formData.estado}
-                onChange={handleChange}
-                className="w-full px-3 py-2 border border-slate-200 dark:border-white/10 rounded-lg text-xs bg-slate-50 dark:bg-white/5 dark:text-white focus:bg-white dark:focus:bg-white/10 focus:outline-hidden focus:border-[#1E3A8A] dark:focus:border-blue-500 cursor-pointer"
+                value={formData.carrera}
+                onChange={(event) => updateField("carrera", event.target.value)}
+                className={inputClassName}
               >
-                <option value="Activo" className="dark:bg-[#0a0a0e] dark:text-white">Activo</option>
-                <option value="En Revisión" className="dark:bg-[#0a0a0e] dark:text-white">En Revisión</option>
+                <option value="">Seleccionar carrera</option>
+                {getCareersByArea(formData.area).map((career) => (
+                  <option key={career} value={career}>{career}</option>
+                ))}
               </select>
+            </label>
+            <label className="font-semibold text-slate-700">
+              ID del docente *
+              <input
+                required
+                value={formData.docenteId}
+                onChange={(event) => updateField("docenteId", event.target.value)}
+                className={inputClassName}
+              />
+            </label>
+            <label className="font-semibold text-slate-700">
+              Nombre del docente *
+              <input
+                required
+                value={formData.docente}
+                onChange={(event) => updateField("docente", event.target.value)}
+                className={inputClassName}
+              />
+            </label>
+            <div className="md:col-span-2">
+              <span className="font-semibold text-slate-700">Días *</span>
+              <div className="mt-2 flex flex-wrap gap-2">
+                {days.map((day) => (
+                  <label key={day} className="flex items-center gap-1 rounded border border-slate-200 px-2 py-1">
+                    <input
+                      type="checkbox"
+                      checked={formData.dias.includes(day)}
+                      onChange={() => toggleDay(day)}
+                    />
+                    {day}
+                  </label>
+                ))}
+              </div>
             </div>
+            <label className="font-semibold text-slate-700">
+              Hora de inicio *
+              <input
+                required
+                type="time"
+                value={formData.horaInicio}
+                onChange={(event) => updateField("horaInicio", event.target.value)}
+                className={inputClassName}
+              />
+            </label>
+            <label className="font-semibold text-slate-700">
+              Hora de fin *
+              <input
+                required
+                type="time"
+                value={formData.horaFin}
+                onChange={(event) => updateField("horaFin", event.target.value)}
+                className={inputClassName}
+              />
+            </label>
+            <label className="font-semibold text-slate-700">
+              Enlace Meet *
+              <input
+                required
+                type="url"
+                value={formData.meetUrl}
+                onChange={(event) => updateField("meetUrl", event.target.value)}
+                className={inputClassName}
+              />
+            </label>
+            <label className="font-semibold text-slate-700">
+              Repositorio
+              <input
+                value={formData.repositorio}
+                onChange={(event) => updateField("repositorio", event.target.value)}
+                className={inputClassName}
+              />
+            </label>
+            <label className="font-semibold text-slate-700">
+              Estado
+              <select
+                value={formData.estado}
+                onChange={(event) => updateField("estado", event.target.value)}
+                className={inputClassName}
+              >
+                <option value="Activo">Activo</option>
+                <option value="Inactivo">Inactivo</option>
+              </select>
+            </label>
           </div>
 
-          <div className="flex justify-end space-x-2 pt-4 border-t border-slate-100 dark:border-white/10">
-            <button
-              type="button"
-              onClick={onClose}
-              className="px-4 py-2 text-xs font-medium text-slate-600 dark:text-slate-300 bg-white dark:bg-transparent border border-slate-200 dark:border-white/10 hover:bg-slate-50 dark:hover:bg-white/10 rounded-lg transition-colors cursor-pointer"
-            >
+          <div className="flex justify-end gap-2 pt-4 border-t border-slate-100">
+            <button type="button" onClick={onClose} className="px-4 py-2 border rounded text-xs">
               Cancelar
             </button>
             <button
               type="submit"
-              className="px-4 py-2 text-xs font-semibold text-white bg-[#1E3A8A] dark:bg-white/10 dark:hover:bg-white/20 border border-transparent dark:border-white/10 rounded-lg transition-colors cursor-pointer shadow-xs"
+              disabled={saving}
+              className="px-4 py-2 bg-[#1E3A8A] text-white font-semibold rounded text-xs disabled:opacity-60"
             >
-              Guardar Curso
+              {saving ? "Guardando..." : "Guardar curso"}
             </button>
           </div>
         </form>
