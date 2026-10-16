@@ -27,7 +27,7 @@ import {
   Mail,
   ArrowUpRight
 } from "lucide-react";
-import { userService } from "../../services/api";
+import { userService, matriculaService, pagoService } from "../../services/api";
 
 const STORAGE_KEYS = {
   MATRICULAS: "academia_matriculas_data",
@@ -259,22 +259,26 @@ export default function MatriculasPagosPage({ defaultTab = "matriculas" }) {
   });
 
   useEffect(() => {
-    const savedMatriculas = localStorage.getItem(STORAGE_KEYS.MATRICULAS);
-    const savedPagos = localStorage.getItem(STORAGE_KEYS.PAGOS);
     setStudents(userService.getUsers().filter((user) => String(user.rol).toLowerCase() === "estudiante"));
 
-    if (savedMatriculas) {
-      setMatriculas(JSON.parse(savedMatriculas));
+    const initialM = matriculaService.getMatriculas((cloudData) => {
+      if (cloudData && cloudData.length > 0) setMatriculas(cloudData);
+    });
+    if (initialM && initialM.length > 0) {
+      setMatriculas(initialM);
     } else {
       setMatriculas(INITIAL_MATRICULAS);
-      localStorage.setItem(STORAGE_KEYS.MATRICULAS, JSON.stringify(INITIAL_MATRICULAS));
+      matriculaService.saveMatriculas(INITIAL_MATRICULAS);
     }
 
-    if (savedPagos) {
-      setPagos(JSON.parse(savedPagos));
+    const initialP = pagoService.getPagos((cloudData) => {
+      if (cloudData && cloudData.length > 0) setPagos(cloudData);
+    });
+    if (initialP && initialP.length > 0) {
+      setPagos(initialP);
     } else {
       setPagos(INITIAL_PAGOS);
-      localStorage.setItem(STORAGE_KEYS.PAGOS, JSON.stringify(INITIAL_PAGOS));
+      pagoService.savePagos(INITIAL_PAGOS);
     }
   }, []);
 
@@ -314,12 +318,12 @@ export default function MatriculasPagosPage({ defaultTab = "matriculas" }) {
 
   const saveMatriculasStorage = (data) => {
     setMatriculas(data);
-    localStorage.setItem(STORAGE_KEYS.MATRICULAS, JSON.stringify(data));
+    matriculaService.saveMatriculas(data);
   };
 
   const savePagosStorage = (data) => {
     setPagos(data);
-    localStorage.setItem(STORAGE_KEYS.PAGOS, JSON.stringify(data));
+    pagoService.savePagos(data);
   };
 
   const showNotification = (msg) => {
