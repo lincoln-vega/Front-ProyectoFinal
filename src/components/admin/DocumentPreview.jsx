@@ -40,7 +40,7 @@ export default function DocumentPreviewModal({ fileData, onClose }) {
             <p><strong>Remitente:</strong> {fileData.docente} (DNI: {fileData.dni})</p>
             <p><strong>Asunto:</strong> Justificación de {fileData.tipo} para {fileData.materia}</p>
             <hr className="border-blue-200 dark:border-blue-900/50 my-2" />
-            <div className="bg-white/60 dark:bg-white/5 backdrop-blur-2xl/50 p-3 rounded border border-blue-100 dark:border-blue-900/50 font-mono text-[11px] text-slate-600 dark:text-slate-400">
+            <div className="bg-white/60 dark:bg-white/5 backdrop-blur-2xl/50 p-3 rounded border border-blue-100 dark:border-blue-900/50 font-mono text-xs text-slate-600 dark:text-slate-400">
               [SIMULACIÓN DE VISOR PDF] <br />
               Certificamos que el documento digital presentado cuenta con validez institucional para el trámite de dispensa y justificación de asistencia docente correspondiente al ciclo 2026-I.
             </div>

@@ -133,11 +133,11 @@ export default function CursoPage() {
             >
               {/* Encabezado de Tarjeta: Código/Aula y Estado */}
               <div className="flex items-center justify-between mb-4">
-                <span className="text-[11px] font-bold text-blue-700 dark:text-blue-400 tracking-wide uppercase bg-blue-50 dark:bg-blue-900/30 px-2 py-1 rounded">
+                <span className="text-xs font-bold text-blue-700 dark:text-blue-400 tracking-wide uppercase bg-blue-50 dark:bg-blue-900/30 px-2.5 py-1 rounded">
                   {curso.codigo} • {curso.aula}
                 </span>
                 <span
-                  className={`inline-flex items-center px-2 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider border ${
+                  className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-bold uppercase tracking-wider border ${
                     curso.estado === "Activo"
                       ? "bg-emerald-50 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400 border-emerald-100 dark:border-emerald-900/50"
                       : "bg-amber-50 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400 border-amber-100 dark:border-amber-900/50"
@@ -153,28 +153,28 @@ export default function CursoPage() {
               </div>
 
               {/* Título de la Materia */}
-              <h3 className="text-lg font-bold text-slate-800 dark:text-white mb-4 leading-tight">
+              <h3 className="text-xl font-bold text-slate-800 dark:text-white mb-4 leading-tight">
                 {curso.asignatura}
               </h3>
 
               {/* Información Administrativa */}
               <div className="space-y-2 mb-5">
-                <div className="flex items-center text-sm text-slate-600 dark:text-slate-300 bg-slate-50/50 dark:bg-white/5 p-1.5 rounded">
-                  <User className="w-4 h-4 text-slate-400 mr-2 shrink-0" />
+                <div className="flex items-center text-sm text-slate-700 dark:text-slate-200 bg-slate-50/50 dark:bg-white/5 p-2 rounded-lg font-medium">
+                  <User className="w-4.5 h-4.5 text-slate-400 mr-2 shrink-0" />
                   <span className="truncate"><strong>Titular:</strong> {curso.docente}</span>
                 </div>
-                <div className="flex items-center text-sm text-slate-600 dark:text-slate-300 bg-slate-50/50 dark:bg-white/5 p-1.5 rounded">
-                  <Clock className="w-4 h-4 text-slate-400 mr-2 shrink-0" />
+                <div className="flex items-center text-sm text-slate-700 dark:text-slate-200 bg-slate-50/50 dark:bg-white/5 p-2 rounded-lg font-medium">
+                  <Clock className="w-4.5 h-4.5 text-slate-400 mr-2 shrink-0" />
                   <span className="truncate">{curso.horario}</span>
                 </div>
               </div>
 
               {/* Caja de Área Académica */}
               <div className="bg-slate-50 dark:bg-white/5 p-3.5 rounded-lg border border-slate-100 dark:border-white/5 mb-5 flex-grow">
-                <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider block mb-1">
+                <span className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider block mb-1">
                   Área / Bloque Académico
                 </span>
-                <p className="text-xs text-slate-700 dark:text-slate-300 font-medium leading-snug">
+                <p className="text-sm text-slate-800 dark:text-slate-200 font-semibold leading-snug">
                   {curso.area}
                 </p>
               </div>
@@ -182,25 +182,25 @@ export default function CursoPage() {
               {/* Botones de Acción */}
               <div className="space-y-3 mt-auto pt-2 border-t border-slate-100 dark:border-white/10">
                 <button 
-                  className="w-full bg-[#0F9D58] hover:bg-emerald-700 text-white font-medium py-2.5 rounded-lg flex items-center justify-center gap-2 text-sm transition-colors shadow-sm cursor-pointer"
+                  className="w-full bg-[#0F9D58] hover:bg-emerald-700 text-white font-bold py-2.5 rounded-lg flex items-center justify-center gap-2 text-sm transition-colors shadow-sm cursor-pointer"
                   title="Acceder como Host/Co-host"
                 >
-                  <Video className="w-4 h-4" />
+                  <Video className="w-4.5 h-4.5" />
                   Monitorear Sala ({curso.tipoSala === 'zoom' ? 'Zoom' : 'Meet'})
                 </button>
                 
                 <div className="grid grid-cols-2 gap-3">
-                  <button className="w-full py-2 text-xs font-semibold text-slate-600 dark:text-slate-300 bg-white dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-lg hover:bg-slate-50 dark:hover:bg-white/5 flex items-center justify-center gap-1.5 transition-colors cursor-pointer">
-                    <Edit2 className="w-3.5 h-3.5" />
+                  <button className="w-full py-2.5 text-sm font-semibold text-slate-700 dark:text-slate-200 bg-white dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-lg hover:bg-slate-50 dark:hover:bg-white/5 flex items-center justify-center gap-1.5 transition-colors cursor-pointer">
+                    <Edit2 className="w-4 h-4" />
                     Editar Curso
                   </button>
                   <a 
                     href={`https://${curso.repositorio}`} 
                     target="_blank" 
                     rel="noopener noreferrer" 
-                    className="w-full py-2 text-xs font-semibold text-[#1E3A8A] dark:text-blue-400 bg-blue-50 dark:bg-blue-900/30 border border-blue-100 dark:border-blue-900/50 rounded-lg hover:bg-blue-100 dark:hover:bg-blue-900/50 flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
+                    className="w-full py-2.5 text-sm font-semibold text-[#1E3A8A] dark:text-blue-400 bg-blue-50 dark:bg-blue-900/30 border border-blue-100 dark:border-blue-900/50 rounded-lg hover:bg-blue-100 dark:hover:bg-blue-900/50 flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
                   >
-                    <FolderOpen className="w-3.5 h-3.5" />
+                    <FolderOpen className="w-4 h-4" />
                     Materiales
                   </a>
                 </div>

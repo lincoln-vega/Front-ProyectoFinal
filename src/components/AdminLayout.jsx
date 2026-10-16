@@ -55,7 +55,7 @@ export default function AdminLayout() {
               <span className="font-extrabold text-base tracking-wide uppercase block leading-tight">
                 Academia Pre
               </span>
-              <span className="text-[11px] text-blue-200 tracking-wider font-medium uppercase">
+              <span className="text-xs text-blue-200 tracking-wider font-medium uppercase">
                 Panel Corporativo
               </span>
             </div>
@@ -63,7 +63,7 @@ export default function AdminLayout() {
 
           {/* Menú de Navegación */}
           <nav className="p-4 space-y-1">
-            <div className="px-3 py-2 text-[11px] font-semibold uppercase tracking-wider text-blue-300">
+            <div className="px-3 py-2 text-xs font-semibold uppercase tracking-wider text-blue-300">
               Módulos Principales
             </div>
             {navItems.map((item) => {
@@ -83,7 +83,7 @@ export default function AdminLayout() {
                     <span>{item.name}</span>
                   </div>
                   {item.path === "/admin/usuarios" && (
-                    <span className="text-[10px] bg-amber-400 text-blue-950 font-bold px-1.5 py-0.5 rounded">
+                    <span className="text-xs bg-amber-400 text-blue-950 font-bold px-1.5 py-0.5 rounded">
                       SCRM-4
                     </span>
                   )}
@@ -99,7 +99,7 @@ export default function AdminLayout() {
                     <span>{item.name}</span>
                   </div>
                   {item.badge && (
-                    <span className="text-[10px] bg-blue-950 text-blue-200 px-1.5 py-0.5 rounded">
+                    <span className="text-xs bg-blue-950 text-blue-200 px-1.5 py-0.5 rounded">
                       {item.badge}
                     </span>
                   )}
@@ -117,7 +117,7 @@ export default function AdminLayout() {
             </div>
             <div className="overflow-hidden">
               <div className="text-sm font-semibold truncate leading-snug">{userName}</div>
-              <div className="text-[11px] text-blue-300 truncate">{userEmail}</div>
+              <div className="text-xs text-blue-300 truncate">{userEmail}</div>
             </div>
           </div>
 

@@ -23,8 +23,8 @@ export const PerfilView: React.FC = () => {
           </div>
           <div>
             <h2 className="text-xl font-bold text-white">{perfil.nombre}</h2>
-            <p className="text-xs text-slate-400 mt-0.5">Docente Principal • Campus Virtual</p>
-            <span className="inline-flex items-center space-x-1.5 mt-2 px-2.5 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-950/60 text-emerald-400 border border-emerald-800/50">
+            <p className="text-sm text-slate-300 mt-0.5">Docente Principal • Campus Virtual</p>
+            <span className="inline-flex items-center space-x-1.5 mt-2 px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-950/60 text-emerald-400 border border-emerald-800/50">
               <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 shadow-sm shadow-emerald-500/50"></span>
               <span>Cuenta Activa</span>
             </span>
@@ -32,7 +32,7 @@ export const PerfilView: React.FC = () => {
         </div>
         <button
           type="button"
-          className="px-4 py-2 bg-indigo-600 hover:bg-indigo-750 text-white rounded-lg text-xs font-semibold transition-colors cursor-pointer shadow-sm self-start sm:self-auto"
+          className="px-4 py-2 bg-indigo-600 hover:bg-indigo-750 text-white rounded-lg text-sm font-semibold transition-colors cursor-pointer shadow-sm self-start sm:self-auto"
         >
           Guardar Cambios
         </button>
@@ -183,8 +183,8 @@ export const PerfilView: React.FC = () => {
                   className="mt-0.5 w-4 h-4 rounded border-slate-700 bg-slate-950 text-indigo-600 focus:ring-indigo-500 cursor-pointer"
                 />
                 <div>
-                  <strong className="text-xs font-bold text-white block">Avisos de entregas de estudiantes</strong>
-                  <p className="text-[11px] text-slate-400 mt-0.5">Recibir alertas cuando los alumnos suban tareas a la plataforma.</p>
+                  <strong className="text-sm font-bold text-white block">Avisos de entregas de estudiantes</strong>
+                  <p className="text-xs text-slate-400 mt-0.5">Recibir alertas cuando los alumnos suban tareas a la plataforma.</p>
                 </div>
               </label>
 
@@ -195,8 +195,8 @@ export const PerfilView: React.FC = () => {
                   className="mt-0.5 w-4 h-4 rounded border-slate-700 bg-slate-950 text-indigo-600 focus:ring-indigo-500 cursor-pointer"
                 />
                 <div>
-                  <strong className="text-xs font-bold text-white block">Recordatorios de clases virtuales</strong>
-                  <p className="text-[11px] text-slate-400 mt-0.5">Alertas 15 minutos antes del inicio de la sesión en vivo.</p>
+                  <strong className="text-sm font-bold text-white block">Recordatorios de clases virtuales</strong>
+                  <p className="text-xs text-slate-400 mt-0.5">Alertas 15 minutos antes del inicio de la sesión en vivo.</p>
                 </div>
               </label>
 
@@ -206,8 +206,8 @@ export const PerfilView: React.FC = () => {
                   className="mt-0.5 w-4 h-4 rounded border-slate-700 bg-slate-950 text-indigo-600 focus:ring-indigo-500 cursor-pointer"
                 />
                 <div>
-                  <strong className="text-xs font-bold text-white block">Resumen semanal al correo</strong>
-                  <p className="text-[11px] text-slate-400 mt-0.5">Informe automático con métricas de asistencia y rendimiento.</p>
+                  <strong className="text-sm font-bold text-white block">Resumen semanal al correo</strong>
+                  <p className="text-xs text-slate-400 mt-0.5">Informe automático con métricas de asistencia y rendimiento.</p>
                 </div>
               </label>
             </div>

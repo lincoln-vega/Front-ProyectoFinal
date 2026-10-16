@@ -165,12 +165,12 @@ export default function PrincipalView() {
         <div>
           <div className="flex items-center space-x-2">
             <h2 className="text-xl font-bold text-white">Vista General del Panel</h2>
-            <span className="text-[11px] font-semibold text-indigo-400 bg-indigo-950/60 px-2.5 py-0.5 rounded-full border border-indigo-800/50 flex items-center gap-1">
-              <Sparkles className="w-3 h-3 text-indigo-400" />
+            <span className="text-xs font-semibold text-indigo-400 bg-indigo-950/60 px-2.5 py-0.5 rounded-full border border-indigo-800/50 flex items-center gap-1">
+              <Sparkles className="w-3.5 h-3.5 text-indigo-400" />
               Rol Docente
             </span>
           </div>
-          <p className="text-xs text-slate-400 mt-1">
+          <p className="text-sm text-slate-300 mt-1">
             Resumen académico y seguimiento en tiempo real de tus clases y estudiantes destacados.
           </p>
         </div>
@@ -189,7 +189,7 @@ export default function PrincipalView() {
             <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider">
               Alumnos conectados
             </span>
-            <span className="flex items-center gap-1 text-[11px] text-emerald-400 font-medium">
+            <span className="flex items-center gap-1.5 text-xs text-emerald-400 font-medium">
               <span className="relative flex h-2 w-2">
                 <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
                 <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
@@ -202,11 +202,11 @@ export default function PrincipalView() {
               <h3 className="text-2xl font-extrabold text-white">38</h3>
               <span className="text-xs text-slate-400">/ 42 alumnos</span>
             </div>
-            <span className="inline-block mt-1 text-[11px] font-medium text-emerald-400 bg-emerald-950/60 px-2 py-0.5 rounded-full border border-emerald-800/50">
+            <span className="inline-block mt-1 text-xs font-medium text-emerald-400 bg-emerald-950/60 px-2.5 py-0.5 rounded-full border border-emerald-800/50">
               90.5% en la última clase
             </span>
           </div>
-          <p className="text-[11px] text-slate-400 flex items-center gap-1.5 mt-1">
+          <p className="text-xs text-slate-400 flex items-center gap-1.5 mt-1">
             <Radio className="w-3.5 h-3.5 text-emerald-400" />
             <span>Última sesión: Cálculo Avanzado</span>
           </p>
@@ -222,11 +222,11 @@ export default function PrincipalView() {
           </div>
           <div className="my-2">
             <h3 className="text-2xl font-extrabold text-white">3</h3>
-            <span className="inline-block mt-1 text-[11px] font-medium text-indigo-300 bg-indigo-950/60 px-2 py-0.5 rounded-full border border-indigo-800/50">
+            <span className="inline-block mt-1 text-xs font-medium text-indigo-300 bg-indigo-950/60 px-2.5 py-0.5 rounded-full border border-indigo-800/50">
               Activos en este ciclo
             </span>
           </div>
-          <p className="text-[11px] text-slate-400">
+          <p className="text-xs text-slate-400">
             MAT-301, FIS-201, BIO-105
           </p>
         </div>
@@ -241,11 +241,11 @@ export default function PrincipalView() {
           </div>
           <div className="my-2">
             <h3 className="text-2xl font-extrabold text-white">93.4%</h3>
-            <span className="inline-block mt-1 text-[11px] font-medium text-emerald-400 bg-emerald-950/60 px-2 py-0.5 rounded-full border border-emerald-800/50">
+            <span className="inline-block mt-1 text-xs font-medium text-emerald-400 bg-emerald-950/60 px-2.5 py-0.5 rounded-full border border-emerald-800/50">
               +4.2% respecto al mes anterior
             </span>
           </div>
-          <p className="text-[11px] text-slate-400">
+          <p className="text-xs text-slate-400">
             Registro global acumulado
           </p>
         </div>
@@ -260,11 +260,11 @@ export default function PrincipalView() {
           </div>
           <div className="my-2">
             <h3 className="text-2xl font-extrabold text-amber-400">2</h3>
-            <span className="inline-block mt-1 text-[11px] font-medium text-amber-300 bg-amber-950/60 px-2 py-0.5 rounded-full border border-amber-800/50">
+            <span className="inline-block mt-1 text-xs font-medium text-amber-300 bg-amber-950/60 px-2.5 py-0.5 rounded-full border border-amber-800/50">
               Pendientes de revisión
             </span>
           </div>
-          <p className="text-[11px] text-slate-400">
+          <p className="text-xs text-slate-400">
             1 justificación médica, 1 consulta
           </p>
         </div>
@@ -283,7 +283,7 @@ export default function PrincipalView() {
                 </div>
                 <div>
                   <h3 className="font-bold text-white text-base">Top 3 Estudiantes</h3>
-                  <p className="text-[11px] text-slate-400">Mejores promedios y asistencia por curso</p>
+                  <p className="text-xs text-slate-400">Mejores promedios y asistencia por curso</p>
                 </div>
               </div>
 
@@ -309,7 +309,7 @@ export default function PrincipalView() {
                 <GraduationCap className="w-4 h-4 text-indigo-400" />
                 <span>{cursoActual.ciclo}</span>
               </div>
-              <div className="flex items-center gap-3 text-slate-400 text-[11px]">
+              <div className="flex items-center gap-3 text-slate-300 text-xs">
                 <span>{cursoActual.aula}</span>
                 <span>•</span>
                 <span>{cursoActual.horario}</span>
@@ -367,12 +367,12 @@ export default function PrincipalView() {
                           </h4>
                           {esPrimero && (
                             <span title="Mejor Promedio">
-                              <Medal className="w-3.5 h-3.5 text-amber-400 flex-shrink-0" />
+                              <Medal className="w-4 h-4 text-amber-400 flex-shrink-0" />
                             </span>
                           )}
                         </div>
-                        <p className="text-[11px] text-slate-400 truncate">
-                          {estudiante.carrera} • <span className="font-mono text-slate-500">{estudiante.codigo}</span>
+                        <p className="text-xs text-slate-400 truncate">
+                          {estudiante.carrera} • <span className="font-mono text-slate-400">{estudiante.codigo}</span>
                         </p>
                       </div>
                     </div>
@@ -380,16 +380,16 @@ export default function PrincipalView() {
                     {/* Calificación y Asistencia */}
                     <div className="flex-shrink-0 text-right">
                       <div className="flex items-center justify-end gap-1">
-                        <span className="text-[10px] uppercase font-semibold text-slate-400">Nota:</span>
-                        <span className={`text-sm font-extrabold ${
+                        <span className="text-xs uppercase font-semibold text-slate-400">Nota:</span>
+                        <span className={`text-base font-extrabold ${
                           esPrimero ? 'text-amber-400' : esSegundo ? 'text-slate-200' : 'text-orange-300'
                         }`}>
                           {estudiante.promedio.toFixed(1)}
                         </span>
-                        <span className="text-[10px] text-slate-500">/20</span>
+                        <span className="text-xs text-slate-400">/20</span>
                       </div>
-                      <div className="mt-1 flex items-center justify-end gap-1 text-[11px] text-emerald-400">
-                        <CheckCircle2 className="w-3 h-3 text-emerald-400" />
+                      <div className="mt-1 flex items-center justify-end gap-1 text-xs text-emerald-400">
+                        <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
                         <span>{estudiante.asistencia}% asist.</span>
                       </div>
                     </div>
@@ -400,7 +400,7 @@ export default function PrincipalView() {
           </div>
 
           {/* Pie del bloque de Ranking */}
-          <div className="pt-3 border-t border-slate-800 flex items-center justify-between text-xs text-slate-500">
+          <div className="pt-3 border-t border-slate-800 flex items-center justify-between text-xs text-slate-400">
             <span>Evaluando a {cursoActual.totalAlumnos} alumnos matriculados</span>
             <span className="text-indigo-400 font-medium cursor-pointer hover:underline">
               Ver cuadro de honor completo →
@@ -419,40 +419,40 @@ export default function PrincipalView() {
             <ul className="space-y-4 my-4">
               <li className="border-l-2 border-emerald-500 pl-3">
                 <div className="flex items-center justify-between">
-                  <small className="text-[11px] font-semibold text-emerald-400">08:00 AM, Hoy</small>
-                  <span className="text-[10px] px-1.5 py-0.5 rounded bg-emerald-950/70 text-emerald-300 border border-emerald-800/40">Completado</span>
+                  <small className="text-xs font-semibold text-emerald-400">08:00 AM, Hoy</small>
+                  <span className="text-xs px-2 py-0.5 rounded bg-emerald-950/70 text-emerald-300 border border-emerald-800/40">Completado</span>
                 </div>
-                <p className="text-xs text-slate-300 mt-1">
+                <p className="text-sm text-slate-300 mt-1">
                   Sesión en vivo de <strong className="text-white">Cálculo Avanzado (MAT-301)</strong> finalizada. Asistencia guardada: 38 alumnos conectados.
                 </p>
               </li>
 
               <li className="border-l-2 border-indigo-500 pl-3">
                 <div className="flex items-center justify-between">
-                  <small className="text-[11px] font-semibold text-indigo-400">Ayer, 04:30 PM</small>
-                  <span className="text-[10px] px-1.5 py-0.5 rounded bg-indigo-950/70 text-indigo-300 border border-indigo-800/40">Calificaciones</span>
+                  <small className="text-xs font-semibold text-indigo-400">Ayer, 04:30 PM</small>
+                  <span className="text-xs px-2 py-0.5 rounded bg-indigo-950/70 text-indigo-300 border border-indigo-800/40">Calificaciones</span>
                 </div>
-                <p className="text-xs text-slate-300 mt-1">
+                <p className="text-sm text-slate-300 mt-1">
                   Se actualizaron las notas de la Práctica 1 en <strong className="text-white">Física Fundamental</strong>.
                 </p>
               </li>
 
               <li className="border-l-2 border-amber-500 pl-3">
                 <div className="flex items-center justify-between">
-                  <small className="text-[11px] font-semibold text-amber-400">Ayer, 11:20 AM</small>
-                  <span className="text-[10px] px-1.5 py-0.5 rounded bg-amber-950/70 text-amber-300 border border-amber-800/40">Justificación</span>
+                  <small className="text-xs font-semibold text-amber-400">Ayer, 11:20 AM</small>
+                  <span className="text-xs px-2 py-0.5 rounded bg-amber-950/70 text-amber-300 border border-amber-800/40">Justificación</span>
                 </div>
-                <p className="text-xs text-slate-300 mt-1">
+                <p className="text-sm text-slate-300 mt-1">
                   Nueva solicitud de justificación médica recibida para revisión en el aula virtual.
                 </p>
               </li>
 
               <li className="border-l-2 border-slate-700 pl-3">
                 <div className="flex items-center justify-between">
-                  <small className="text-[11px] font-semibold text-slate-400">06 Sep, 03:00 PM</small>
-                  <span className="text-[10px] px-1.5 py-0.5 rounded bg-slate-800 text-slate-300 border border-slate-700">Material</span>
+                  <small className="text-xs font-semibold text-slate-300">06 Sep, 03:00 PM</small>
+                  <span className="text-xs px-2 py-0.5 rounded bg-slate-800 text-slate-300 border border-slate-700">Material</span>
                 </div>
-                <p className="text-xs text-slate-300 mt-1">
+                <p className="text-sm text-slate-300 mt-1">
                   Material didáctico subido con éxito: <strong className="text-white">Guía de Ejercicios Semana 2</strong>.
                 </p>
               </li>

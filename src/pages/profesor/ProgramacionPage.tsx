@@ -55,7 +55,7 @@ export default function ProgramacionView() {
         <div className="overflow-x-auto">
           <table className="w-full text-center border-collapse min-w-[700px]">
             <thead>
-              <tr className="border-b border-slate-800 text-[11px] uppercase tracking-wider text-slate-400 bg-slate-950/40">
+              <tr className="border-b border-slate-800 text-xs uppercase tracking-wider text-slate-300 bg-slate-950/40">
                 <th className="p-4 border-r border-slate-800 w-[16%]">Horario</th>
                 {days.map((day) => (
                   <th key={day} className="p-4 border-r border-slate-800 last:border-r-0 w-[16.8%]">
@@ -76,13 +76,13 @@ export default function ProgramacionView() {
                       <td key={day} className="p-3 border-r border-slate-800 last:border-r-0 align-middle">
                         {classItem ? (
                           <div className="bg-indigo-950/50 border-l-4 border-indigo-500 p-3 rounded-lg text-left shadow-sm border border-indigo-800/40 space-y-1">
-                            <strong className="text-xs font-bold text-white block leading-snug">
+                            <strong className="text-sm font-bold text-white block leading-snug">
                               {classItem.course}
                             </strong>
-                            <small className="text-[11px] text-slate-400 block font-mono">
+                            <small className="text-xs text-slate-300 block font-mono">
                               {classItem.code} — {classItem.room}
                             </small>
-                            <span className="inline-block text-[10px] font-bold text-indigo-400 bg-indigo-950/80 px-2 py-0.5 rounded border border-indigo-800/60 mt-1">
+                            <span className="inline-block text-xs font-bold text-indigo-300 bg-indigo-950/80 px-2 py-0.5 rounded border border-indigo-800/60 mt-1">
                               Bloque 2 hrs
                             </span>
                           </div>

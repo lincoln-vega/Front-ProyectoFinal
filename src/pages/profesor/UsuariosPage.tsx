@@ -96,7 +96,7 @@ export default function UsuariosView() {
         <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse min-w-[1100px]">
             <thead>
-              <tr className="border-b border-slate-800 text-[11px] uppercase tracking-wider text-slate-400 bg-slate-950/20">
+              <tr className="border-b border-slate-800 text-xs uppercase tracking-wider text-slate-300 bg-slate-950/20">
                 <th className="p-4">Apellido</th>
                 <th className="p-4">Nombre</th>
                 <th className="p-4">Documento de identidad</th>
@@ -109,7 +109,7 @@ export default function UsuariosView() {
                 <th className="p-4 text-right">Acciones</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-800/60 text-xs">
+            <tbody className="divide-y divide-slate-800/60 text-sm">
               {mockUsers.map((user) => {
                 let badgeRolStyle = 'bg-slate-800 text-slate-300 border-slate-700';
                 if (user.rol === 'ADMINISTRADOR') {
@@ -129,7 +129,7 @@ export default function UsuariosView() {
                     <td className="p-4 font-semibold text-white">{user.apellido}</td>
                     <td className="p-4">
                       <div className="flex items-center space-x-2.5">
-                        <span className={`w-7 h-7 rounded-full flex items-center justify-center font-bold text-[10px] shrink-0 shadow-sm ${avatarBg}`}>
+                        <span className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-xs shrink-0 shadow-sm ${avatarBg}`}>
                           {user.iniciales}
                         </span>
                         <span className="font-medium text-slate-200">{user.nombre}</span>
@@ -137,11 +137,11 @@ export default function UsuariosView() {
                     </td>
                     <td className="p-4 font-mono text-slate-300">{user.documento}</td>
                     <td className="p-4 text-slate-300">{user.fechaNacimiento}</td>
-                    <td className="p-4 text-slate-300 font-mono text-[11px]">{user.correo}</td>
+                    <td className="p-4 text-slate-300 font-mono text-xs">{user.correo}</td>
                     <td className="p-4 font-mono text-slate-300">{user.celular}</td>
                     <td className="p-4 text-slate-300">{user.carrera}</td>
                     <td className="p-4">
-                      <span className={`inline-block px-2.5 py-0.5 rounded text-[10px] font-bold border tracking-wide ${badgeRolStyle}`}>
+                      <span className={`inline-block px-2.5 py-0.5 rounded text-xs font-bold border tracking-wide ${badgeRolStyle}`}>
                         {user.rol}
                       </span>
                     </td>

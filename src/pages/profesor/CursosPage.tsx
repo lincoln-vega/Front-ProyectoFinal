@@ -133,19 +133,19 @@ export default function CursosProfesorPage() {
                 </button>
               </div>
 
-              <div className="my-3 space-y-1.5">
-                <p className="text-xs text-slate-400 font-medium">
+              <div className="my-3 space-y-2">
+                <p className="text-sm text-slate-400 font-medium">
                   {curso.codigo || 'Sin código'}
                 </p>
-                <p className="text-xs text-slate-300 flex items-center gap-1.5">
-                  <span className="text-slate-500">👤</span> Docente asignado: {curso.docente}
+                <p className="text-sm text-slate-200 flex items-center gap-1.5 font-medium">
+                  <span className="text-slate-400">👤</span> Docente asignado: <strong className="text-white">{curso.docente}</strong>
                 </p>
               </div>
             </div>
 
-            <div className="pt-3 border-t border-slate-800 flex items-center justify-between text-xs">
-              <span className="text-slate-400 flex items-center gap-1">
-                🗓️ <span className="text-slate-200 font-semibold">{curso.horario}</span>
+            <div className="pt-3.5 border-t border-slate-800 flex items-center justify-between text-sm">
+              <span className="text-slate-400 flex items-center gap-1.5">
+                🗓️ <span className="text-slate-100 font-semibold">{curso.horario}</span>
               </span>
               <button
                 type="button"
@@ -154,9 +154,9 @@ export default function CursosProfesorPage() {
                   event.stopPropagation();
                   handleStartMeet(curso);
                 }}
-                className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-600 px-3 py-1.5 text-[11px] font-semibold text-white transition-colors hover:bg-emerald-700 disabled:cursor-not-allowed disabled:bg-slate-700"
+                className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-600 px-3.5 py-2 text-xs font-bold text-white transition-colors hover:bg-emerald-700 disabled:cursor-not-allowed disabled:bg-slate-700 shadow-sm"
               >
-                <Video className="h-3.5 w-3.5" />
+                <Video className="h-4 w-4" />
                 {startedCourses.includes(curso.id) ? 'Asistencia registrada' : curso.meetUrl ? 'Iniciar Meet' : 'Sin enlace Meet'}
               </button>
             </div>

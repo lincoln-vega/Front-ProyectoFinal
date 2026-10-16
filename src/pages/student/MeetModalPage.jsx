@@ -62,32 +62,32 @@ export default function MeetModalPage({ course, onClose }) {
         </div>
 
         <div>
-          <h3 className="text-lg font-bold text-slate-900">
+          <h3 className="text-xl font-bold text-slate-900">
             Conectando a Sala Virtual
           </h3>
-          <p className="text-sm font-semibold text-[#1E3A8A] mt-1">
+          <p className="text-base font-bold text-[#1E3A8A] mt-1">
             {course.materia}
           </p>
-          <p className="text-xs text-slate-500 mt-2">
-            Docente a cargo: <strong>{course.docente}</strong>
+          <p className="text-sm text-slate-600 mt-2">
+            Docente a cargo: <strong className="text-slate-900">{course.docente}</strong>
           </p>
-          <p className="text-xs text-slate-500">
+          <p className="text-sm text-slate-600">
             Horario: {course.horario}
           </p>
         </div>
 
-        <div className="bg-slate-50 p-3 rounded-xl border border-slate-200 text-xs font-mono text-slate-600 flex items-center justify-between">
+        <div className="bg-slate-50 p-3.5 rounded-xl border border-slate-200 text-sm font-mono text-slate-700 flex items-center justify-between">
           <span className="truncate mr-2">{course.meetUrl}</span>
-          <span className="text-[10px] bg-emerald-600 text-white font-sans px-2 py-0.5 rounded font-bold shrink-0">
+          <span className="text-xs bg-emerald-600 text-white font-sans px-2.5 py-1 rounded-md font-bold shrink-0">
             Activa
           </span>
         </div>
 
-        <div className="pt-2 flex flex-col sm:flex-row gap-2">
+        <div className="pt-2 flex flex-col sm:flex-row gap-3">
           <button
             type="button"
             onClick={onClose}
-            className="w-full py-2.5 px-4 border border-slate-300 text-slate-700 font-medium rounded-xl text-xs hover:bg-slate-50 cursor-pointer"
+            className="w-full py-3 px-4 border border-slate-300 text-slate-700 font-semibold rounded-xl text-sm hover:bg-slate-50 cursor-pointer"
           >
             Regresar al Panel
           </button>
@@ -95,10 +95,10 @@ export default function MeetModalPage({ course, onClose }) {
           <button
             type="button"
             onClick={handleOpenMeet}
-            className="w-full py-2.5 px-4 bg-emerald-600 hover:bg-emerald-705 text-white font-bold rounded-xl text-xs flex items-center justify-center space-x-1.5 shadow-md cursor-pointer"
+            className="w-full py-3 px-4 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl text-sm flex items-center justify-center space-x-2 shadow-md cursor-pointer"
           >
             <span>Abrir Google Meet</span>
-            <ExternalLink className="w-3.5 h-3.5" />
+            <ExternalLink className="w-4 h-4" />
           </button>
         </div>
       </div>
