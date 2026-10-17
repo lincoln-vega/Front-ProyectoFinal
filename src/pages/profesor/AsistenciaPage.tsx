@@ -61,13 +61,13 @@ export default function AsistenciaView() {
               onClick={() => setSelectedCourse(course)}
             >
               <div>
-                <h3 className="font-bold text-white text-sm">{course.title}</h3>
-                <p className="mt-1"><span className="text-[11px] font-mono bg-slate-800 px-2 py-0.5 rounded border border-slate-700 text-slate-300">{course.code}</span></p>
-                <span className="block text-xs text-slate-400 mt-3">{course.professor}</span>
+                <h3 className="font-bold text-white text-base">{course.title}</h3>
+                <p className="mt-1"><span className="text-xs font-mono bg-slate-800 px-2 py-0.5 rounded border border-slate-700 text-slate-300">{course.code}</span></p>
+                <span className="block text-sm text-slate-400 mt-2">{course.professor}</span>
               </div>
               <button
                 type="button"
-                className="mt-5 w-full py-2 px-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-semibold transition-colors cursor-pointer shadow-sm"
+                className="mt-5 w-full py-2 px-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-sm font-semibold transition-colors cursor-pointer shadow-sm"
               >
                 Tomar Asistencia
               </button>
@@ -95,7 +95,7 @@ export default function AsistenciaView() {
           <div className="overflow-x-auto">
             <table className="w-full text-left border-collapse table-fixed">
               <thead>
-                <tr className="border-b border-slate-800 text-[11px] uppercase tracking-wider text-slate-400 bg-slate-950/40">
+                <tr className="border-b border-slate-800 text-xs uppercase tracking-wider text-slate-400 bg-slate-950/40">
                   <th className="p-4 w-1/5">Código</th>
                   <th className="p-4 w-[35%]">Estudiante</th>
                   <th className="p-4 w-[25%] text-center">Asistencia</th>
@@ -111,7 +111,7 @@ export default function AsistenciaView() {
                       </span>
                     </td>
                     <td className="p-4">
-                      <strong className="text-xs font-semibold text-white">{student.name}</strong>
+                      <strong className="text-sm font-semibold text-white">{student.name}</strong>
                     </td>
                     
                     {/* Trigger / Switch Interactivo */}
@@ -134,7 +134,7 @@ export default function AsistenciaView() {
                     {/* Estado fijado para evitar saltos de layout */}
                     <td className="p-4 text-center">
                       <span 
-                        className={`inline-block w-[90px] text-center px-2 py-1 rounded-md text-[11px] font-semibold border ${
+                        className={`inline-block w-[96px] text-center px-2 py-1 rounded-md text-xs font-semibold border ${
                           student.attended 
                             ? 'bg-emerald-950/60 text-emerald-400 border-emerald-800/50' 
                             : 'bg-rose-950/60 text-rose-400 border-rose-800/50'

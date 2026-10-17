@@ -239,7 +239,7 @@ export default function DocentesPage() {
                   </div>
                 </div>
               </div>
-              <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase ${docente.estado === 'Activo' ? 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400' : 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400'}`}>
+              <span className={`px-2 py-0.5 rounded text-xs font-bold uppercase ${docente.estado === 'Activo' ? 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400' : 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400'}`}>
                 {docente.estado}
               </span>
             </div>
@@ -260,7 +260,7 @@ export default function DocentesPage() {
                   <AlertTriangle className="w-3.5 h-3.5 mr-1 text-amber-500"/> Incidencias ({docente.incidencias.length}):
                 </span>
                 {docente.incidencias.length > 0 ? (
-                  <ul className="text-[11px] space-y-1 mt-2">
+                  <ul className="text-xs space-y-1 mt-2">
                     {docente.incidencias.map((inc) => (
                       <li key={inc.id} className="bg-amber-50 dark:bg-amber-900/10 text-amber-800 dark:text-amber-400 p-1.5 rounded flex gap-1 border border-amber-100 dark:border-amber-900/30">
                         <span className="font-bold">{inc.fecha}:</span> {inc.descripcion}
@@ -268,7 +268,7 @@ export default function DocentesPage() {
                     ))}
                   </ul>
                 ) : (
-                  <p className="text-[11px] text-slate-400 dark:text-slate-500 italic">Sin incidencias registradas.</p>
+                  <p className="text-xs text-slate-400 dark:text-slate-500 italic">Sin incidencias registradas.</p>
                 )}
               </div>
             </div>

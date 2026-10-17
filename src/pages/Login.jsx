@@ -157,25 +157,25 @@ export default function Login() {
           </form>
 
           <div className="mt-8 pt-6 border-t border-slate-200 dark:border-white/10">
-            <p className="text-xs text-center text-slate-500 dark:text-slate-400 mb-4 font-light tracking-wide uppercase">Accesos Rápidos (Sandbox)</p>
-            <div className="flex justify-center gap-2">
-              <button onClick={() => loginDirecto("admin", "admin@gmail.com", "admin123", "Roberto Carlos Morales")} className="flex-1 py-2 bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/20 rounded-lg flex flex-col items-center justify-center transition-colors group">
-                <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 mb-1" />
-                <span className="text-[10px] font-medium text-slate-600 dark:text-slate-300">Admin</span>
+            <p className="text-sm text-center text-slate-500 dark:text-slate-400 mb-4 font-medium tracking-wide uppercase">Accesos Rápidos (Sandbox)</p>
+            <div className="flex justify-center gap-2.5">
+              <button onClick={() => loginDirecto("admin", "admin@gmail.com", "admin123", "Roberto Carlos Morales")} className="flex-1 py-2.5 bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/20 rounded-lg flex flex-col items-center justify-center transition-colors group">
+                <div className="w-2 h-2 rounded-full bg-emerald-500 mb-1" />
+                <span className="text-xs font-semibold text-slate-700 dark:text-slate-200">Admin</span>
               </button>
-              <button onClick={() => loginDirecto("docente", "c.herrera@academia.edu.pe", "docente123", "Carmen Rosa Herrera")} className="flex-1 py-2 bg-blue-500/10 hover:bg-blue-500/20 border border-blue-500/20 rounded-lg flex flex-col items-center justify-center transition-colors group">
-                <div className="w-1.5 h-1.5 rounded-full bg-blue-500 mb-1" />
-                <span className="text-[10px] font-medium text-slate-600 dark:text-slate-300">Docente</span>
+              <button onClick={() => loginDirecto("docente", "c.herrera@academia.edu.pe", "docente123", "Carmen Rosa Herrera")} className="flex-1 py-2.5 bg-blue-500/10 hover:bg-blue-500/20 border border-blue-500/20 rounded-lg flex flex-col items-center justify-center transition-colors group">
+                <div className="w-2 h-2 rounded-full bg-blue-500 mb-1" />
+                <span className="text-xs font-semibold text-slate-700 dark:text-slate-200">Docente</span>
               </button>
-              <button onClick={() => loginDirecto("estudiante", "estudiante@gmail.com", "estudiante123", "Juan Carlos Flores")} className="flex-1 py-2 bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/20 rounded-lg flex flex-col items-center justify-center transition-colors group">
-                <div className="w-1.5 h-1.5 rounded-full bg-amber-500 mb-1" />
-                <span className="text-[10px] font-medium text-slate-600 dark:text-slate-300">Estudiante</span>
+              <button onClick={() => loginDirecto("estudiante", "estudiante@gmail.com", "estudiante123", "Juan Carlos Flores")} className="flex-1 py-2.5 bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/20 rounded-lg flex flex-col items-center justify-center transition-colors group">
+                <div className="w-2 h-2 rounded-full bg-amber-500 mb-1" />
+                <span className="text-xs font-semibold text-slate-700 dark:text-slate-200">Estudiante</span>
               </button>
             </div>
           </div>
           
           <div className="mt-6 text-center">
-            <span className="text-[10px] text-slate-400 dark:text-slate-500 font-mono">SCRM Core • InsForge BaaS</span>
+            <span className="text-xs text-slate-500 dark:text-slate-400 font-mono">SCRM Core • InsForge BaaS</span>
           </div>
 
         </div>

@@ -28,22 +28,22 @@ export default function DocenteDashboardPage() {
         <div className="bg-white/60 dark:bg-white/5 backdrop-blur-2xl p-5 rounded-xl border border-slate-200 dark:border-white/10 shadow-xs flex items-center space-x-4">
           <div className="p-3 bg-blue-100 dark:bg-blue-900/30 rounded-lg text-blue-600 dark:text-blue-400"><BookOpen className="w-6 h-6"/></div>
           <div>
-            <p className="text-xs font-semibold text-slate-500 dark:text-slate-400">Cursos Asignados</p>
-            <p className="text-xl font-bold text-slate-800 dark:text-white">3</p>
+            <p className="text-sm font-semibold text-slate-500 dark:text-slate-400">Cursos Asignados</p>
+            <p className="text-2xl font-bold text-slate-800 dark:text-white">3</p>
           </div>
         </div>
         <div className="bg-white/60 dark:bg-white/5 backdrop-blur-2xl p-5 rounded-xl border border-slate-200 dark:border-white/10 shadow-xs flex items-center space-x-4">
           <div className="p-3 bg-emerald-100 dark:bg-emerald-900/30 rounded-lg text-emerald-600 dark:text-emerald-400"><Users className="w-6 h-6"/></div>
           <div>
-            <p className="text-xs font-semibold text-slate-500 dark:text-slate-400">Total Estudiantes</p>
-            <p className="text-xl font-bold text-slate-800 dark:text-white">120</p>
+            <p className="text-sm font-semibold text-slate-500 dark:text-slate-400">Total Estudiantes</p>
+            <p className="text-2xl font-bold text-slate-800 dark:text-white">120</p>
           </div>
         </div>
         <div className="bg-white/60 dark:bg-white/5 backdrop-blur-2xl p-5 rounded-xl border border-slate-200 dark:border-white/10 shadow-xs flex items-center space-x-4">
           <div className="p-3 bg-amber-100 dark:bg-amber-900/30 rounded-lg text-amber-600 dark:text-amber-400"><AlertCircle className="w-6 h-6"/></div>
           <div>
-            <p className="text-xs font-semibold text-slate-500 dark:text-slate-400">Incidencias</p>
-            <p className="text-xl font-bold text-slate-800 dark:text-white">{docenteData ? docenteData.incidencias.length : 0}</p>
+            <p className="text-sm font-semibold text-slate-500 dark:text-slate-400">Incidencias</p>
+            <p className="text-2xl font-bold text-slate-800 dark:text-white">{docenteData ? docenteData.incidencias.length : 0}</p>
           </div>
         </div>
       </div>

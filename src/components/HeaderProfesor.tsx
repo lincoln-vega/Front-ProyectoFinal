@@ -53,7 +53,7 @@ export default function HeaderProfesor({
           </div>
           <div className="hidden md:block text-left">
             <strong className="text-xs font-semibold text-white block leading-none">{userName}</strong>
-            <span className="text-[10px] text-slate-400 mt-1 block">{userRole}</span>
+            <span className="text-xs text-slate-400 mt-1 block">{userRole}</span>
           </div>
         </div>
 

@@ -68,7 +68,7 @@ export default function AdminStudentsPage() {
       <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-2xs">
         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
           <div>
-            <p className="text-[11px] font-bold uppercase tracking-wider text-emerald-700">Expediente académico</p>
+            <p className="text-xs font-bold uppercase tracking-wider text-emerald-700">Expediente académico</p>
             <h2 className="text-xl font-bold text-slate-800">Gestión de Estudiantes</h2>
             <p className="text-xs text-slate-500 mt-1">Administra los datos personales y académicos de los alumnos.</p>
           </div>

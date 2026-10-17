@@ -116,12 +116,12 @@ export default function CursoDetalleView({ onVolver }: CursoDetalleProps) {
 
         <div className="flex flex-wrap gap-4 pt-4 lg:pt-0 border-t lg:border-t-0 border-slate-800">
           <div className="bg-slate-800/50 px-4 py-2.5 rounded-lg border border-slate-800">
-            <span className="block text-[10px] font-semibold text-slate-400 uppercase tracking-wider">Inscritos</span>
-            <span className="text-xs font-bold text-white mt-0.5 block">👥 {cursoInfo.alumnosInscritos} / {cursoInfo.capacidadMaxima}</span>
+            <span className="block text-xs font-semibold text-slate-400 uppercase tracking-wider">Inscritos</span>
+            <span className="text-sm font-bold text-white mt-0.5 block">👥 {cursoInfo.alumnosInscritos} / {cursoInfo.capacidadMaxima}</span>
           </div>
           <div className="bg-slate-800/50 px-4 py-2.5 rounded-lg border border-slate-800">
-            <span className="block text-[10px] font-semibold text-slate-400 uppercase tracking-wider">Horario</span>
-            <span className="text-xs font-bold text-white mt-0.5 block">🕒 {cursoInfo.horario}</span>
+            <span className="block text-xs font-semibold text-slate-400 uppercase tracking-wider">Horario</span>
+            <span className="text-sm font-bold text-white mt-0.5 block">🕒 {cursoInfo.horario}</span>
           </div>
         </div>
       </div>
@@ -130,7 +130,7 @@ export default function CursoDetalleView({ onVolver }: CursoDetalleProps) {
       <div className="flex border-b border-slate-800 space-x-4">
         <button
           type="button"
-          className={`pb-3 text-xs font-semibold transition-colors cursor-pointer border-b-2 ${
+          className={`pb-3 text-sm font-semibold transition-colors cursor-pointer border-b-2 ${
             tabActiva === 'materiales'
               ? 'border-indigo-500 text-indigo-400'
               : 'border-transparent text-slate-400 hover:text-slate-200'
@@ -141,7 +141,7 @@ export default function CursoDetalleView({ onVolver }: CursoDetalleProps) {
         </button>
         <button
           type="button"
-          className={`pb-3 text-xs font-semibold transition-colors cursor-pointer border-b-2 ${
+          className={`pb-3 text-sm font-semibold transition-colors cursor-pointer border-b-2 ${
             tabActiva === 'asistencia'
               ? 'border-indigo-500 text-indigo-400'
               : 'border-transparent text-slate-400 hover:text-slate-200'
@@ -157,7 +157,7 @@ export default function CursoDetalleView({ onVolver }: CursoDetalleProps) {
         {tabActiva === 'materiales' ? (
           <div className="space-y-4">
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-slate-900 p-5 rounded-xl border border-slate-800">
-              <h3 className="font-bold text-white text-sm">Recursos y Clases (Descendente)</h3>
+              <h3 className="font-bold text-white text-base">Recursos y Clases (Descendente)</h3>
               
               <div className="flex flex-wrap items-center gap-3">
                 <div className="bg-slate-800 text-indigo-300 border border-slate-700 px-3 py-1.5 rounded-lg text-xs font-medium">
@@ -165,7 +165,7 @@ export default function CursoDetalleView({ onVolver }: CursoDetalleProps) {
                 </div>
                 <button
                   type="button"
-                  className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-semibold transition-colors cursor-pointer shadow-sm"
+                  className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-sm font-semibold transition-colors cursor-pointer shadow-sm"
                 >
                   + Subir Material
                 </button>
@@ -180,8 +180,8 @@ export default function CursoDetalleView({ onVolver }: CursoDetalleProps) {
                       {item.tipo === 'PDF' ? '📄' : '📦'}
                     </span>
                     <div>
-                      <h4 className="font-semibold text-white text-sm">{item.titulo}</h4>
-                      <span className="text-[11px] text-slate-400">Publicado el {item.fecha}</span>
+                      <h4 className="font-semibold text-white text-base">{item.titulo}</h4>
+                      <span className="text-xs text-slate-400">Publicado el {item.fecha}</span>
                     </div>
                   </div>
                   <button
