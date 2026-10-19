@@ -14,6 +14,7 @@ import {
 import useTeacherIncidents from "../../hooks/useTeacherIncidents";
 import DocumentPreviewModal from "../../components/admin/DocumentPreview";
 import Notification from "../../components/admin/Notification";
+import { exportToCSV } from "../../utils/exportUtils";
 
 export default function ControlAsistenciasPage() {
     const { incidents, updateIncidentStatus } = useTeacherIncidents();
@@ -24,6 +25,31 @@ export default function ControlAsistenciasPage() {
     const showNotification = (msg) => {
         setNotification(msg);
         setTimeout(() => setNotification(null), 3500);
+    };
+
+    const handleExportReport = () => {
+        if (!filteredIncidents || filteredIncidents.length === 0) {
+            showNotification("No hay registros disponibles para exportar.");
+            return;
+        }
+
+        const columns = [
+            { key: "id", label: "ID INCIDENCIA" },
+            { key: "docente", label: "DOCENTE TITULAR" },
+            { key: "dni", label: "DNI" },
+            { key: "tipo", label: "TIPO INCIDENCIA" },
+            { key: "materia", label: "MATERIA / ASIGNATURA" },
+            { key: "horario", label: "HORARIO PROGRAMADO" },
+            { key: "fechaPresentacion", label: "FECHA REGISTRO" },
+            { key: "motivo", label: "MOTIVO / SUSTENTO" },
+            { key: "archivoNombre", label: "COMPROBANTE ADJUNTO" },
+            { key: "estado", label: "ESTADO VALIDACION" }
+        ];
+
+        const success = exportToCSV(filteredIncidents, "reporte_auditoria_horas_docentes", columns);
+        if (success) {
+            showNotification("Reporte exportado exitosamente a CSV/Excel.");
+        }
     };
 
     const handleAction = (id, status) => {
@@ -63,7 +89,7 @@ export default function ControlAsistenciasPage() {
 
                     <div className="flex flex-wrap items-center gap-2">
                         <button
-                            onClick={() => showNotification("Exportación de reporte de incidencias en Excel iniciada.")}
+                            onClick={handleExportReport}
                             className="inline-flex items-center space-x-1.5 px-3.5 py-2 border border-slate-300 dark:border-white/10 text-slate-700 dark:text-white bg-white/60 dark:bg-white/5 backdrop-blur-2xl hover:bg-slate-50 dark:hover:bg-white/10 rounded-xl text-xs font-semibold shadow-2xs transition-colors cursor-pointer"
                         >
                             <Download className="w-4 h-4 text-slate-500 dark:text-slate-400" />

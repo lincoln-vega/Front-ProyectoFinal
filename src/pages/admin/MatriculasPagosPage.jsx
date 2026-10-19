@@ -26,8 +26,8 @@ import {
   Phone,
   Mail,
   ArrowUpRight
-} from "lucide-react";
 import { userService, matriculaService, pagoService } from "../../services/api";
+import { exportToCSV } from "../../utils/exportUtils";
 
 const STORAGE_KEYS = {
   MATRICULAS: "academia_matriculas_data",
@@ -524,6 +524,47 @@ export default function MatriculasPagosPage({ defaultTab = "matriculas" }) {
     }
   };
 
+  // Exportar Reporte de Pagos / Matrículas a Excel/CSV
+  const handleExportPagos = () => {
+    if (tabActiva === "matriculas") {
+      if (!matriculasFiltradas || matriculasFiltradas.length === 0) {
+        showNotification("No hay matrículas registradas para exportar.");
+        return;
+      }
+      const cols = [
+        { key: "id", label: "CODIGO MATRICULA" },
+        { key: "estudiante", label: "ESTUDIANTE" },
+        { key: "dni", label: "DNI" },
+        { key: "programa", label: "PROGRAMA ACADEMICO" },
+        { key: "turno", label: "TURNO" },
+        { key: "fechaMatricula", label: "FECHA MATRICULA" },
+        { key: "montoTotal", label: "COSTO TOTAL (S/.)" },
+        { key: "montoPagado", label: "TOTAL PAGADO (S/.)" },
+        { key: "saldoPendiente", label: "SALDO PENDIENTE (S/.)" },
+        { key: "estado", label: "ESTADO PAGO" }
+      ];
+      const ok = exportToCSV(matriculasFiltradas, "reporte_consolidado_matriculas", cols);
+      if (ok) showNotification("Consolidado de matrículas exportado exitosamente a CSV/Excel.");
+    } else {
+      if (!pagos || pagos.length === 0) {
+        showNotification("No hay pagos registrados para exportar.");
+        return;
+      }
+      const cols = [
+        { key: "comprobante", label: "COMPROBANTE" },
+        { key: "estudiante", label: "ESTUDIANTE" },
+        { key: "matriculaId", label: "REF MATRICULA" },
+        { key: "concepto", label: "CONCEPTO" },
+        { key: "monto", label: "MONTO (S/.)" },
+        { key: "metodo", label: "METODO PAGO" },
+        { key: "operacion", label: "NRO OPERACION" },
+        { key: "fecha", label: "FECHA EMISION" }
+      ];
+      const ok = exportToCSV(pagos, "reporte_libro_pagos_contable", cols);
+      if (ok) showNotification("Libro contable de pagos exportado exitosamente a CSV/Excel.");
+    }
+  };
+
   return (
     <div className="space-y-6">
       {/* Notificación Toast */}
@@ -551,6 +592,14 @@ export default function MatriculasPagosPage({ defaultTab = "matriculas" }) {
           </div>
 
           <div className="flex flex-wrap items-center gap-2.5">
+            <button
+              onClick={handleExportPagos}
+              className="inline-flex items-center space-x-1.5 px-3.5 py-2 border border-slate-300 hover:bg-slate-50 text-slate-700 rounded-xl text-xs font-semibold shadow-2xs transition-colors cursor-pointer"
+            >
+              <Download className="w-4 h-4 text-slate-500" />
+              <span>Exportar Excel</span>
+            </button>
+
             <button
               onClick={() => {
                 setFormPago({
