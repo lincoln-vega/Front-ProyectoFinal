@@ -8,12 +8,17 @@ export default function useTeacherIncidents() {
     setIncidents(incidentService.getIncidents());
   }, []);
 
-  const updateIncidentStatus = (id, newStatus) => {
+  const updateIncident = (id, updatedFields) => {
+    const patch = typeof updatedFields === "string" ? { estado: updatedFields } : updatedFields;
     const updated = incidents.map((inc) =>
-      inc.id === id ? { ...inc, estado: newStatus } : inc
+      inc.id === id ? { ...inc, ...patch } : inc
     );
     setIncidents(updated);
     incidentService.saveIncidents(updated);
+  };
+
+  const updateIncidentStatus = (id, newStatus) => {
+    updateIncident(id, { estado: newStatus });
   };
 
   const resetIncidents = () => {
@@ -21,5 +26,5 @@ export default function useTeacherIncidents() {
     setIncidents(initial);
   };
 
-  return { incidents, updateIncidentStatus, resetIncidents };
+  return { incidents, updateIncidentStatus, updateIncident, resetIncidents };
 }
