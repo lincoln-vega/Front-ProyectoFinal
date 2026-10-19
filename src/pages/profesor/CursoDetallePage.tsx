@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import ControlReceso from '../../components/profesor/ControlReceso';
 
 interface CursoDetalleProps {
   cursoId?: string;
@@ -125,6 +126,12 @@ export default function CursoDetalleView({ onVolver }: CursoDetalleProps) {
           </div>
         </div>
       </div>
+
+      {/* Widget de Control de Receso y Pausa de Clase */}
+      <ControlReceso
+        courseId={cursoInfo.codigo || "CURSO-ACTIVO"}
+        courseTitle={cursoInfo.titulo}
+      />
 
       {/* Tabs */}
       <div className="flex border-b border-slate-800 space-x-4">

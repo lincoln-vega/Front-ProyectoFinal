@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import ControlReceso from '../../components/profesor/ControlReceso';
 
 interface Student {
   id: number;
@@ -90,6 +91,14 @@ export default function AsistenciaView() {
             >
               ← Volver a Cursos
             </button>
+          </div>
+
+          {/* Widget de Control de Receso y Pausa */}
+          <div className="p-4 border-b border-slate-800 bg-slate-950/30">
+            <ControlReceso
+              courseId={selectedCourse.code || selectedCourse.id}
+              courseTitle={selectedCourse.title}
+            />
           </div>
 
           <div className="overflow-x-auto">
