@@ -1,19 +1,19 @@
-// src/services/cursosServices.js
+import { insforge } from "../lib/insforge";
 
-import db from "../data/db.json";
+const COURSE_COLUMNS = "id, asignatura, area, carrera, docenteId, docente, dias, horaInicio, horaFin, meetUrl, repositorio, estado, created_at";
 
-const API_URL = (import.meta.env.VITE_BACKEND_URL || '').replace(/\/+$/, '');
-const COURSES_KEY = "academia_courses";
-
-const DIAS_SEMANA = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo"];
-
-const removeClassroomField = (courses) => (Array.isArray(courses) ? courses : []).map(({ aula, ...course }) => course);
+const throwIfError = (error, operation) => {
+  if (error) {
+    console.error(`[InsForge] ${operation}:`, error);
+    throw new Error(error.message || `No se pudo completar: ${operation}`);
+  }
+};
 
 const parseSchedule = (schedule = "") => {
-  const dias = DIAS_SEMANA.filter((dia) => new RegExp(`\\b${dia}\\b`, "i").test(schedule));
+  const days = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo"]
+    .filter((day) => new RegExp(`\\b${day}\\b`, "i").test(schedule));
   const times = schedule.match(/(\d{1,2}):(\d{2})\s*(AM|PM)?\s*[-–]\s*(\d{1,2}):(\d{2})\s*(AM|PM)?/i);
-
-  if (!times) return { dias, horaInicio: "", horaFin: "" };
+  if (!times) return { days, start: "", end: "" };
 
   const to24Hour = (hour, minute, meridiem) => {
     let hours = Number(hour);
@@ -23,131 +23,85 @@ const parseSchedule = (schedule = "") => {
     }
     return `${String(hours).padStart(2, "0")}:${minute}`;
   };
-
   const startMeridiem = times[3] || times[6];
   const endMeridiem = times[6] || times[3];
-
   return {
-    dias,
-    horaInicio: to24Hour(times[1], times[2], startMeridiem),
-    horaFin: to24Hour(times[4], times[5], endMeridiem)
+    days,
+    start: to24Hour(times[1], times[2], startMeridiem),
+    end: to24Hour(times[4], times[5], endMeridiem)
   };
 };
 
-const normalizeCourses = (courses) => removeClassroomField(courses).map((course) => {
-  const parsedSchedule = parseSchedule(course.horario);
+const normalizeCourse = (course) => {
+  const { aula, codigo, horario, tipoSala, created_at, ...storedCourse } = course;
+  const parsed = parseSchedule(horario);
   return {
-    ...course,
-    dias: Array.isArray(course.dias) ? course.dias : parsedSchedule.dias,
-    horaInicio: course.horaInicio || parsedSchedule.horaInicio,
-    horaFin: course.horaFin || parsedSchedule.horaFin,
-    docenteId: course.docenteId || "",
-    meetUrl: course.meetUrl || ""
+  ...storedCourse,
+  dias: Array.isArray(storedCourse.dias) ? storedCourse.dias : parsed.days,
+  horaInicio: storedCourse.horaInicio || parsed.start,
+  horaFin: storedCourse.horaFin || parsed.end,
+  docenteId: storedCourse.docenteId || "",
+  meetUrl: storedCourse.meetUrl || ""
   };
-});
-
-// Helper para sincronizar en segundo plano con FastAPI
-const bgSyncFastAPI = (key, callback) => {
-  if (!API_URL) return;
-
-  const token = localStorage.getItem('token') || '';
-  fetch(`${API_URL}/horarios/cursos`, {
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${token}`
-    }
-  })
-    .then((res) => {
-      if (!res.ok) throw new Error('Error al sincronizar con FastAPI');
-      if (!res.headers.get("content-type")?.includes("application/json")) {
-        throw new Error("La respuesta del servidor no es JSON");
-      }
-      return res.json();
-    })
-    .then((data) => {
-      if (data && data.length > 0) {
-        const processed = callback ? callback(data) : data;
-        localStorage.setItem(key, JSON.stringify(processed));
-      }
-    })
-    .catch((err) => console.warn(`[FastAPI Sync] Error syncing ${key}:`, err));
 };
 
 export const courseService = {
-  getCourses: () => {
-    const saved = localStorage.getItem(COURSES_KEY);
-    bgSyncFastAPI(COURSES_KEY, (data) =>
-      normalizeCourses(data)
-    );
-
-    let courses = [];
-    if (saved) {
-      try {
-        const parsedCourses = JSON.parse(saved);
-        if (Array.isArray(parsedCourses)) courses = parsedCourses;
-      } catch (error) {
-        console.warn("[Cursos] No se pudo leer la caché local:", error);
-      }
-    }
-    if (!Array.isArray(courses)) courses = [];
-    if (courses.length === 0 && Array.isArray(db.courses) && db.courses.length > 0) {
-      courses = db.courses;
-    }
-
-    const normalizedCourses = normalizeCourses(courses);
-    localStorage.setItem(COURSES_KEY, JSON.stringify(normalizedCourses));
-    return normalizedCourses;
+  async getCourses() {
+    const { data, error } = await insforge.database
+      .from("courses")
+      .select(COURSE_COLUMNS)
+      .order("created_at", { ascending: false })
+      .limit(500);
+    throwIfError(error, "cargar cursos");
+    return (data || []).map(normalizeCourse);
   },
 
-  fetchCourses: async () => {
-    if (!API_URL) return courseService.getCourses();
-
-    try {
-      const token = localStorage.getItem('token') || '';
-      const response = await fetch(`${API_URL}/horarios/cursos`, {
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        }
-      });
-      if (!response.ok) {
-        throw new Error(`Error al cargar cursos (HTTP ${response.status})`);
-      }
-      if (!response.headers.get("content-type")?.includes("application/json")) {
-        throw new Error("La respuesta del servidor no es JSON");
-      }
-      const data = await response.json();
-      const cleaned = normalizeCourses(data);
-      localStorage.setItem(COURSES_KEY, JSON.stringify(cleaned));
-      return cleaned;
-    } catch (err) {
-      console.warn("[FastAPI] Fallback a caché local:", err);
-    }
+  async fetchCourses() {
     return courseService.getCourses();
   },
 
-  saveCourses: async (courses) => {
-    const normalized = removeClassroomField(courses);
-    localStorage.setItem(COURSES_KEY, JSON.stringify(normalized));
+  async saveCourses(courses) {
+    if (courses.length === 0) return [];
+    const rows = courses.map((course) => {
+      const normalized = normalizeCourse(course);
+      const { created_at, ...row } = normalized;
+      return row;
+    });
+    const { data, error } = await insforge.database
+      .from("courses")
+      .upsert(rows)
+      .select(COURSE_COLUMNS);
+    throwIfError(error, "guardar cursos");
+    return (data || []).map(normalizeCourse);
   },
 
-  validarCruce: async (nuevoCurso) => {
-    try {
-      const token = localStorage.getItem('token') || '';
-      const response = await fetch(`${API_URL}/horarios/validar-cruce`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify(nuevoCurso)
-      });
-      if (response.ok) {
-        return await response.json();
-      }
-    } catch (error) {
-      console.error('Error al validar cruce:', error);
-    }
-    return { cruce: false };
+  async deleteCourse(id) {
+    const { error } = await insforge.database
+      .from("courses")
+      .delete()
+      .eq("id", id);
+    throwIfError(error, "eliminar curso");
+  },
+
+  async countStudentsForTeacher(courseIds) {
+    if (courseIds.length === 0) return 0;
+    const { data, error } = await insforge.database.rpc("get_teacher_student_count", {
+      course_ids: courseIds
+    });
+    throwIfError(error, "contar estudiantes matriculados");
+    return Number(data || 0);
+  },
+
+  async validarCruce(nuevoCurso) {
+    const courses = await courseService.getCourses();
+    const newDays = Array.isArray(nuevoCurso.dias) ? nuevoCurso.dias : [];
+    const collision = courses.find((course) => {
+      if (course.id === nuevoCurso.id) return false;
+      const sameDay = course.dias.some((day) => newDays.includes(day));
+      const overlaps = nuevoCurso.horaInicio < course.horaFin &&
+        nuevoCurso.horaFin > course.horaInicio;
+      return sameDay && overlaps;
+    });
+    return { cruce: Boolean(collision), curso: collision || null };
   }
 };

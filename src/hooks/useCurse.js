@@ -19,6 +19,7 @@ export const createInitialCourseForm = () => ({
 export default function useCurse() {
   const [courses, setCourses] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
 
   useEffect(() => {
     async function loadCourses() {
@@ -29,8 +30,7 @@ export default function useCurse() {
         setCourses(data || []);
       } catch (error) {
         console.error("Error al cargar cursos en el hook:", error);
-        // Fallback síncrono si falla
-        setCourses(courseService.getCourses() || []);
+        setError(error.message);
       } finally {
         setLoading(false);
       }
@@ -45,19 +45,17 @@ export default function useCurse() {
       ...courseData
     };
 
-    const updatedCourses = [newCourse, ...courses];
-    setCourses(updatedCourses);
-    await courseService.saveCourses(updatedCourses);
+    const savedCourses = await courseService.saveCourses([newCourse]);
+    setCourses((current) => [savedCourses[0] || newCourse, ...current]);
     return newCourse;
   };
 
   const updateCourse = async (updatedCourse) => {
-    const updatedCourses = courses.map((course) => (
-      course.id === updatedCourse.id ? updatedCourse : course
-    ));
-    setCourses(updatedCourses);
-    await courseService.saveCourses(updatedCourses);
+    const savedCourses = await courseService.saveCourses([updatedCourse]);
+    setCourses((current) => current.map((course) => (
+      course.id === updatedCourse.id ? savedCourses[0] || updatedCourse : course
+    )));
   };
 
-  return { courses, loading, addCourse, updateCourse };
+  return { courses, loading, error, addCourse, updateCourse };
 }

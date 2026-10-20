@@ -228,6 +228,7 @@ export default function MatriculasPagosPage({ defaultTab = "matriculas" }) {
   const [filtroPrograma, setFiltroPrograma] = useState("TODOS");
   const [filtroEstado, setFiltroEstado] = useState("TODOS");
   const [notification, setNotification] = useState(null);
+  const [loadingData, setLoadingData] = useState(true);
 
   // Modales
   const [modalMatriculaOpen, setModalMatriculaOpen] = useState(false);
@@ -259,27 +260,24 @@ export default function MatriculasPagosPage({ defaultTab = "matriculas" }) {
   });
 
   useEffect(() => {
-    setStudents(userService.getUsers().filter((user) => String(user.rol).toLowerCase() === "estudiante"));
-
-    const initialM = matriculaService.getMatriculas((cloudData) => {
-      if (cloudData && cloudData.length > 0) setMatriculas(cloudData);
-    });
-    if (initialM && initialM.length > 0) {
-      setMatriculas(initialM);
-    } else {
-      setMatriculas(INITIAL_MATRICULAS);
-      matriculaService.saveMatriculas(INITIAL_MATRICULAS);
+    async function loadData() {
+      try {
+        const [users, remoteMatriculas, remotePagos] = await Promise.all([
+          userService.getUsers(),
+          matriculaService.getMatriculas(),
+          pagoService.getPagos()
+        ]);
+        setStudents(users.filter((user) => String(user.rol).toLowerCase() === "estudiante"));
+        setMatriculas(remoteMatriculas);
+        setPagos(remotePagos);
+      } catch (error) {
+        console.error("Error al cargar matrículas y pagos desde InsForge:", error);
+        showNotification(`No se pudieron cargar los datos desde InsForge: ${error.message}`);
+      } finally {
+        setLoadingData(false);
+      }
     }
-
-    const initialP = pagoService.getPagos((cloudData) => {
-      if (cloudData && cloudData.length > 0) setPagos(cloudData);
-    });
-    if (initialP && initialP.length > 0) {
-      setPagos(initialP);
-    } else {
-      setPagos(INITIAL_PAGOS);
-      pagoService.savePagos(INITIAL_PAGOS);
-    }
+    loadData();
   }, []);
 
   const resetStudentSelection = () => {
@@ -316,14 +314,9 @@ export default function MatriculasPagosPage({ defaultTab = "matriculas" }) {
     };
   };
 
-  const saveMatriculasStorage = (data) => {
+  const saveMatriculasStorage = async (data) => {
+    await matriculaService.saveMatriculas(data);
     setMatriculas(data);
-    matriculaService.saveMatriculas(data);
-  };
-
-  const savePagosStorage = (data) => {
-    setPagos(data);
-    pagoService.savePagos(data);
   };
 
   const showNotification = (msg) => {
@@ -366,7 +359,7 @@ export default function MatriculasPagosPage({ defaultTab = "matriculas" }) {
   }).slice(0, 5);
 
   // Registro de Nueva Matrícula
-  const handleGuardarMatricula = (e) => {
+  const handleGuardarMatricula = async (e) => {
     e.preventDefault();
     if (!formMatricula.estudiante || !formMatricula.dni) {
       showNotification("Por favor completa los campos de nombre y DNI.");
@@ -374,6 +367,7 @@ export default function MatriculasPagosPage({ defaultTab = "matriculas" }) {
     }
 
     let estudianteId = selectedStudentId;
+    try {
     if (isNewStudent) {
       estudianteId = `USR-${Date.now().toString().slice(-6)}`;
       const newStudent = {
@@ -381,7 +375,6 @@ export default function MatriculasPagosPage({ defaultTab = "matriculas" }) {
         ...splitStudentName(formMatricula.estudiante),
         dni: formMatricula.dni,
         correo: formMatricula.correo || `${formMatricula.dni}@academia.edu.pe`,
-        password: "estudiante123",
         celular: formMatricula.celular || "",
         carreraObjetivo: "",
         areaAcademica: "",
@@ -389,7 +382,7 @@ export default function MatriculasPagosPage({ defaultTab = "matriculas" }) {
         estado: "Activo"
       };
       const updatedStudents = [newStudent, ...students];
-      userService.saveUsers([...userService.getUsers().filter((user) => user.id !== estudianteId), newStudent]);
+      await userService.saveUser(newStudent);
       setStudents(updatedStudents);
     }
 
@@ -420,8 +413,9 @@ export default function MatriculasPagosPage({ defaultTab = "matriculas" }) {
       estado: estado,
     };
 
+    await matriculaService.saveMatricula(nuevaMat);
     const nuevasMatriculas = [nuevaMat, ...matriculas];
-    saveMatriculasStorage(nuevasMatriculas);
+    setMatriculas(nuevasMatriculas);
 
     // Si hubo abono inicial, generamos su pago automáticamente
     if (abonoInicial > 0) {
@@ -437,7 +431,8 @@ export default function MatriculasPagosPage({ defaultTab = "matriculas" }) {
         fecha: new Date().toLocaleString("es-PE"),
         estado: "Aprobado",
       };
-      savePagosStorage([nuevoPago, ...pagos]);
+      await pagoService.savePago(nuevoPago);
+      setPagos((current) => [nuevoPago, ...current]);
     }
 
     setModalMatriculaOpen(false);
@@ -453,7 +448,14 @@ export default function MatriculasPagosPage({ defaultTab = "matriculas" }) {
       montoTotal: PROGRAMAS_ACADEMICOS[0].costo,
       primerAbono: 400,
     });
-    showNotification(`¡Matrícula ${nuevoId} registrada con éxito!`);
+    showNotification(`¡Matrícula ${nuevoId} registrada en InsForge!`);
+    if (isNewStudent) {
+      showNotification("Perfil guardado. Crea también la cuenta del estudiante en InsForge Auth para que pueda iniciar sesión.");
+    }
+    } catch (error) {
+      console.error("Error al guardar matrícula:", error);
+      showNotification(`No se pudo guardar la matrícula en InsForge: ${error.message}`);
+    }
   };
 
   // Abrir Modal de Pago para una matrícula específica
@@ -470,7 +472,7 @@ export default function MatriculasPagosPage({ defaultTab = "matriculas" }) {
   };
 
   // Registro de Pago
-  const handleGuardarPago = (e) => {
+  const handleGuardarPago = async (e) => {
     e.preventDefault();
     const montoNum = Number(formPago.monto);
     if (!formPago.matriculaId || !montoNum || montoNum <= 0) {
@@ -498,9 +500,6 @@ export default function MatriculasPagosPage({ defaultTab = "matriculas" }) {
       estado: "Aprobado",
     };
 
-    const nuevosPagos = [nuevoPago, ...pagos];
-    savePagosStorage(nuevosPagos);
-
     // Actualizar matrícula
     const nuevoPagado = mat.montoPagado + montoNum;
     const nuevoSaldo = Math.max(0, mat.montoTotal - nuevoPagado);
@@ -509,23 +508,35 @@ export default function MatriculasPagosPage({ defaultTab = "matriculas" }) {
     const nuevasMatriculas = matriculas.map((m) =>
       m.id === mat.id ? { ...m, montoPagado: nuevoPagado, saldoPendiente: nuevoSaldo, estado: nuevoEstado } : m
     );
-    saveMatriculasStorage(nuevasMatriculas);
-
-    setModalPagoOpen(false);
-    showNotification(`Pago de S/. ${montoNum.toFixed(2)} registrado correctamente.`);
+    try {
+      await pagoService.savePago(nuevoPago);
+      await saveMatriculasStorage(nuevasMatriculas);
+      setPagos((current) => [nuevoPago, ...current]);
+      setModalPagoOpen(false);
+      showNotification(`Pago de S/. ${montoNum.toFixed(2)} registrado en InsForge.`);
+    } catch (error) {
+      console.error("Error al guardar pago:", error);
+      showNotification(`No se pudo completar el pago en InsForge: ${error.message}`);
+    }
   };
 
   // Eliminar Matrícula
-  const handleEliminarMatricula = (id, nombre) => {
+  const handleEliminarMatricula = async (id, nombre) => {
     if (window.confirm(`¿Confirmas la anulación de la matrícula de ${nombre} (${id})?`)) {
-      const filtered = matriculas.filter((m) => m.id !== id);
-      saveMatriculasStorage(filtered);
-      showNotification(`Matrícula ${id} eliminada.`);
+      try {
+        await matriculaService.deleteMatricula(id);
+        setMatriculas((current) => current.filter((matricula) => matricula.id !== id));
+        showNotification(`Matrícula ${id} eliminada de InsForge.`);
+      } catch (error) {
+        console.error("Error al eliminar matrícula:", error);
+        showNotification(`No se pudo eliminar la matrícula: ${error.message}`);
+      }
     }
   };
 
   return (
     <div className="space-y-6">
+      {loadingData && <p className="text-sm text-slate-500">Consultando matrículas y pagos en InsForge...</p>}
       {/* Notificación Toast */}
       {notification && (
         <div className="fixed top-4 right-4 z-50 bg-[#1E3A8A] text-white px-5 py-3 rounded-xl shadow-lg border border-blue-400/40 flex items-center gap-3 animate-fade-in text-sm font-medium">

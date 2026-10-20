@@ -2,7 +2,8 @@ import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { ShieldCheck, User, Lock, ArrowRight, Loader2 } from "lucide-react";
 import ThemeToggle from "../components/ThemeToggle";
-import { userService } from "../services/api"; // Usamos el servicio seguro del api.js
+import { insforge } from "../lib/insforge";
+import { userService } from "../services/api";
 
 export default function Login() {
   const navigate = useNavigate();
@@ -18,59 +19,49 @@ export default function Login() {
 
     try {
       const trimmedEmail = email.trim().toLowerCase();
-      
-      // 1. Obtenemos los usuarios usando el servicio seguro (que maneja fallback local o backend)
-      const users = await userService.getUsers();
-      
-      // 2. Buscamos el usuario que coincida en correo y contraseña
-      const foundUser = users.find(
-        (u) => (u.correo || u.email)?.toLowerCase() === trimmedEmail && u.password === password
-      );
+      const { data: authData, error: authError } = await insforge.auth.signInWithPassword({
+        email: trimmedEmail,
+        password
+      });
 
+      if (authError) {
+        throw new Error(
+          "No se pudo iniciar sesión. Verifica que el correo y la contraseña estén registrados en InsForge Auth. Los datos de la tabla users solo contienen el perfil."
+        );
+      }
+
+      const foundUser = await userService.getUserByEmail(authData.user.email);
       if (!foundUser) {
-        setError("Credenciales incorrectas o usuario no registrado.");
-        setLoading(false);
-        return;
+        await insforge.auth.signOut();
+        throw new Error("La cuenta inició sesión, pero no tiene un perfil en la tabla users.");
       }
 
-      if (foundUser.estado && foundUser.estado !== "Activo") {
+      if (foundUser.estado && foundUser.estado.toLowerCase() !== "activo") {
+        await insforge.auth.signOut();
         setError("La cuenta se encuentra inactiva. Contacte al administrador.");
-        setLoading(false);
         return;
       }
 
-      // 3. Guardamos los datos de sesión correctamente
       const role = (foundUser.rol || foundUser.role || "estudiante").toLowerCase();
       const name = `${foundUser.nombres || foundUser.name || ""} ${foundUser.apellidos || ""}`.trim();
       
       localStorage.setItem("userRole", role);
       localStorage.setItem("userName", name || foundUser.correo);
-      localStorage.setItem("userEmail", foundUser.correo || foundUser.email);
+      localStorage.setItem("userEmail", foundUser.correo || authData.user.email);
       localStorage.setItem("userId", foundUser.id || "1");
+      localStorage.setItem("user", JSON.stringify(foundUser));
+      localStorage.setItem("usuarioLogueado", JSON.stringify(foundUser));
 
-      // 4. Redirección según el rol exacto
       if (role === "admin") navigate("/admin/usuarios");
       else if (role === "docente") navigate("/docente/panel");
       else navigate("/estudiante/panel");
 
     } catch (err) {
       console.error("Error en login:", err);
-      setError("Error al conectar con el sistema de usuarios.");
+      setError(err.message || "Error al conectar con InsForge Auth.");
     } finally {
       setLoading(false);
     }
-  };
-
-  // Función rápida para pruebas directas conectada a los datos por defecto
-  const loginDirecto = (role, emailDemo, passDemo, nameDemo) => {
-    localStorage.setItem("userRole", role);
-    localStorage.setItem("userName", nameDemo);
-    localStorage.setItem("userEmail", emailDemo);
-    localStorage.setItem("userId", "demo-id");
-
-    if (role === "admin") navigate("/admin/usuarios");
-    else if (role === "docente") navigate("/docente/panel");
-    else navigate("/estudiante/panel");
   };
 
   return (
@@ -90,7 +81,9 @@ export default function Login() {
               <ShieldCheck className="w-6 h-6 text-blue-600 dark:text-blue-400" />
             </div>
             <h1 className="text-2xl font-semibold tracking-tight text-slate-900 dark:text-white">Academia SCRM</h1>
-            <p className="text-sm text-slate-500 dark:text-slate-400 mt-1 font-light">Plataforma Académica Segura</p>
+            <p className="text-sm text-slate-500 dark:text-slate-400 mt-1 font-light">
+              Ingresa con una cuenta creada en InsForge Auth
+            </p>
           </div>
 
           <form onSubmit={handleLogin} className="space-y-6">
