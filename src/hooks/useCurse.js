@@ -1,50 +1,63 @@
-import { useCallback, useEffect, useState } from "react";
-import { courseService } from "../services/api";
+import { useState, useEffect } from "react";
+import { courseService } from "../services/cursosServices";
+
+export const createInitialCourseForm = () => ({
+  codigo: "",
+  asignatura: "",
+  area: "Ciencias Exactas",
+  carrera: "Ingeniería de Sistemas",
+  docenteId: "",
+  docente: "",
+  dias: [],
+  horaInicio: "08:00",
+  horaFin: "10:00",
+  meetUrl: "",
+  repositorio: "",
+  estado: "Activo"
+});
 
 export default function useCurse() {
   const [courses, setCourses] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
-
-  const loadCourses = useCallback(async () => {
-    setLoading(true);
-    setError("");
-
-    try {
-      setCourses(await courseService.getCourses());
-    } catch (requestError) {
-      setError(requestError.message || "No se pudieron cargar los cursos.");
-    } finally {
-      setLoading(false);
-    }
-  }, []);
 
   useEffect(() => {
-    loadCourses();
-  }, [loadCourses]);
-
-  const saveCourse = async (courseData, editingCourse) => {
-    setError("");
-    if (editingCourse) {
-      await courseService.updateCourse(editingCourse.id, courseData);
-    } else {
-      await courseService.createCourse(courseData);
+    async function loadCourses() {
+      try {
+        setLoading(true);
+        // Usamos fetchCourses para traer la data actualizada del backend de FastAPI
+        const data = await courseService.fetchCourses();
+        setCourses(data || []);
+      } catch (error) {
+        console.error("Error al cargar cursos en el hook:", error);
+        // Fallback síncrono si falla
+        setCourses(courseService.getCourses() || []);
+      } finally {
+        setLoading(false);
+      }
     }
-    await loadCourses();
+
+    loadCourses();
+  }, []);
+
+  const addCourse = async (courseData) => {
+    const newCourse = {
+      id: `CRS-${String(courses.length + 1).padStart(3, "0")}`,
+      ...courseData
+    };
+
+    const updatedCourses = [newCourse, ...courses];
+    setCourses(updatedCourses);
+    await courseService.saveCourses(updatedCourses);
+    return newCourse;
   };
 
-  const deactivateCourse = async (courseId) => {
-    setError("");
-    await courseService.deleteCourse(courseId);
-    await loadCourses();
+  const updateCourse = async (updatedCourse) => {
+    const updatedCourses = courses.map((course) => (
+      course.id === updatedCourse.id ? updatedCourse : course
+    ));
+    setCourses(updatedCourses);
+    await courseService.saveCourses(updatedCourses);
   };
 
-  return {
-    courses,
-    loading,
-    error,
-    saveCourse,
-    deactivateCourse,
-    reloadCourses: loadCourses
-  };
+  return { courses, loading, addCourse, updateCourse };
 }
