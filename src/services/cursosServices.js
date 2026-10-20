@@ -1,12 +1,55 @@
 // src/services/cursosServices.js
 
-const API_URL = import.meta.env.VITE_BACKEND_URL || '';
+import db from "../data/db.json";
+
+const API_URL = (import.meta.env.VITE_BACKEND_URL || '').replace(/\/+$/, '');
 const COURSES_KEY = "academia_courses";
 
-const removeClassroomField = (courses) => (courses || []).map(({ aula, ...course }) => course);
+const DIAS_SEMANA = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo"];
+
+const removeClassroomField = (courses) => (Array.isArray(courses) ? courses : []).map(({ aula, ...course }) => course);
+
+const parseSchedule = (schedule = "") => {
+  const dias = DIAS_SEMANA.filter((dia) => new RegExp(`\\b${dia}\\b`, "i").test(schedule));
+  const times = schedule.match(/(\d{1,2}):(\d{2})\s*(AM|PM)?\s*[-–]\s*(\d{1,2}):(\d{2})\s*(AM|PM)?/i);
+
+  if (!times) return { dias, horaInicio: "", horaFin: "" };
+
+  const to24Hour = (hour, minute, meridiem) => {
+    let hours = Number(hour);
+    if (meridiem) {
+      hours %= 12;
+      if (meridiem.toUpperCase() === "PM") hours += 12;
+    }
+    return `${String(hours).padStart(2, "0")}:${minute}`;
+  };
+
+  const startMeridiem = times[3] || times[6];
+  const endMeridiem = times[6] || times[3];
+
+  return {
+    dias,
+    horaInicio: to24Hour(times[1], times[2], startMeridiem),
+    horaFin: to24Hour(times[4], times[5], endMeridiem)
+  };
+};
+
+const normalizeCourses = (courses) => removeClassroomField(courses).map((course) => {
+  const parsedSchedule = parseSchedule(course.horario);
+  return {
+    ...course,
+    dias: Array.isArray(course.dias) ? course.dias : parsedSchedule.dias,
+    horaInicio: course.horaInicio || parsedSchedule.horaInicio,
+    horaFin: course.horaFin || parsedSchedule.horaFin,
+    docenteId: course.docenteId || "",
+    meetUrl: course.meetUrl || ""
+  };
+});
 
 // Helper para sincronizar en segundo plano con FastAPI
 const bgSyncFastAPI = (key, callback) => {
+  if (!API_URL) return;
+
   const token = localStorage.getItem('token') || '';
   fetch(`${API_URL}/horarios/cursos`, {
     headers: {
@@ -16,6 +59,9 @@ const bgSyncFastAPI = (key, callback) => {
   })
     .then((res) => {
       if (!res.ok) throw new Error('Error al sincronizar con FastAPI');
+      if (!res.headers.get("content-type")?.includes("application/json")) {
+        throw new Error("La respuesta del servidor no es JSON");
+      }
       return res.json();
     })
     .then((data) => {
@@ -31,24 +77,31 @@ export const courseService = {
   getCourses: () => {
     const saved = localStorage.getItem(COURSES_KEY);
     bgSyncFastAPI(COURSES_KEY, (data) =>
-      removeClassroomField(data).map((course) => ({
-        ...course,
-        docenteId: course.docenteId || "",
-        meetUrl: course.meetUrl || ""
-      }))
+      normalizeCourses(data)
     );
 
-    const courses = saved ? JSON.parse(saved) : [];
-    const normalizedCourses = removeClassroomField(courses).map((course) => ({
-      ...course,
-      docenteId: course.docenteId || "",
-      meetUrl: course.meetUrl || ""
-    }));
+    let courses = [];
+    if (saved) {
+      try {
+        const parsedCourses = JSON.parse(saved);
+        if (Array.isArray(parsedCourses)) courses = parsedCourses;
+      } catch (error) {
+        console.warn("[Cursos] No se pudo leer la caché local:", error);
+      }
+    }
+    if (!Array.isArray(courses)) courses = [];
+    if (courses.length === 0 && Array.isArray(db.courses) && db.courses.length > 0) {
+      courses = db.courses;
+    }
+
+    const normalizedCourses = normalizeCourses(courses);
     localStorage.setItem(COURSES_KEY, JSON.stringify(normalizedCourses));
     return normalizedCourses;
   },
 
   fetchCourses: async () => {
+    if (!API_URL) return courseService.getCourses();
+
     try {
       const token = localStorage.getItem('token') || '';
       const response = await fetch(`${API_URL}/horarios/cursos`, {
@@ -57,16 +110,16 @@ export const courseService = {
           'Authorization': `Bearer ${token}`
         }
       });
-      if (response.ok) {
-        const data = await response.json();
-        const cleaned = removeClassroomField(data).map((course) => ({
-          ...course,
-          docenteId: course.docenteId || "",
-          meetUrl: course.meetUrl || ""
-        }));
-        localStorage.setItem(COURSES_KEY, JSON.stringify(cleaned));
-        return cleaned;
+      if (!response.ok) {
+        throw new Error(`Error al cargar cursos (HTTP ${response.status})`);
       }
+      if (!response.headers.get("content-type")?.includes("application/json")) {
+        throw new Error("La respuesta del servidor no es JSON");
+      }
+      const data = await response.json();
+      const cleaned = normalizeCourses(data);
+      localStorage.setItem(COURSES_KEY, JSON.stringify(cleaned));
+      return cleaned;
     } catch (err) {
       console.warn("[FastAPI] Fallback a caché local:", err);
     }

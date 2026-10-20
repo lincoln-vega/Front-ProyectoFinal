@@ -24,6 +24,16 @@ const normalizeName = (value) =>
     .replace(/^(prof\.|dra\.|dr\.|ing\.|lic\.)\s*/i, '')
     .trim();
 
+const matchesTeacherName = (courseName, userName) => {
+  const assignedTeacher = normalizeName(courseName);
+  const loggedInTeacher = normalizeName(userName);
+  return assignedTeacher && (
+    assignedTeacher === loggedInTeacher ||
+    assignedTeacher.startsWith(`${loggedInTeacher} `) ||
+    loggedInTeacher.startsWith(`${assignedTeacher} `)
+  );
+};
+
 export default function HorariosView() {
   const [listaCursos, setListaCursos] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -53,10 +63,9 @@ export default function HorariosView() {
   const cursosFiltrados = useMemo(() => {
     return listaCursos.filter((course) => {
       if (course.estado !== 'Activo') return false;
-      const assignedTeacher = normalizeName(course.docente || '');
       return (
         course.docenteId === userId || 
-        assignedTeacher === normalizeName(userName) || 
+        matchesTeacherName(course.docente, userName) ||
         Boolean(userEmail && course.docente?.toLowerCase().includes(userEmail.toLowerCase()))
       );
     });

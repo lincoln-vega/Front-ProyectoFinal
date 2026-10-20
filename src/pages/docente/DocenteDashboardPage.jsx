@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useMemo } from "react";
 import { BookOpen, Users, AlertCircle, Loader2 } from "lucide-react";
 import { courseService } from "../../services/cursosServices";
+import { userService } from "../../services/api";
 
 // Función de normalización para asegurar la coincidencia exacta del docente
 const normalizeName = (value) => 
@@ -8,6 +9,16 @@ const normalizeName = (value) =>
     .toLowerCase()
     .replace(/^(prof\.|dra\.|dr\.|ing\.|lic\.)\s*/i, '')
     .trim();
+
+const matchesTeacherName = (courseName, userName) => {
+  const assignedTeacher = normalizeName(courseName);
+  const loggedInTeacher = normalizeName(userName);
+  return assignedTeacher && (
+    assignedTeacher === loggedInTeacher ||
+    assignedTeacher.startsWith(`${loggedInTeacher} `) ||
+    loggedInTeacher.startsWith(`${assignedTeacher} `)
+  );
+};
 
 export default function DocenteDashboardPage() {
   const userName = localStorage.getItem("userName") || "Docente";
@@ -28,13 +39,8 @@ export default function DocenteDashboardPage() {
         const cursos = courseService.getCourses();
         setListaCursos(cursos || []);
 
-        // 2. Cargar la lista de usuarios desde el backend para contar estudiantes matriculados
-        const backendUrl = import.meta.env.VITE_BACKEND_URL || 'https://portal-backend-5adf751c-968e-487d-92f9-672da789d8b3.fly.dev';
-        const res = await fetch(`${backendUrl}/usuarios/`);
-        if (res.ok) {
-          const usuarios = await res.json();
-          setListaUsuarios(usuarios || []);
-        }
+        // 2. Obtener usuarios desde el servicio local y su caché, sin depender del endpoint antiguo.
+        setListaUsuarios(userService.getUsers() || []);
 
         // 3. Buscar información adicional de nómina/especialidad en localStorage si existe
         const stored = localStorage.getItem("docentesData");
@@ -57,10 +63,9 @@ export default function DocenteDashboardPage() {
   const cursosAsignados = useMemo(() => {
     return listaCursos.filter((course) => {
       if (course.estado !== 'Activo') return false;
-      const assignedTeacher = normalizeName(course.docente || '');
       return (
         course.docenteId === userId || 
-        assignedTeacher === normalizeName(userName) || 
+        matchesTeacherName(course.docente, userName) ||
         Boolean(userEmail && course.docente?.toLowerCase().includes(userEmail.toLowerCase()))
       );
     });
@@ -72,7 +77,7 @@ export default function DocenteDashboardPage() {
     
     // Contar estudiantes únicos cuyo campo 'cursosInscritos' contenga alguno de los cursos del profesor
     const estudiantesUnicos = listaUsuarios.filter(u => {
-      if (u.rol !== 'estudiante' || !u.cursosInscritos) return false;
+      if (u.rol !== 'estudiante' || !Array.isArray(u.cursosInscritos)) return false;
       return u.cursosInscritos.some(c => idsCursosDocente.has(c.id));
     });
 
