@@ -13,15 +13,18 @@ export default function DocenteCursosDetalles({ cursoId, onVolver }) {
   // EFECTO: CARGA DE DATOS DEL CURSO
   // ==========================================
   useEffect(() => {
-    try {
-      const cursos = courseService.getCourses();
-      const cursoEncontrado = cursos.find((c) => c.id === cursoId);
-      setCurso(cursoEncontrado || null);
-    } catch (error) {
-      console.error('Error al cargar el detalle del curso:', error);
-    } finally {
-      setLoading(false);
+    async function loadCourse() {
+      try {
+        const cursos = await courseService.getCourses();
+        const cursoEncontrado = cursos.find((c) => c.id === cursoId);
+        setCurso(cursoEncontrado || null);
+      } catch (error) {
+        console.error('Error al cargar el detalle del curso:', error);
+      } finally {
+        setLoading(false);
+      }
     }
+    loadCourse();
   }, [cursoId]);
 
   // ==========================================

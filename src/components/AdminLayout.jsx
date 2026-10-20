@@ -17,6 +17,7 @@ import {
   ShieldCheck
 } from "lucide-react";
 import ThemeToggle from "./ThemeToggle";
+import { signOutFromApp } from "../services/session";
 
 export default function AdminLayout() {
   const navigate = useNavigate();
@@ -24,11 +25,13 @@ export default function AdminLayout() {
   const userName = localStorage.getItem("userName") || "Administrador General";
   const userEmail = localStorage.getItem("userEmail") || "admin@academia.edu.pe";
 
-  const handleLogout = () => {
-    localStorage.removeItem("userRole");
-    localStorage.removeItem("userName");
-    localStorage.removeItem("userEmail");
-    navigate("/login");
+  const handleLogout = async () => {
+    try {
+      await signOutFromApp();
+      navigate("/login");
+    } catch (error) {
+      window.alert(error.message);
+    }
   };
 
   const navItems = [

@@ -24,6 +24,7 @@ const splitFullName = (fullName) => {
 
 export default function DocentesPage() {
   const [docentes, setDocentes] = useState([]);
+  const [users, setUsers] = useState([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [currentDocente, setCurrentDocente] = useState(null);
@@ -36,22 +37,32 @@ export default function DocentesPage() {
   const [incidenciaDesc, setIncidenciaDesc] = useState("");
 
   useEffect(() => {
-    const savedProfiles = JSON.parse(localStorage.getItem(TEACHER_PROFILE_KEY) || "{}");
-    const teacherUsers = userService.getUsers().filter((user) => String(user.rol).toLowerCase() === "docente");
-    const initialData = teacherUsers.map((user) => ({
-      id: user.id,
-      userId: user.id,
-      nombre: `${user.nombres} ${user.apellidos}`.trim(),
-      documento: user.dni,
-      especialidad: user.carreraObjetivo || "Sin especialidad asignada",
-      salario: Number(savedProfiles[user.id]?.salario || 0),
-      incidencias: savedProfiles[user.id]?.incidencias || [],
-      estado: user.estado
-    }));
-    setDocentes(initialData);
-    localStorage.setItem(TEACHER_PROFILE_KEY, JSON.stringify(
-      Object.fromEntries(initialData.map(({ id, userId, salario, incidencias }) => [userId || id, { salario, incidencias }]))
-    ));
+    async function loadTeachers() {
+      try {
+        const savedProfiles = JSON.parse(localStorage.getItem(TEACHER_PROFILE_KEY) || "{}");
+        const allUsers = await userService.getUsers();
+        const teacherUsers = allUsers.filter((user) => String(user.rol).toLowerCase() === "docente");
+        const initialData = teacherUsers.map((user) => ({
+          id: user.id,
+          userId: user.id,
+          nombre: `${user.nombres} ${user.apellidos}`.trim(),
+          documento: user.dni,
+          especialidad: user.carreraObjetivo || "Sin especialidad asignada",
+          salario: Number(savedProfiles[user.id]?.salario || 0),
+          incidencias: savedProfiles[user.id]?.incidencias || [],
+          estado: user.estado
+        }));
+        setUsers(allUsers);
+        setDocentes(initialData);
+        localStorage.setItem(TEACHER_PROFILE_KEY, JSON.stringify(
+          Object.fromEntries(initialData.map(({ id, userId, salario, incidencias }) => [userId || id, { salario, incidencias }]))
+        ));
+      } catch (error) {
+        console.error("Error al cargar docentes desde InsForge:", error);
+        window.alert(`No se pudieron cargar los docentes: ${error.message}`);
+      }
+    }
+    loadTeachers();
   }, []);
 
   const saveToStorage = (data) => {
@@ -88,42 +99,46 @@ export default function DocentesPage() {
     setCurrentDocente(null);
   };
 
-  const handleSaveDocente = (e) => {
+  const handleSaveDocente = async (e) => {
     e.preventDefault();
     let updatedDocentes;
-    
-    if (currentDocente) {
-      // Editar
-      updatedDocentes = docentes.map(d => {
-        if (d.id === currentDocente.id) {
-          const nuevasIncidencias = [...d.incidencias];
-          if (incidenciaDesc.trim() !== "") {
+    try {
+      if (currentDocente) {
+        const original = docentes.find((item) => item.id === currentDocente.id);
+        const user = users.find((item) => item.id === original?.userId);
+        if (user) {
+          const name = splitFullName(nombre);
+          const savedUser = await userService.saveUser({
+            ...user,
+            nombres: name.nombres,
+            apellidos: name.apellidos,
+            dni: documento,
+            carreraObjetivo: especialidad,
+            estado: currentDocente.estado
+          });
+          setUsers((current) => current.map((item) => item.id === savedUser.id ? savedUser : item));
+        }
+
+        updatedDocentes = docentes.map((docente) => {
+          if (docente.id !== currentDocente.id) return docente;
+          const nuevasIncidencias = [...docente.incidencias];
+          if (incidenciaDesc.trim()) {
             nuevasIncidencias.push({
               id: Date.now().toString(),
               fecha: new Date().toLocaleDateString(),
               descripcion: incidenciaDesc
             });
           }
-          const user = userService.getUsers().find((item) => item.id === d.userId);
-          if (user) {
-            const name = splitFullName(nombre);
-            userService.saveUsers(userService.getUsers().map((item) => item.id === d.userId
-              ? { ...item, nombres: name.nombres, apellidos: name.apellidos, dni: documento, estado: d.estado }
-              : item));
-          }
           return {
-            ...d,
-            userId: d.userId,
+            ...docente,
             nombre,
             documento,
             especialidad,
             salario: Number(salario),
             incidencias: nuevasIncidencias
           };
-        }
-        return d;
-      });
-    } else {
+        });
+      } else {
       const newUserId = `USR-${Date.now().toString().slice(-6)}`;
       const name = splitFullName(nombre);
       const newUser = {
@@ -131,13 +146,13 @@ export default function DocentesPage() {
         ...name,
         dni: documento,
         correo: `${newUserId.toLowerCase()}@academia.edu.pe`,
-        password: "docente123",
         celular: "",
         carreraObjetivo: especialidad,
         rol: "docente",
         estado: "Activo"
       };
-      userService.saveUsers([newUser, ...userService.getUsers()]);
+      const savedUser = await userService.saveUser(newUser);
+      setUsers((current) => [savedUser, ...current]);
       const nuevoDocente = {
         id: newUserId,
         userId: newUserId,
@@ -153,19 +168,32 @@ export default function DocentesPage() {
         estado: "Activo"
       };
       updatedDocentes = [nuevoDocente, ...docentes];
+      }
+
+      saveToStorage(updatedDocentes);
+      handleCloseModal();
+      if (!currentDocente) {
+        window.alert("Perfil del docente guardado en InsForge. Crea también su cuenta en InsForge Auth para que pueda iniciar sesión.");
+      }
+    } catch (error) {
+      console.error("Error al guardar docente:", error);
+      window.alert(`No se pudo guardar el docente: ${error.message}`);
     }
-    
-    saveToStorage(updatedDocentes);
-    handleCloseModal();
   };
 
-  const handleDelete = (id) => {
+  const handleDelete = async (id) => {
     if (window.confirm("¿Seguro que deseas eliminar a este docente?")) {
-      const updated = docentes.filter(d => d.id !== id);
-      saveToStorage(updated);
-      const docente = docentes.find((item) => item.id === id);
-      if (docente?.userId) {
-        userService.saveUsers(userService.getUsers().filter((user) => user.id !== docente.userId));
+      try {
+        const updated = docentes.filter(d => d.id !== id);
+        const docente = docentes.find((item) => item.id === id);
+        if (docente?.userId) {
+          await userService.deleteUser(docente.userId);
+          setUsers((current) => current.filter((user) => user.id !== docente.userId));
+        }
+        saveToStorage(updated);
+      } catch (error) {
+        console.error("Error al eliminar docente:", error);
+        window.alert(`No se pudo eliminar el docente: ${error.message}`);
       }
     }
   };

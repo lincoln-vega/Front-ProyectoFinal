@@ -1,7 +1,6 @@
 import React, { useEffect, useState, useMemo } from "react";
 import { BookOpen, Users, AlertCircle, Loader2 } from "lucide-react";
 import { courseService } from "../../services/cursosServices";
-import { userService } from "../../services/api";
 
 // Función de normalización para asegurar la coincidencia exacta del docente
 const normalizeName = (value) => 
@@ -26,8 +25,9 @@ export default function DocenteDashboardPage() {
   const userEmail = localStorage.getItem("userEmail") || "";
 
   const [listaCursos, setListaCursos] = useState([]);
-  const [listaUsuarios, setListaUsuarios] = useState([]);
+  const [totalEstudiantes, setTotalEstudiantes] = useState(0);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
   const [docenteData, setDocenteData] = useState(null);
 
   useEffect(() => {
@@ -36,11 +36,14 @@ export default function DocenteDashboardPage() {
         setLoading(true);
         
         // 1. Cargar cursos desde el servicio
-        const cursos = courseService.getCourses();
+        const cursos = await courseService.getCourses();
         setListaCursos(cursos || []);
-
-        // 2. Obtener usuarios desde el servicio local y su caché, sin depender del endpoint antiguo.
-        setListaUsuarios(userService.getUsers() || []);
+        const assigned = cursos.filter((course) =>
+          course.estado === "Activo" &&
+          (course.docenteId === userId || matchesTeacherName(course.docente, userName))
+        );
+        const studentCount = await courseService.countStudentsForTeacher(assigned.map((course) => course.id));
+        setTotalEstudiantes(studentCount);
 
         // 3. Buscar información adicional de nómina/especialidad en localStorage si existe
         const stored = localStorage.getItem("docentesData");
@@ -51,13 +54,14 @@ export default function DocenteDashboardPage() {
         }
       } catch (err) {
         console.error("Error al cargar datos del dashboard:", err);
+        setError(err.message);
       } finally {
         setLoading(false);
       }
     }
 
     cargarDatosDashboard();
-  }, [userName]);
+  }, [userName, userId]);
 
   // Filtrar los cursos asignados al docente activo con estado 'Activo'
   const cursosAsignados = useMemo(() => {
@@ -71,19 +75,6 @@ export default function DocenteDashboardPage() {
     });
   }, [listaCursos, userId, userName, userEmail]);
 
-  // Calcular el total de estudiantes matriculados en los cursos del docente
-  const totalEstudiantes = useMemo(() => {
-    const idsCursosDocente = new Set(cursosAsignados.map(c => c.id));
-    
-    // Contar estudiantes únicos cuyo campo 'cursosInscritos' contenga alguno de los cursos del profesor
-    const estudiantesUnicos = listaUsuarios.filter(u => {
-      if (u.rol !== 'estudiante' || !Array.isArray(u.cursosInscritos)) return false;
-      return u.cursosInscritos.some(c => idsCursosDocente.has(c.id));
-    });
-
-    return estudiantesUnicos.length;
-  }, [cursosAsignados, listaUsuarios]);
-
   if (loading) {
     return (
       <div className="flex justify-center items-center min-h-[400px]">
@@ -94,6 +85,7 @@ export default function DocenteDashboardPage() {
 
   return (
     <div className="space-y-6">
+      {error && <p role="alert" className="rounded-lg border border-red-300 bg-red-50 p-3 text-sm text-red-700">{error}</p>}
       <div className="bg-white/60 dark:bg-white/5 backdrop-blur-2xl p-6 rounded-xl border border-slate-200 dark:border-white/10 shadow-2xs">
         <h2 className="text-2xl font-bold text-slate-800 dark:text-white">¡Bienvenido(a), {userName}!</h2>
         <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">

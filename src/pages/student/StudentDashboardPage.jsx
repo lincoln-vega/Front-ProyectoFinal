@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo } from "react";
 import { courseService } from "../../services/cursosServices";
+import { userService } from "../../services/api";
 
 import {
   Video,
@@ -16,52 +17,25 @@ export default function StudentDashboardPage() {
   const [listaCursosGlobal, setListaCursosGlobal] = useState([]);
   const [estudianteActivo, setEstudianteActivo] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
 
   useEffect(() => {
     async function cargarDatosEstudiante() {
       try {
         setLoading(true);
 
-        // 1. Cargar cursos de la plataforma (FastAPI)
-        const cursos = (await courseService.getCourses()) || [];
+        const userEmail = localStorage.getItem("userEmail");
+        if (!userEmail) throw new Error("No se encontró el correo de la sesión.");
+        const [cursos, perfil] = await Promise.all([
+          courseService.getCourses(),
+          userService.getUserByEmail(userEmail)
+        ]);
         setListaCursosGlobal(cursos);
-
-        // 2. Leer los datos completos del usuario desde la sesión de localStorage
-        const rawUser = 
-          localStorage.getItem("usuarioLogueado") || 
-          localStorage.getItem("user") || 
-          localStorage.getItem("usuario") ||
-          sessionStorage.getItem("usuarioLogueado");
-
-        let userParsed = null;
-        if (rawUser) {
-          try {
-            userParsed = JSON.parse(rawUser);
-          } catch (e) {
-            console.error("Error parseando usuario de sesión:", e);
-          }
-        }
-
-        // Si existe sesión, la usamos. Si no, tomamos el perfil de Valeria Sofía Quispe Alarcón
-        if (userParsed) {
-          setEstudianteActivo(userParsed);
-        } else {
-          setEstudianteActivo({
-            id: "USR-006",
-            nombres: "Valeria Sofía",
-            apellidos: "Quispe Alarcón",
-            correo: "v.quispe@academia.edu.pe",
-            universidad: "UNI",
-            carreraObjetivo: "Ingeniería de Sistemas",
-            areaAcademica: "Ciencias Exactas",
-            cursosInscritos: [
-              { id: "CRS-001", asignatura: "Álgebra y Funciones" },
-              { id: "CRS-002", asignatura: "Física Fundamental" }
-            ]
-          });
-        }
+        if (!perfil) throw new Error("No se encontró el perfil del estudiante en InsForge.");
+        setEstudianteActivo(perfil);
       } catch (err) {
         console.error("Error al cargar datos del estudiante:", err);
+        setError(err.message);
       } finally {
         setLoading(false);
       }
@@ -89,22 +63,8 @@ export default function StudentDashboardPage() {
       (curso) => idsInscritos.has(curso.id) && curso.estado === 'Activo'
     );
 
-    // Si los cursos globales aún no cargaron o difieren, devolvemos los datos de su sesión
-    if (cursosEncontrados.length > 0) {
-      return cursosEncontrados;
-    }
-
-    return estudianteActivo.cursosInscritos.map((c) => ({
-      id: c.id,
-      asignatura: c.asignatura,
-      carrera: carreraObjetivo,
-      docente: c.id === 'CRS-001' ? 'Prof. Carmen Rosa Herrera' : 'Prof. Miguel Ángel Paredes',
-      dias: c.id === 'CRS-001' ? ['Lunes', 'Miércoles'] : ['Martes', 'Jueves'],
-      horaInicio: '08:00',
-      horaFin: '10:00',
-      meetUrl: 'https://meet.google.com/'
-    }));
-  }, [estudianteActivo, listaCursosGlobal, carreraObjetivo]);
+    return cursosEncontrados;
+  }, [estudianteActivo, listaCursosGlobal]);
 
   const handleJoinMeet = (course) => {
     setActiveMeetModal(course);
@@ -120,6 +80,7 @@ export default function StudentDashboardPage() {
 
   return (
     <div className="space-y-8 animate-fade-in">
+      {error && <p role="alert" className="rounded-lg border border-red-300 bg-red-50 p-3 text-sm text-red-700">{error}</p>}
       {/* BANNER DE BIENVENIDA */}
       <div className="bg-gradient-to-r from-[#1E3A8A] via-blue-900 to-indigo-900 rounded-2xl p-6 sm:p-8 text-white shadow-lg relative overflow-hidden">
         <div className="absolute right-0 top-0 translate-x-10 -translate-y-10 w-64 h-64 bg-white/5 rounded-full blur-2xl pointer-events-none" />

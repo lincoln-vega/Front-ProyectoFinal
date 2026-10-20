@@ -58,19 +58,7 @@ export default function DocenteCursosPage() {
 
 
 
-  const [startedCourses, setStartedCourses] = useState(() => {
-
-    const today = new Date().toISOString().slice(0, 10);
-
-    return getTeacherAttendances()
-
-      .filter((attendance) => attendance.docenteId === userEmail || attendance.docente === userName)
-
-      .filter((attendance) => attendance.fecha === today)
-
-      .map((attendance) => attendance.cursoId);
-
-  });
+  const [startedCourses, setStartedCourses] = useState([]);
 
 
 
@@ -84,9 +72,13 @@ export default function DocenteCursosPage() {
 
         setLoading(true);
 
-        const data = await courseService.getCourses();
-
+        const today = new Date().toISOString().slice(0, 10);
+        const [data, attendances] = await Promise.all([
+          courseService.getCourses(),
+          getTeacherAttendances(userId, today)
+        ]);
         setListaCursos(data || []);
+        setStartedCourses(attendances.map((attendance) => attendance.cursoId));
 
       } catch (err) {
 
@@ -106,7 +98,7 @@ export default function DocenteCursosPage() {
 
     cargarCursos();
 
-  }, []);
+  }, [userId]);
 
 
 
@@ -134,15 +126,16 @@ export default function DocenteCursosPage() {
 
 
 
-  const handleStartMeet = (curso) => {
+  const handleStartMeet = async (curso) => {
 
     const now = new Date();
 
-    saveTeacherAttendance({
+    try {
+    await saveTeacherAttendance({
 
       id: `TATT-${now.getTime()}`,
 
-      docenteId: userEmail || userName,
+      docenteId: userId,
 
       docente: userName,
 
@@ -166,6 +159,10 @@ export default function DocenteCursosPage() {
 
       window.open(curso.meetUrl, '_blank', 'noopener,noreferrer');
 
+    }
+    } catch (err) {
+      console.error("No se pudo iniciar la sesión de clase:", err);
+      window.alert(`No se pudo guardar la sesión en InsForge: ${err.message}`);
     }
 
   };
@@ -356,7 +353,7 @@ export default function DocenteCursosPage() {
 
                     event.stopPropagation();
 
-                    handleStartMeet(curso);
+                    void handleStartMeet(curso);
 
                   }}
 
