@@ -1,21 +1,18 @@
 # Proyecto Final – Herramientas de Desarrollo
 
-Este repositorio contiene el **frontend** (React / Vite) y el **backend** (FastAPI) de la aplicación desarrollada en el curso. Cada parte está en su propia carpeta:
+Este repositorio contiene el **frontend** (React / Vite). La autenticación, los datos y las funciones de asistencia docente se gestionan exclusivamente en el proyecto **InsForge** `Portal-backend`.
 
-- `front/` – Código del cliente, despliegue en **Vercel**.
-- `back/`  – API en **InsForge**, ejecutada con Python 3.14.
+- Código del cliente en la raíz, con despliegue en **Vercel**.
+- InsForge: `https://rbxki34t.us-east.insforge.app`.
 
 ## Cómo iniciar el proyecto
 
 ```bash
-# Instalar dependencias (frontend y backend)
-./scripts/install.sh
+# Instalar dependencias del frontend
+npm install
 
 # Ejecutar frontend en modo desarrollo
-cd front && npm run dev
-
-# Ejecutar backend en modo desarrollo
-cd back && uvicorn main:app --reload
+npm run dev
 ```
 
 ## Flujo de trabajo
@@ -29,6 +26,6 @@ cd back && uvicorn main:app --reload
 ## Despliegue automático
 
 - **Frontend** → Vercel (workflow `deploy-frontend.yml`).
-- **Backend** → InsForge (workflow `deploy-backend.yml`).
+- **Backend** → InsForge (funciones `meet-entrada`, `meet-salida` y `meet-auditoria`).
 
 Los secretos `VERCEL_TOKEN` y `INSFORGE_API_KEY` deben estar configurados en los Settings → Secrets of this repository.

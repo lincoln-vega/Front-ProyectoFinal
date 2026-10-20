@@ -25,7 +25,6 @@ export default function useCurse() {
     async function loadCourses() {
       try {
         setLoading(true);
-        // Usamos fetchCourses para traer la data actualizada del backend de FastAPI
         const data = await courseService.fetchCourses();
         setCourses(data || []);
       } catch (error) {
