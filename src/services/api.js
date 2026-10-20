@@ -5,7 +5,6 @@ const KEYS = {
   USERS: "academia_users",
   ROLES: "app_roles",
   INCIDENTS: "academia_teacher_incidents",
-  COURSES: "academia_courses",
   SECTIONS: "academia_sections",
   MATRICULAS: "academia_matriculas_data",
   PAGOS: "academia_pagos_data"
@@ -148,49 +147,6 @@ export const incidentService = {
     insforge.database.from("incidents").upsert(db.incidents).catch(console.error);
     return db.incidents;
   }
-};
-
-// --- SERVICIO DE CURSOS Y ESTUDIANTES ---
-const removeClassroomField = (courses) => (courses || []).map(({ aula, ...course }) => course);
-
-export const courseService = {
-  getCourses: () => {
-    const saved = localStorage.getItem(KEYS.COURSES);
-    bgSync(insforge.database.from("courses").select("*"), KEYS.COURSES, (data) =>
-      removeClassroomField(data).map((course) => ({
-        ...course,
-        docenteId: course.docenteId || "",
-        meetUrl: course.meetUrl || ""
-      }))
-    );
-
-    const courses = saved ? JSON.parse(saved) : db.courses;
-    const normalizedCourses = removeClassroomField(courses).map((course) => ({
-      ...course,
-      docenteId: course.docenteId || db.courses.find((initialCourse) => initialCourse.id === course.id)?.docenteId || "",
-      meetUrl: course.meetUrl || db.courses.find((initialCourse) => initialCourse.id === course.id)?.meetUrl || ""
-    }));
-    localStorage.setItem(KEYS.COURSES, JSON.stringify(normalizedCourses));
-    return normalizedCourses;
-  },
-
-  saveCourses: (courses) => {
-    const normalized = removeClassroomField(courses);
-    localStorage.setItem(KEYS.COURSES, JSON.stringify(normalized));
-    insforge.database.from("courses").upsert(normalized).catch(console.error);
-  },
-
-  // Valida conflicto de horario mediante la Edge Function en InsForge
-  validarCruce: async (nuevoCurso) => {
-    return await insforge.functions.invoke("validar-curso", {
-      body: nuevoCurso
-    });
-  }
-};
-
-export const studentService = {
-  getStudentCourses: () => db.studentCourses,
-  getStudentAttendance: () => db.studentAttendance
 };
 
 // --- SERVICIO DE SECCIONES ---
