@@ -13,7 +13,7 @@ import useCurse from "../../hooks/useCurse";
 import CursoRegistroModal from "../../components/admin/CursoRegistroModal";
 
 export default function CursoPage() {
-  const { courses: initialCourses } = useCurse();
+  const { courses: initialCourses, loading, error, addCourse } = useCurse();
   const [coursesList, setCoursesList] = useState([]);
   
   const [searchTerm, setSearchTerm] = useState("");
@@ -31,8 +31,8 @@ export default function CursoPage() {
   }, [initialCourses]);
 
   // Agregar nuevo curso a la lista en tiempo real
-  const handleAddCourse = (newCourse) => {
-    setCoursesList((prevList) => [newCourse, ...prevList]);
+  const handleAddCourse = async (newCourse) => {
+    await addCourse(newCourse);
   };
 
   // Filtrado dinámico
@@ -124,6 +124,8 @@ export default function CursoPage() {
       </div>
 
       {/* CUADRÍCULA (GRID) DE CURSOS */}
+      {error && <p role="alert" className="rounded-lg border border-red-300 bg-red-50 p-3 text-sm text-red-700">{error}</p>}
+      {loading && <p className="text-sm text-slate-500">Consultando cursos en InsForge...</p>}
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
         {filteredCourses.length > 0 ? (
           filteredCourses.map((curso) => (

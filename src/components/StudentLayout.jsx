@@ -10,17 +10,20 @@ import {
   Clock
 } from "lucide-react";
 import ThemeToggle from "./ThemeToggle";
+import { signOutFromApp } from "../services/session";
 
 export default function StudentLayout() {
   const navigate = useNavigate();
   const studentName = localStorage.getItem("userName") || "Juan Carlos Flores";
   const studentEmail = localStorage.getItem("userEmail") || "j.flores@academia.edu.pe";
 
-  const handleLogout = () => {
-    localStorage.removeItem("userRole");
-    localStorage.removeItem("userName");
-    localStorage.removeItem("userEmail");
-    navigate("/login");
+  const handleLogout = async () => {
+    try {
+      await signOutFromApp();
+      navigate("/login");
+    } catch (error) {
+      window.alert(error.message);
+    }
   };
 
   return (
