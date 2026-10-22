@@ -14,7 +14,7 @@ export default function AdminConfiguracionPage() {
         <Settings className="w-16 h-16 text-slate-400 dark:text-slate-500 mb-4" />
         <h3 className="text-xl font-semibold text-slate-700 dark:text-slate-200">Módulo en Construcción</h3>
         <p className="text-slate-500 dark:text-slate-400 mt-2 text-center max-w-md">
-          Este módulo está planeado para la siguiente fase del proyecto (SCRM).
+          Este módulo estará disponible en las próximas actualizaciones de la plataforma.
         </p>
       </div>
     </div>

@@ -17,7 +17,7 @@ import Notification from "../../components/admin/Notification";
 import { exportToCSV } from "../../utils/exportUtils";
 
 export default function ControlAsistenciasPage() {
-    const { incidents, updateIncidentStatus } = useTeacherIncidents();
+    const { incidents, updateIncidentStatus, loading, error } = useTeacherIncidents();
     const [filterType, setFilterType] = useState("TODOS");
     const [selectedFile, setSelectedFile] = useState(null);
     const [notification, setNotification] = useState(null);
@@ -46,16 +46,20 @@ export default function ControlAsistenciasPage() {
             { key: "estado", label: "ESTADO VALIDACION" }
         ];
 
-        const success = exportToCSV(filteredIncidents, "reporte_auditoria_horas_docentes", columns);
-        if (success) {
-            showNotification("Reporte exportado exitosamente a CSV/Excel.");
-        }
-    };
+       const success = exportToCSV(filteredIncidents, "reporte_auditoria_horas_docentes", columns);
+       if (success) {
+           showNotification("Reporte exportado exitosamente a CSV/Excel.");
+       }
+   };
 
-    const handleAction = (id, status) => {
-        updateIncidentStatus(id, status);
-        showNotification(`Justificación marcada como: ${status}`);
-    };
+   const handleAction = async (id, status) => {
+       try {
+           await updateIncidentStatus(id, status);
+           showNotification(`Justificación marcada como: ${status}`);
+       } catch (err) {
+           showNotification(`No se pudo actualizar la incidencia en InsForge: ${err.message}`);
+       }
+   };
 
     const pendingCount = incidents.filter(i => i.estado === "Pendiente").length;
 
@@ -70,6 +74,8 @@ export default function ControlAsistenciasPage() {
             {notification && (
                 <Notification message={notification} onClose={() => setNotification(null)} />
             )}
+            {loading && <p className="text-sm text-slate-500">Consultando incidencias en InsForge...</p>}
+            {error && <p role="alert" className="rounded-lg border border-red-300 bg-red-50 p-3 text-sm text-red-700">{error}</p>}
 
             {/* BANNER SUPERIOR */}
             <div className="bg-white/60 dark:bg-white/5 backdrop-blur-2xl p-6 rounded-2xl border border-slate-200 dark:border-white/10 shadow-xs">

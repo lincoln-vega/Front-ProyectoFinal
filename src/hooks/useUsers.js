@@ -17,9 +17,17 @@ export const createInitialUserForm = () => ({
 export default function useUsers() {
   const [users, setUsers] = useState([]);
   const [roles, setRoles] = useState(() => roleService.getRoles());
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
 
   useEffect(() => {
-    setUsers(userService.getUsers());
+    userService.getUsers()
+      .then(setUsers)
+      .catch((err) => {
+        console.error("Error al cargar usuarios:", err);
+        setError(err.message);
+      })
+      .finally(() => setLoading(false));
   }, []);
 
   const saveRolesToStorage = (updatedRoles) => {
@@ -43,7 +51,7 @@ export default function useUsers() {
       user.rol === oldRole ? { ...user, rol: updatedRole } : user
     );
     setUsers(updatedUsers);
-    userService.saveUsers(updatedUsers);
+    userService.saveUsers(updatedUsers).catch((err) => setError(err.message));
   };
 
   const deleteRole = (roleToDelete) => {
@@ -51,39 +59,42 @@ export default function useUsers() {
     saveRolesToStorage(updatedRoles);
   };
 
-  const resetUsers = () => {
-    const initialUsers = userService.resetUsers();
-    const initialRoles = roleService.resetRoles();
-    setUsers(initialUsers);
-    setRoles(initialRoles);
+  const resetUsers = async () => {
+    setLoading(true);
+    setError("");
+    try {
+      setUsers(await userService.resetUsers());
+    } catch (err) {
+      setError(err.message);
+      throw err;
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const deleteUser = (id) => {
-    const updatedUsers = users.filter((user) => user.id !== id);
-    setUsers(updatedUsers);
-    userService.saveUsers(updatedUsers);
+  const deleteUser = async (id) => {
+    setError("");
+    await userService.deleteUser(id);
+    setUsers((current) => current.filter((user) => user.id !== id));
   };
 
-  const saveUser = (formData, editingUserId) => {
-    const updatedUsers = editingUserId
-      ? users.map((user) =>
-          user.id === editingUserId ? { ...user, ...formData } : user
-        )
-      : [
-          {
-            id: `USR-${Date.now().toString().slice(-4)}`,
-            ...formData
-          },
-          ...users
-        ];
-
-    setUsers(updatedUsers);
-    userService.saveUsers(updatedUsers);
+  const saveUser = async (formData, editingUserId) => {
+    setError("");
+    const user = editingUserId
+      ? { ...users.find((item) => item.id === editingUserId), ...formData }
+      : { id: `USR-${Date.now().toString().slice(-4)}`, ...formData };
+    const savedUser = await userService.saveUser(user);
+    setUsers((current) => editingUserId
+      ? current.map((item) => item.id === editingUserId ? savedUser : item)
+      : [savedUser, ...current]);
   };
 
   return {
     users,
     roles,
+    loading,
+    error,
+    setError,
     addRole,
     editRole,
     deleteRole,
