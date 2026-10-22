@@ -88,6 +88,7 @@ export default function AdminUsersPage() {
     try {
       await saveUser(formData, editingUserId);
       showNotification(isEditing ? "Usuario actualizado correctamente." : "Perfil guardado en InsForge. Crea también su cuenta en InsForge Auth para que pueda iniciar sesión.");
+      showNotification(isEditing ? "Usuario actualizado correctamente." : "Usuario registrado correctamente.");
       closeModal();
     } catch (err) {
       setError(err.message);
@@ -122,15 +123,13 @@ export default function AdminUsersPage() {
         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
           <div>
             <div className="flex items-center space-x-2">
-              <span className="px-2 py-0.5 rounded bg-blue-100 text-[#1E3A8A] text-xs font-bold uppercase tracking-wider">
-                Requerimiento SCRM-4
-              </span>
               <h2 className="text-xl font-bold text-slate-800 dark:text-white">
                 Padrón General de Usuarios de la Academia
               </h2>
             </div>
             <p className="text-xs text-slate-500 mt-1">
               Administración de matrículas, docentes y personal académico conectada a InsForge.
+              Administración general de estudiantes, docentes y personal académico.
             </p>
           </div>
 

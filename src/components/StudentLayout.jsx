@@ -86,7 +86,7 @@ export default function StudentLayout() {
 
       {/* FOOTER */}
       <footer className="bg-white dark:bg-white/5 dark:backdrop-blur-2xl border-t border-slate-200 dark:border-white/10 py-4 text-center text-xs text-slate-500 dark:text-slate-400 transition-colors duration-500">
-        <p>© 2026 Plataforma Educativa Preuniversitaria — Requerimiento SCRM-30</p>
+        <p>© 2026 Plataforma Educativa Preuniversitaria. Todos los derechos reservados.</p>
       </footer>
     </div>
   );

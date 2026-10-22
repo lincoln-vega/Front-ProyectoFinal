@@ -52,9 +52,6 @@ export default function CursoPage() {
         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
           <div>
             <div className="flex items-center space-x-2">
-              <span className="px-2 py-0.5 rounded bg-blue-100 dark:bg-blue-900/30 text-[#1E3A8A] dark:text-blue-400 text-xs font-bold uppercase tracking-wider">
-                Requerimiento SCRM-5
-              </span>
               <h2 className="text-xl font-bold text-slate-800 dark:text-white">
                 Catálogo Institucional de Cursos Virtuales
               </h2>

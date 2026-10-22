@@ -21,7 +21,7 @@ import DocenteHorariosPage from "./pages/docente/DocenteHorariosPage";
 export default function App() {
   return (
     <Routes>
-      {/* 1. Ruta de Autenticación / FakeLogin (SCRM-26) */}
+      {/* 1. Ruta de Autenticación */}
       <Route path="/login" element={<Login />} />
 
       {/* Redirección por defecto de la raíz */}

@@ -20,6 +20,7 @@ export default function Login() {
     try {
       const trimmedEmail = email.trim().toLowerCase();
       const { data: authData, error: authError } = await insforge.auth.signInWithPassword({
+      const { error: authError } = await insforge.auth.signInWithPassword({
         email: trimmedEmail,
         password
       });
@@ -31,6 +32,11 @@ export default function Login() {
       }
 
       const foundUser = await userService.getUserByEmail(authData.user.email);
+          "No se pudo iniciar sesión. Verifica tu correo y contraseña registrados."
+        );
+      }
+
+      const foundUser = await userService.getUserByEmail(trimmedEmail);
       if (!foundUser) {
         await insforge.auth.signOut();
         throw new Error("La cuenta inició sesión, pero no tiene un perfil en la tabla users.");
@@ -48,6 +54,7 @@ export default function Login() {
       localStorage.setItem("userRole", role);
       localStorage.setItem("userName", name || foundUser.correo);
       localStorage.setItem("userEmail", foundUser.correo || authData.user.email);
+      localStorage.setItem("userEmail", foundUser.correo || trimmedEmail);
       localStorage.setItem("userId", foundUser.id || "1");
       localStorage.setItem("user", JSON.stringify(foundUser));
       localStorage.setItem("usuarioLogueado", JSON.stringify(foundUser));
@@ -83,6 +90,9 @@ export default function Login() {
             <h1 className="text-2xl font-semibold tracking-tight text-slate-900 dark:text-white">Academia SCRM</h1>
             <p className="text-sm text-slate-500 dark:text-slate-400 mt-1 font-light">
               Ingresa con una cuenta creada en InsForge Auth
+            <h1 className="text-2xl font-semibold tracking-tight text-slate-900 dark:text-white">Academia Preuniversitaria</h1>
+            <p className="text-sm text-slate-500 dark:text-slate-400 mt-1 font-light">
+              Ingresa tus credenciales para acceder a la plataforma
             </p>
           </div>
 
