@@ -87,6 +87,8 @@ export const userService = {
   }
 };
 
+export { courseService } from "./cursosServices";
+
 export const roleService = {
   getRoles: () => {
     const saved = localStorage.getItem("app_roles");
@@ -122,6 +124,14 @@ export const incidentService = {
     const { error } = await insforge.database
       .from("incidents")
       .update({ estado })
+      .eq("id", id);
+    throwIfError(error, "actualizar incidencia");
+  },
+
+  async updateIncident(id, fields) {
+    const { error } = await insforge.database
+      .from("incidents")
+      .update(fields)
       .eq("id", id);
     throwIfError(error, "actualizar incidencia");
   },

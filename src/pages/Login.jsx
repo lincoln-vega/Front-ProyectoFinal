@@ -19,7 +19,7 @@ export default function Login() {
 
     try {
       const trimmedEmail = email.trim().toLowerCase();
-      const { data: authData, error: authError } = await insforge.auth.signInWithPassword({
+      const { error: authError } = await insforge.auth.signInWithPassword({
         email: trimmedEmail,
         password
       });
@@ -30,7 +30,7 @@ export default function Login() {
         );
       }
 
-      const foundUser = await userService.getUserByEmail(authData.user.email);
+      const foundUser = await userService.getUserByEmail(trimmedEmail);
       if (!foundUser) {
         await insforge.auth.signOut();
         throw new Error("La cuenta inició sesión, pero no tiene un perfil en la tabla users.");
