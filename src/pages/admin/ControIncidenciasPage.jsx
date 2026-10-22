@@ -68,7 +68,34 @@ export default function ControlAsistenciasPage() {
         } catch (err) {
             showNotification(`No se pudo actualizar la incidencia en InsForge: ${err.message}`);
         }
-    };
+
+        const columns = [
+            { key: "id", label: "ID INCIDENCIA" },
+            { key: "docente", label: "DOCENTE TITULAR" },
+            { key: "dni", label: "DNI" },
+            { key: "tipo", label: "TIPO INCIDENCIA" },
+            { key: "materia", label: "MATERIA / ASIGNATURA" },
+            { key: "horario", label: "HORARIO PROGRAMADO" },
+            { key: "fechaPresentacion", label: "FECHA REGISTRO" },
+            { key: "motivo", label: "MOTIVO / SUSTENTO" },
+            { key: "archivoNombre", label: "COMPROBANTE ADJUNTO" },
+            { key: "estado", label: "ESTADO VALIDACION" }
+        ];
+
+       const success = exportToCSV(filteredIncidents, "reporte_auditoria_horas_docentes", columns);
+       if (success) {
+           showNotification("Reporte exportado exitosamente a CSV/Excel.");
+       }
+   };
+
+   const handleAction = async (id, status) => {
+       try {
+           await updateIncidentStatus(id, status);
+           showNotification(`Justificación marcada como: ${status}`);
+       } catch (err) {
+           showNotification(`No se pudo actualizar la incidencia en InsForge: ${err.message}`);
+       }
+   };
 
     const handleConfirmReplacement = async ({
         }
