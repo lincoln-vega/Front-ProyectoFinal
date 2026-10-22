@@ -1,6 +1,7 @@
 {
   "name": "front-proyectofinal",
   "version": "1.0.0",
+  "private": true,
   "description": "Curso de Herramientas de desarrollo",
   "type": "module",
   "scripts": {
@@ -10,15 +11,15 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/VegaHidalgoLincolnJhoel/Front-ProyectoFinal.git"
+    "url": "git+https://github.com/lincoln-vega/Front-ProyectoFinal.git"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "bugs": {
-    "url": "https://github.com/VegaHidalgoLincolnJhoel/Front-ProyectoFinal/issues"
+    "url": "https://github.com/lincoln-vega/Front-ProyectoFinal/issues"
   },
-  "homepage": "https://github.com/VegaHidalgoLincolnJhoel/Front-ProyectoFinal#readme",
+  "homepage": "https://github.com/lincoln-vega/Front-ProyectoFinal#readme",
   "dependencies": {
     "@insforge/sdk": "^1.5.2",
     "lucide-react": "^1.42.0",
