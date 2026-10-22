@@ -8,6 +8,7 @@ import CursoPage from "./pages/admin/CursoPage";
 import HorariosSalonesPage from "./pages/admin/HorariosSalonesPage";
 import StudentLayout from "./components/StudentLayout";
 import StudentDashboardPage from "./pages/student/StudentDashboardPage";
+import StudentHorariosPage from "./pages/student/StudentHorariosPage";
 import ControlAsistenciasPage from "./pages/admin/ControIncidenciasPage";
 import DocentesPage from "./pages/admin/DocentesPage";
 
@@ -74,6 +75,7 @@ export default function App() {
         <Route path="/estudiante" element={<StudentLayout />}>
           <Route index element={<Navigate to="/estudiante/panel" replace />} />
           <Route path="panel" element={<StudentDashboardPage />} />
+          <Route path="horarios" element={<StudentHorariosPage />} />
         </Route>
       </Route>
 
