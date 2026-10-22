@@ -1,0 +1,214 @@
+{
+  "users": [
+    {
+      "id": "USR-001",
+      "apellidos": "Morales Salazar",
+      "nombres": "Roberto Carlos",
+      "dni": "41235678",
+      "fechaNacimiento": "1988-11-05",
+      "correo": "admin@gmail.com",
+      "password": "admin123",
+      "celular": "998877665",
+      "carreraObjetivo": "Dirección Académica",
+      "rol": "admin",
+      "estado": "Activo"
+    },
+    {
+      "id": "USR-002",
+      "apellidos": "Herrera Villanueva",
+      "nombres": "Carmen Rosa",
+      "dni": "45678912",
+      "fechaNacimiento": "1990-03-12",
+      "correo": "c.herrera@academia.edu.pe",
+      "password": "docente123",
+      "celular": "976543210",
+      "carreraObjetivo": "Cátedra de Álgebra",
+      "rol": "docente",
+      "estado": "Activo"
+    },
+    {
+      "id": "USR-003",
+      "apellidos": "Paredes Ruiz",
+      "nombres": "Miguel Ángel",
+      "dni": "48923104",
+      "fechaNacimiento": "1985-09-18",
+      "correo": "m.paredes@academia.edu.pe",
+      "password": "docente123",
+      "celular": "965412389",
+      "carreraObjetivo": "Cátedra de Física",
+      "rol": "docente",
+      "estado": "Activo"
+    },
+    {
+      "id": "USR-004",
+      "apellidos": "Torres Meléndez",
+      "nombres": "Elena Sofía",
+      "dni": "43219876",
+      "fechaNacimiento": "1992-07-25",
+      "correo": "e.torres@academia.edu.pe",
+      "password": "docente123",
+      "celular": "934567890",
+      "carreraObjetivo": "Cátedra de Biología",
+      "rol": "docente",
+      "estado": "Activo"
+    },
+    {
+      "id": "USR-005",
+      "apellidos": "Flores Mendoza",
+      "nombres": "Juan Carlos",
+      "dni": "74839201",
+      "fechaNacimiento": "2005-04-15",
+      "correo": "estudiante@gmail.com",
+      "password": "estudiante123",
+      "celular": "987654321",
+      "universidad": "UNMSM",
+      "carreraObjetivo": "Medicina Humana",
+      "areaAcademica": "Ciencias Médicas",
+      "rol": "estudiante",
+      "estado": "Activo"
+    },
+    {
+      "id": "USR-006",
+      "apellidos": "Quispe Alarcón",
+      "nombres": "Valeria Sofía",
+      "dni": "76543210",
+      "fechaNacimiento": "2006-08-22",
+      "correo": "v.quispe@academia.edu.pe",
+      "password": "estudiante123",
+      "celular": "912345678",
+      "universidad": "UNI",
+      "carreraObjetivo": "Ingeniería de Sistemas",
+      "areaAcademica": "Ciencias Exactas",
+      "rol": "estudiante",
+      "estado": "Activo"
+    },
+    {
+      "id": "USR-007",
+      "apellidos": "Gómez Pérez",
+      "nombres": "Lucía Fernanda",
+      "dni": "73214569",
+      "fechaNacimiento": "2006-05-10",
+      "correo": "l.gomez@academia.edu.pe",
+      "password": "estudiante123",
+      "celular": "945612378",
+      "universidad": "PUCP",
+      "carreraObjetivo": "Derecho",
+      "areaAcademica": "Humanidades y Letras",
+      "rol": "estudiante",
+      "estado": "Activo"
+    }
+  ],
+  "roles": [
+    "Admin",
+    "Docente",
+    "Estudiante"
+  ],
+  "incidents": [
+    {
+      "id": "INC-D01",
+      "docente": "Prof. Carmen Rosa Herrera",
+      "dni": "45678912",
+      "correo": "c.herrera@academia.edu.pe",
+      "tipo": "Inasistencia Inesperada",
+      "fechaPresentacion": "Hoy 07:45 AM",
+      "materia": "Álgebra y Funciones (Zoom-01)",
+      "horario": "Lunes y Miércoles 08:00 - 10:00 AM",
+      "motivo": "Emergencia médica odontológica de urgencia por fuerte infección aguda.",
+      "archivoNombre": "constancia_medica_essalud.pdf",
+      "estado": "Pendiente"
+    }
+  ],
+  "courses": [
+    {
+      "id": "CRS-001",
+      "asignatura": "Álgebra y Funciones",
+      "area": "Ciencias Exactas",
+      "carrera": "Ingeniería de Sistemas",
+      "docenteId": "USR-002",
+      "docente": "Prof. Carmen Rosa Herrera",
+      "horario": "Lunes y Miércoles 08:00 - 10:00 AM",
+      "meetUrl": "https://meet.google.com/abc-defg-hij",
+      "repositorio": "drive.google.com/mat101",
+      "estado": "Activo"
+    },
+    {
+      "id": "CRS-002",
+      "asignatura": "Física Fundamental",
+      "area": "Ciencias Exactas",
+      "carrera": "Ingeniería de Sistemas",
+      "docenteId": "USR-003",
+      "docente": "Prof. Miguel Ángel Paredes",
+      "horario": "Martes y Jueves 08:00 - 10:00 AM",
+      "meetUrl": "https://meet.google.com/klm-nopq-rst",
+      "repositorio": "campus.pre.pe/fisica",
+      "estado": "Activo"
+    },
+    {
+      "id": "CRS-003",
+      "asignatura": "Biología y Anatomía",
+      "area": "Ciencias Médicas",
+      "carrera": "Medicina Humana",
+      "docenteId": "USR-004",
+      "docente": "Dra. Elena Sofía Torres",
+      "horario": "Lunes y Viernes 03:00 - 05:00 PM",
+      "meetUrl": "https://meet.google.com/uvw-xyza-bcd",
+      "repositorio": "campus.pre.pe/bio",
+      "estado": "Activo"
+    }
+  ],
+  "studentCourses": [
+    {
+      "id": "CRS-01",
+      "materia": "Álgebra y Funciones",
+      "docente": "Prof. Carmen Rosa Herrera",
+      "horario": "Lunes y Miércoles 08:00 - 10:00 AM",
+      "temaActual": "Ecuaciones Cuadráticas y Polinomios",
+      "meetUrl": "https://meet.google.com/abc-defg-hij",
+      "badge": "En curso"
+    },
+    {
+      "id": "CRS-02",
+      "materia": "Física Fundamental",
+      "docente": "Prof. Miguel Ángel Paredes",
+      "horario": "Martes y Jueves 08:00 - 10:00 AM",
+      "temaActual": "Cinemática y Dinámica Lineal",
+      "meetUrl": "https://meet.google.com/klm-nopq-rst",
+      "badge": "En curso"
+    },
+    {
+      "id": "CRS-03",
+      "materia": "Biología y Anatomía",
+      "docente": "Dra. Elena Sofía Torres",
+      "horario": "Lunes y Viernes 03:00 - 05:00 PM",
+      "temaActual": "Anatomía del Sistema Nervioso",
+      "meetUrl": "https://meet.google.com/uvw-xyza-bcd",
+      "badge": "En curso"
+    }
+  ],
+  "studentAttendance": [
+    {
+      "id": "ATT-001",
+      "fecha": "07/09/2026",
+      "materia": "Álgebra y Funciones",
+      "horaRegistro": "07:58 AM",
+      "estado": "Asistió Puntual",
+      "modalidad": "Virtual en vivo"
+    },
+    {
+      "id": "ATT-002",
+      "fecha": "08/09/2026",
+      "materia": "Física Fundamental",
+      "horaRegistro": "08:05 AM",
+      "estado": "Asistió Puntual",
+      "modalidad": "Virtual en vivo"
+    },
+    {
+      "id": "ATT-003",
+      "fecha": "07/09/2026",
+      "materia": "Biología y Anatomía",
+      "horaRegistro": "02:55 PM",
+      "estado": "Asistió Puntual",
+      "modalidad": "Virtual en vivo"
+    }
+  ]
+}
