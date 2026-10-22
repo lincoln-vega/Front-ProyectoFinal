@@ -22,7 +22,7 @@ import { exportToCSV } from "../../utils/exportUtils";
 import { courseService } from "../../services/api";
 
 export default function ControlAsistenciasPage() {
-    const { incidents, updateIncidentStatus, updateIncident } = useTeacherIncidents();
+    const { incidents, updateIncidentStatus, updateIncident, loading, error } = useTeacherIncidents();
     const [filterType, setFilterType] = useState("TODOS");
     const [selectedFile, setSelectedFile] = useState(null);
     const [replacementModalIncident, setReplacementModalIncident] = useState(null);
@@ -60,12 +60,16 @@ export default function ControlAsistenciasPage() {
         }
     };
 
-    const handleAction = (id, status) => {
-        updateIncidentStatus(id, status);
-        showNotification(`Justificación marcada como: ${status}`);
+    const handleAction = async (id, status) => {
+        try {
+            await updateIncidentStatus(id, status);
+            showNotification(`Justificación marcada como: ${status}`);
+        } catch (err) {
+            showNotification(`No se pudo actualizar la incidencia en InsForge: ${err.message}`);
+        }
     };
 
-    const handleConfirmReplacement = ({
+    const handleConfirmReplacement = async ({
         incidentId,
         substituteTeacherId,
         substituteTeacherName,
@@ -73,39 +77,43 @@ export default function ControlAsistenciasPage() {
         newSchedule,
         remarks
     }) => {
-        // 1. Actualizar estado de la incidencia y registrar datos de la sustitución
-        updateIncident(incidentId, {
-            estado: "Aprobado",
-            resolucion: "Reemplazo Confirmado",
-            docenteReemplazo: substituteTeacherName,
-            docenteReemplazoId: substituteTeacherId,
-            horarioActualizado: newSchedule,
-            observacionesResolucion: remarks,
-            fechaResolucion: new Date().toLocaleString("es-PE")
-        });
-
-        // 2. Actualizar curso en el catálogo oficial de courses
-        if (courseId) {
-            const allCourses = courseService.getCourses() || [];
-            const updatedCourses = allCourses.map((c) => {
-                if (c.id === courseId) {
-                    return {
-                        ...c,
-                        docente: substituteTeacherName,
-                        docenteId: substituteTeacherId,
-                        horario: newSchedule || c.horario,
-                        reemplazoActivo: true,
-                        docenteTitularOriginal: c.docenteTitularOriginal || c.docente,
-                        fechaActualizacionReemplazo: new Date().toISOString()
-                    };
-                }
-                return c;
+        try {
+            // 1. Actualizar estado de la incidencia y registrar datos de la sustitución
+            await updateIncident(incidentId, {
+                estado: "Aprobado",
+                resolucion: "Reemplazo Confirmado",
+                docenteReemplazo: substituteTeacherName,
+                docenteReemplazoId: substituteTeacherId,
+                horarioActualizado: newSchedule,
+                observacionesResolucion: remarks,
+                fechaResolucion: new Date().toLocaleString("es-PE")
             });
-            courseService.saveCourses(updatedCourses);
-        }
 
-        setReplacementModalIncident(null);
-        showNotification(`Reemplazo confirmado: ${substituteTeacherName} asignado al curso y horario actualizado.`);
+            // 2. Actualizar curso en el catálogo oficial de courses
+            if (courseId) {
+                const allCourses = courseService.getCourses() || [];
+                const updatedCourses = allCourses.map((c) => {
+                    if (c.id === courseId) {
+                        return {
+                            ...c,
+                            docente: substituteTeacherName,
+                            docenteId: substituteTeacherId,
+                            horario: newSchedule || c.horario,
+                            reemplazoActivo: true,
+                            docenteTitularOriginal: c.docenteTitularOriginal || c.docente,
+                            fechaActualizacionReemplazo: new Date().toISOString()
+                        };
+                    }
+                    return c;
+                });
+                courseService.saveCourses(updatedCourses);
+            }
+
+            setReplacementModalIncident(null);
+            showNotification(`Reemplazo confirmado: ${substituteTeacherName} asignado al curso y horario actualizado.`);
+        } catch (err) {
+            showNotification(`No se pudo confirmar el reemplazo en InsForge: ${err.message}`);
+        }
     };
 
     const pendingCount = incidents.filter(i => i.estado === "Pendiente").length;
@@ -122,6 +130,8 @@ export default function ControlAsistenciasPage() {
             {notification && (
                 <Notification message={notification} onClose={() => setNotification(null)} />
             )}
+            {loading && <p className="text-sm text-slate-500">Consultando incidencias en InsForge...</p>}
+            {error && <p role="alert" className="rounded-lg border border-red-300 bg-red-50 p-3 text-sm text-red-700">{error}</p>}
 
             {/* BANNER SUPERIOR */}
             <div className="bg-white/60 dark:bg-white/5 backdrop-blur-2xl p-6 rounded-2xl border border-slate-200 dark:border-white/10 shadow-xs">

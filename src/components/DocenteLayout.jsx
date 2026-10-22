@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { Outlet, NavLink, useNavigate } from "react-router-dom";
 import { BookOpen, Calendar, LogOut, School, Briefcase, Menu, X } from "lucide-react";
 import ThemeToggle from "./ThemeToggle";
+import { signOutFromApp } from "../services/session";
 
 export default function DocenteLayout() {
   const navigate = useNavigate();
@@ -9,11 +10,13 @@ export default function DocenteLayout() {
   const userName = localStorage.getItem("userName") || "Docente";
   const userEmail = localStorage.getItem("userEmail") || "docente@academia.edu.pe";
 
-  const handleLogout = () => {
-    localStorage.removeItem("userRole");
-    localStorage.removeItem("userName");
-    localStorage.removeItem("userEmail");
-    navigate("/login");
+  const handleLogout = async () => {
+    try {
+      await signOutFromApp();
+      navigate("/login");
+    } catch (error) {
+      window.alert(error.message);
+    }
   };
 
   return (

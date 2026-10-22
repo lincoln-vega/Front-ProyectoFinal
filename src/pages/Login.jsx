@@ -1,8 +1,9 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { ShieldCheck, GraduationCap, User, Lock, ArrowRight, Briefcase, Loader2 } from "lucide-react";
+import { ShieldCheck, User, Lock, ArrowRight, Loader2 } from "lucide-react";
 import ThemeToggle from "../components/ThemeToggle";
 import { insforge } from "../lib/insforge";
+import { userService } from "../services/api";
 
 export default function Login() {
   const navigate = useNavigate();
@@ -17,93 +18,72 @@ export default function Login() {
     setLoading(true);
 
     try {
-      const trimmedEmail = email.trim();
-      
-      // Consultar usuario en InsForge (PostgreSQL)
-      const { data: user, error: dbError } = await insforge.database
-        .from("users")
-        .select("*")
-        .eq("correo", trimmedEmail)
-        .eq("password", password)
-        .maybeSingle();
+      const trimmedEmail = email.trim().toLowerCase();
+      const { data: authData, error: authError } = await insforge.auth.signInWithPassword({
+        email: trimmedEmail,
+        password
+      });
 
-      if (dbError) throw dbError;
-
-      if (!user) {
-        // Fallback para sandbox demo local si no coincide con BD
-        const credentials = [
-          { email: "admin@academia.edu.pe", pass: "admin123", role: "admin", name: "Roberto Morales" },
-          { email: "docente@academia.edu.pe", pass: "docente123", role: "docente", name: "Lincoln Vega" },
-          { email: "estudiante@academia.edu.pe", pass: "estudiante123", role: "estudiante", name: "Juan Carlos Flores" }
-        ];
-        const localUser = credentials.find(u => u.email === trimmedEmail && u.pass === password);
-        if (localUser) {
-          localStorage.setItem("userRole", localUser.role);
-          localStorage.setItem("userName", localUser.name);
-          localStorage.setItem("userEmail", localUser.email);
-          if (localUser.role === "admin") navigate("/admin/usuarios");
-          else if (localUser.role === "docente") navigate("/docente/panel");
-          else navigate("/estudiante/panel");
-          return;
-        }
-
-        setError("Credenciales incorrectas. Inténtalo de nuevo.");
-        return;
+      if (authError) {
+        throw new Error(
+          "No se pudo iniciar sesión. Verifica tu correo y contraseña registrados."
+        );
       }
 
-      if (user.estado && user.estado !== "Activo") {
+      const foundUser = await userService.getUserByEmail(authData.user.email);
+      if (!foundUser) {
+        await insforge.auth.signOut();
+        throw new Error("La cuenta inició sesión, pero no tiene un perfil en la tabla users.");
+      }
+
+      if (foundUser.estado && foundUser.estado.toLowerCase() !== "activo") {
+        await insforge.auth.signOut();
         setError("La cuenta se encuentra inactiva. Contacte al administrador.");
         return;
       }
 
-      const role = (user.rol || "estudiante").toLowerCase();
-      const name = `${user.nombres || ""} ${user.apellidos || ""}`.trim();
+      const role = (foundUser.rol || foundUser.role || "estudiante").toLowerCase();
+      const name = `${foundUser.nombres || foundUser.name || ""} ${foundUser.apellidos || ""}`.trim();
+      
       localStorage.setItem("userRole", role);
-      localStorage.setItem("userName", name || user.correo);
-      localStorage.setItem("userEmail", user.correo);
-      localStorage.setItem("userId", user.id);
+      localStorage.setItem("userName", name || foundUser.correo);
+      localStorage.setItem("userEmail", foundUser.correo || authData.user.email);
+      localStorage.setItem("userId", foundUser.id || "1");
+      localStorage.setItem("user", JSON.stringify(foundUser));
+      localStorage.setItem("usuarioLogueado", JSON.stringify(foundUser));
 
       if (role === "admin") navigate("/admin/usuarios");
       else if (role === "docente") navigate("/docente/panel");
       else navigate("/estudiante/panel");
+
     } catch (err) {
       console.error("Error en login:", err);
-      setError("Error al conectar con la base de datos.");
+      setError(err.message || "Error al conectar con InsForge Auth.");
     } finally {
       setLoading(false);
     }
   };
 
-  const loginDirecto = (role, email, pass, name) => {
-    localStorage.setItem("userRole", role);
-    localStorage.setItem("userName", name);
-    localStorage.setItem("userEmail", email);
-    if (role === "admin") navigate("/admin/usuarios");
-    else if (role === "docente") navigate("/docente/panel");
-    else navigate("/estudiante/panel");
-  };
-
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-[#0a0a0e] relative flex items-center justify-center p-4 overflow-hidden transition-colors duration-500">
-      {/* Luces Ambientales (Glows) */}
       <div className="absolute top-1/4 left-1/4 w-[500px] h-[500px] bg-blue-600/20 dark:bg-blue-600/10 rounded-full blur-[120px] pointer-events-none" />
       <div className="absolute bottom-1/4 right-1/4 w-[400px] h-[400px] bg-purple-600/20 dark:bg-purple-600/10 rounded-full blur-[100px] pointer-events-none" />
       
-      {/* Theme Toggle Superior */}
       <div className="absolute top-6 right-6 z-50">
         <ThemeToggle />
       </div>
 
       <div className="w-full max-w-sm z-10">
-        {/* Glassmorphism Card */}
         <div className="bg-white/60 dark:bg-white/5 backdrop-blur-2xl border border-white/40 dark:border-white/10 p-8 rounded-3xl shadow-2xl dark:shadow-[0_0_40px_rgba(0,0,0,0.5)]">
           
           <div className="text-center mb-10">
             <div className="inline-flex items-center justify-center w-12 h-12 bg-blue-600/10 dark:bg-white/5 rounded-xl mb-4 border border-blue-600/20 dark:border-white/10">
               <ShieldCheck className="w-6 h-6 text-blue-600 dark:text-blue-400" />
             </div>
-            <h1 className="text-2xl font-semibold tracking-tight text-slate-900 dark:text-white">Academia SCRM</h1>
-            <p className="text-sm text-slate-500 dark:text-slate-400 mt-1 font-light">Conectado a InsForge PostgreSQL</p>
+            <h1 className="text-2xl font-semibold tracking-tight text-slate-900 dark:text-white">Academia Preuniversitaria</h1>
+            <p className="text-sm text-slate-500 dark:text-slate-400 mt-1 font-light">
+              Ingresa tus credenciales para acceder a la plataforma
+            </p>
           </div>
 
           <form onSubmit={handleLogin} className="space-y-6">
@@ -142,7 +122,7 @@ export default function Login() {
             <button 
               type="submit" 
               disabled={loading}
-              className="w-full bg-slate-900 dark:bg-white text-white dark:text-black font-medium py-2.5 px-4 rounded-xl hover:bg-slate-800 dark:hover:bg-gray-100 transition-all flex justify-center items-center gap-2 group shadow-[0_0_15px_rgba(0,0,0,0.1)] dark:shadow-[0_0_20px_rgba(255,255,255,0.1)] disabled:opacity-50"
+              className="w-full bg-slate-900 dark:bg-white text-white dark:text-black font-medium py-2.5 px-4 rounded-xl hover:bg-slate-800 dark:hover:bg-gray-100 transition-all flex justify-center items-center gap-2 group shadow-sm disabled:opacity-50 cursor-pointer"
             >
               {loading ? (
                 <>
@@ -155,28 +135,6 @@ export default function Login() {
               )}
             </button>
           </form>
-
-          <div className="mt-8 pt-6 border-t border-slate-200 dark:border-white/10">
-            <p className="text-sm text-center text-slate-500 dark:text-slate-400 mb-4 font-medium tracking-wide uppercase">Accesos Rápidos (Sandbox)</p>
-            <div className="flex justify-center gap-2.5">
-              <button onClick={() => loginDirecto("admin", "admin@gmail.com", "admin123", "Roberto Carlos Morales")} className="flex-1 py-2.5 bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/20 rounded-lg flex flex-col items-center justify-center transition-colors group">
-                <div className="w-2 h-2 rounded-full bg-emerald-500 mb-1" />
-                <span className="text-xs font-semibold text-slate-700 dark:text-slate-200">Admin</span>
-              </button>
-              <button onClick={() => loginDirecto("docente", "c.herrera@academia.edu.pe", "docente123", "Carmen Rosa Herrera")} className="flex-1 py-2.5 bg-blue-500/10 hover:bg-blue-500/20 border border-blue-500/20 rounded-lg flex flex-col items-center justify-center transition-colors group">
-                <div className="w-2 h-2 rounded-full bg-blue-500 mb-1" />
-                <span className="text-xs font-semibold text-slate-700 dark:text-slate-200">Docente</span>
-              </button>
-              <button onClick={() => loginDirecto("estudiante", "estudiante@gmail.com", "estudiante123", "Juan Carlos Flores")} className="flex-1 py-2.5 bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/20 rounded-lg flex flex-col items-center justify-center transition-colors group">
-                <div className="w-2 h-2 rounded-full bg-amber-500 mb-1" />
-                <span className="text-xs font-semibold text-slate-700 dark:text-slate-200">Estudiante</span>
-              </button>
-            </div>
-          </div>
-          
-          <div className="mt-6 text-center">
-            <span className="text-xs text-slate-500 dark:text-slate-400 font-mono">SCRM Core • InsForge BaaS</span>
-          </div>
 
         </div>
       </div>
