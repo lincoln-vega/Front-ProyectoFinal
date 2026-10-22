@@ -15,19 +15,31 @@ import useTeacherIncidents from "../../hooks/useTeacherIncidents";
 import DocumentPreviewModal from "../../components/admin/DocumentPreview";
 import Notification from "../../components/admin/Notification";
 import ConfirmarReemplazoModal from "../../components/admin/ConfirmarReemplazoModal";
+import NuevaIncidenciaModal from "../../components/admin/NuevaIncidenciaModal";
 import { exportToCSV } from "../../utils/exportUtils";
 import { courseService } from "../../services/cursosServices";
 
 export default function ControlAsistenciasPage() {
-    const { incidents, updateIncidentStatus, updateIncident, loading, error } = useTeacherIncidents();
+    const { incidents, updateIncidentStatus, updateIncident, addIncident, loading, error } = useTeacherIncidents();
     const [filterType, setFilterType] = useState("TODOS");
     const [selectedFile, setSelectedFile] = useState(null);
     const [replacementModalIncident, setReplacementModalIncident] = useState(null);
+    const [isManualModalOpen, setIsManualModalOpen] = useState(false);
     const [notification, setNotification] = useState(null);
 
     const showNotification = (msg) => {
         setNotification(msg);
         setTimeout(() => setNotification(null), 3500);
+    };
+
+    const handleSaveManualIncident = async (newIncidentData) => {
+        try {
+            await addIncident(newIncidentData);
+            showNotification(`Justificación manual registrada para ${newIncidentData.docente}.`);
+        } catch (err) {
+            showNotification(`Error al registrar justificación: ${err.message}`);
+            throw err;
+        }
     };
 
     const handleAction = async (id, status) => {
@@ -146,7 +158,7 @@ export default function ControlAsistenciasPage() {
                             <span>Descargar Excel</span>
                         </button>
                         <button
-                            onClick={() => showNotification("Funcionalidad de registro manual habilitada.")}
+                            onClick={() => setIsManualModalOpen(true)}
                             className="inline-flex items-center space-x-2 px-4 py-2 bg-[#1E3A8A] dark:bg-blue-600 text-white hover:bg-blue-800 dark:hover:bg-blue-500 rounded-xl text-xs font-semibold shadow-xs transition-colors cursor-pointer"
                         >
                             <span>+ Registrar Justificación Manual</span>
@@ -336,6 +348,15 @@ export default function ControlAsistenciasPage() {
                     incident={replacementModalIncident}
                     onClose={() => setReplacementModalIncident(null)}
                     onConfirm={handleConfirmReplacement}
+                />
+            )}
+
+            {/* MODAL DE REGISTRO MANUAL DE INCIDENCIA */}
+            {isManualModalOpen && (
+                <NuevaIncidenciaModal
+                    isOpen={isManualModalOpen}
+                    onClose={() => setIsManualModalOpen(false)}
+                    onSave={handleSaveManualIncident}
                 />
             )}
 

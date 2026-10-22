@@ -35,6 +35,21 @@ export default function useTeacherIncidents() {
     );
   };
 
+  const addIncident = async (newIncidentData) => {
+    setError("");
+    const newIncident = {
+      id: `INC-${Date.now().toString().slice(-6)}`,
+      estado: "Pendiente",
+      fechaPresentacion: new Date().toLocaleDateString("es-PE"),
+      archivoNombre: "justificacion_manual.pdf",
+      ...newIncidentData
+    };
+    const saved = await incidentService.saveIncident(newIncident);
+    const incidentToStore = saved || newIncident;
+    setIncidents((current) => [incidentToStore, ...current]);
+    return incidentToStore;
+  };
+
   const resetIncidents = async () => {
     setLoading(true);
     setError("");
@@ -48,5 +63,13 @@ export default function useTeacherIncidents() {
     }
   };
 
-  return { incidents, loading, error, updateIncidentStatus, updateIncident, resetIncidents };
+  return {
+    incidents,
+    loading,
+    error,
+    updateIncidentStatus,
+    updateIncident,
+    addIncident,
+    resetIncidents
+  };
 }
