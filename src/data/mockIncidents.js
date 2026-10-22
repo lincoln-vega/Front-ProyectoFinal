@@ -37,6 +37,20 @@ export const initialTeacherIncidents = [
     motivo: "Demora en el tráfico vehicular al retornar de la sede central hacia el estudio de transmisión virtual.",
     archivoNombre: "declaracion_jurada_transito.pdf",
     estado: "Pendiente"
+  },
+  {
+    id: "INC-D04",
+    docente: "Prof. Carmen Rosa Herrera",
+    dni: "45678912",
+    correo: "c.herrera@academia.edu.pe",
+    tipo: "Solicitud de Permuta / Reemplazo",
+    fechaPresentacion: "Hoy 09:15 AM",
+    materia: "Álgebra y Funciones (Zoom-01)",
+    cursoId: "CRS-001",
+    horario: "Lunes y Miércoles 08:00 - 10:00 AM",
+    motivo: "Cruce de horario académico por sustentación de posgrado. Se solicita confirmación de suplencia y actualización de cronograma.",
+    archivoNombre: "solicitud_permuta_reemplazo.pdf",
+    estado: "Pendiente"
   }
 ];
 

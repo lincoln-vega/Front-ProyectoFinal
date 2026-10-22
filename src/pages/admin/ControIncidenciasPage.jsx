@@ -9,17 +9,24 @@ import {
     Users,
     ShieldCheck,
     Check,
-    X
+    X,
+    ArrowRightLeft,
+    UserCheck,
+    Calendar
 } from "lucide-react";
 import useTeacherIncidents from "../../hooks/useTeacherIncidents";
 import DocumentPreviewModal from "../../components/admin/DocumentPreview";
+import ConfirmarReemplazoModal from "../../components/admin/ConfirmarReemplazoModal";
 import Notification from "../../components/admin/Notification";
 import { exportToCSV } from "../../utils/exportUtils";
+import { courseService } from "../../services/api";
 
 export default function ControlAsistenciasPage() {
-    const { incidents, updateIncidentStatus, loading, error } = useTeacherIncidents();
+    const { incidents, updateIncidentStatus, updateIncident, loading, error } = useTeacherIncidents();
+    const { incidents, updateIncidentStatus, updateIncident } = useTeacherIncidents();
     const [filterType, setFilterType] = useState("TODOS");
     const [selectedFile, setSelectedFile] = useState(null);
+    const [replacementModalIncident, setReplacementModalIncident] = useState(null);
     const [notification, setNotification] = useState(null);
 
     const showNotification = (msg) => {
@@ -31,6 +38,35 @@ export default function ControlAsistenciasPage() {
         if (!filteredIncidents || filteredIncidents.length === 0) {
             showNotification("No hay registros disponibles para exportar.");
             return;
+        }
+
+        const columns = [
+            { key: "id", label: "ID INCIDENCIA" },
+            { key: "docente", label: "DOCENTE TITULAR" },
+            { key: "dni", label: "DNI" },
+            { key: "tipo", label: "TIPO INCIDENCIA" },
+            { key: "materia", label: "MATERIA / ASIGNATURA" },
+            { key: "horario", label: "HORARIO PROGRAMADO" },
+            { key: "docenteReemplazo", label: "DOCENTE REEMPLAZO" },
+            { key: "horarioActualizado", label: "HORARIO REPROGRAMADO" },
+            { key: "fechaPresentacion", label: "FECHA REGISTRO" },
+            { key: "motivo", label: "MOTIVO / SUSTENTO" },
+            { key: "archivoNombre", label: "COMPROBANTE ADJUNTO" },
+            { key: "estado", label: "ESTADO VALIDACION" }
+        ];
+
+        const success = exportToCSV(filteredIncidents, "reporte_auditoria_horas_docentes", columns);
+        if (success) {
+            showNotification("Reporte exportado exitosamente a CSV/Excel.");
+        }
+    };
+
+    const handleAction = async (id, status) => {
+        try {
+            await updateIncidentStatus(id, status);
+            showNotification(`Justificación marcada como: ${status}`);
+        } catch (err) {
+            showNotification(`No se pudo actualizar la incidencia en InsForge: ${err.message}`);
         }
 
         const columns = [
@@ -61,11 +97,101 @@ export default function ControlAsistenciasPage() {
        }
    };
 
+    const handleConfirmReplacement = async ({
+        }
+    };
+
+    const handleAction = (id, status) => {
+        updateIncidentStatus(id, status);
+        showNotification(`Justificación marcada como: ${status}`);
+    };
+
+    const handleConfirmReplacement = ({
+        incidentId,
+        substituteTeacherId,
+        substituteTeacherName,
+        courseId,
+        newSchedule,
+        remarks
+    }) => {
+        try {
+            // 1. Actualizar estado de la incidencia y registrar datos de la sustitución
+            await updateIncident(incidentId, {
+                estado: "Aprobado",
+                resolucion: "Reemplazo Confirmado",
+                docenteReemplazo: substituteTeacherName,
+                docenteReemplazoId: substituteTeacherId,
+                horarioActualizado: newSchedule,
+                observacionesResolucion: remarks,
+                fechaResolucion: new Date().toLocaleString("es-PE")
+            });
+
+            // 2. Actualizar curso en el catálogo oficial de courses
+            if (courseId) {
+                const allCourses = courseService.getCourses() || [];
+                const updatedCourses = allCourses.map((c) => {
+                    if (c.id === courseId) {
+                        return {
+                            ...c,
+                            docente: substituteTeacherName,
+                            docenteId: substituteTeacherId,
+                            horario: newSchedule || c.horario,
+                            reemplazoActivo: true,
+                            docenteTitularOriginal: c.docenteTitularOriginal || c.docente,
+                            fechaActualizacionReemplazo: new Date().toISOString()
+                        };
+                    }
+                    return c;
+                });
+                courseService.saveCourses(updatedCourses);
+            }
+
+            setReplacementModalIncident(null);
+            showNotification(`Reemplazo confirmado: ${substituteTeacherName} asignado al curso y horario actualizado.`);
+        } catch (err) {
+            showNotification(`No se pudo confirmar el reemplazo en InsForge: ${err.message}`);
+        }
+        // 1. Actualizar estado de la incidencia y registrar datos de la sustitución
+        updateIncident(incidentId, {
+            estado: "Aprobado",
+            resolucion: "Reemplazo Confirmado",
+            docenteReemplazo: substituteTeacherName,
+            docenteReemplazoId: substituteTeacherId,
+            horarioActualizado: newSchedule,
+            observacionesResolucion: remarks,
+            fechaResolucion: new Date().toLocaleString("es-PE")
+        });
+
+        // 2. Actualizar curso en el catálogo oficial de courses
+        if (courseId) {
+            const allCourses = courseService.getCourses() || [];
+            const updatedCourses = allCourses.map((c) => {
+                if (c.id === courseId) {
+                    return {
+                        ...c,
+                        docente: substituteTeacherName,
+                        docenteId: substituteTeacherId,
+                        horario: newSchedule || c.horario,
+                        reemplazoActivo: true,
+                        docenteTitularOriginal: c.docenteTitularOriginal || c.docente,
+                        fechaActualizacionReemplazo: new Date().toISOString()
+                    };
+                }
+                return c;
+            });
+            courseService.saveCourses(updatedCourses);
+        }
+
+        setReplacementModalIncident(null);
+        showNotification(`Reemplazo confirmado: ${substituteTeacherName} asignado al curso y horario actualizado.`);
+    };
+
     const pendingCount = incidents.filter(i => i.estado === "Pendiente").length;
 
     const filteredIncidents = incidents.filter(inc => {
         if (filterType === "Tardanza") return inc.tipo.includes("Tardanza");
         if (filterType === "Inasistencia") return inc.tipo.includes("Inasistencia");
+        if (filterType === "Permuta") return inc.tipo.toLowerCase().includes("permuta") || inc.tipo.toLowerCase().includes("reemplazo");
         return true;
     });
 
@@ -74,8 +200,6 @@ export default function ControlAsistenciasPage() {
             {notification && (
                 <Notification message={notification} onClose={() => setNotification(null)} />
             )}
-            {loading && <p className="text-sm text-slate-500">Consultando incidencias en InsForge...</p>}
-            {error && <p role="alert" className="rounded-lg border border-red-300 bg-red-50 p-3 text-sm text-red-700">{error}</p>}
 
             {/* BANNER SUPERIOR */}
             <div className="bg-white/60 dark:bg-white/5 backdrop-blur-2xl p-6 rounded-2xl border border-slate-200 dark:border-white/10 shadow-xs">
@@ -182,6 +306,12 @@ export default function ControlAsistenciasPage() {
                         >
                             Inasistencias
                         </button>
+                        <button
+                            onClick={() => setFilterType("Permuta")}
+                            className={`px-3 py-1.5 rounded-lg font-medium transition-colors cursor-pointer ${filterType === "Permuta" ? "bg-white dark:bg-white/10 text-slate-800 dark:text-white shadow-xs" : "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white"}`}
+                        >
+                            Permutas / Reemplazos ({incidents.filter(i => i.tipo?.toLowerCase().includes("permuta") || i.tipo?.toLowerCase().includes("reemplazo")).length})
+                        </button>
                     </div>
                 </div>
 
@@ -203,7 +333,9 @@ export default function ControlAsistenciasPage() {
                                         <div className="flex flex-wrap items-center gap-2">
                                             <span className={`px-2.5 py-0.5 rounded-full text-xs font-bold border ${inc.tipo.includes("Tardanza")
                                                     ? "bg-amber-100 dark:bg-amber-900/30 text-amber-800 dark:text-amber-400 border-amber-200 dark:border-amber-500/30"
-                                                    : "bg-rose-100 dark:bg-rose-900/30 text-rose-800 dark:text-rose-400 border-rose-200 dark:border-rose-500/30"
+                                                    : inc.tipo.toLowerCase().includes("permuta") || inc.tipo.toLowerCase().includes("reemplazo")
+                                                        ? "bg-purple-100 dark:bg-purple-900/30 text-purple-800 dark:text-purple-400 border-purple-200 dark:border-purple-500/30"
+                                                        : "bg-rose-100 dark:bg-rose-900/30 text-rose-800 dark:text-rose-400 border-rose-200 dark:border-rose-500/30"
                                                 }`}>
                                                 {inc.tipo}
                                             </span>
@@ -232,6 +364,23 @@ export default function ControlAsistenciasPage() {
                                             </div>
                                         </div>
 
+                                        {inc.docenteReemplazo && (
+                                            <div className="p-3 bg-emerald-50/70 dark:bg-emerald-950/30 rounded-xl border border-emerald-200 dark:border-emerald-500/30 flex flex-wrap items-center justify-between gap-2 text-xs">
+                                                <div className="flex items-center space-x-2">
+                                                    <UserCheck className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
+                                                    <span className="text-emerald-950 dark:text-emerald-200 font-medium">
+                                                        Docente de Reemplazo Confirmado: <strong className="font-bold">{inc.docenteReemplazo}</strong>
+                                                    </span>
+                                                </div>
+                                                {inc.horarioActualizado && (
+                                                    <div className="flex items-center space-x-1.5 text-emerald-800 dark:text-emerald-300 font-mono text-[11px]">
+                                                        <Clock className="w-3.5 h-3.5" />
+                                                        <span>Horario: {inc.horarioActualizado}</span>
+                                                    </div>
+                                                )}
+                                            </div>
+                                        )}
+
                                         <div className="pt-2 flex items-center space-x-2">
                                             <button
                                                 onClick={() => setSelectedFile(inc)}
@@ -248,17 +397,25 @@ export default function ControlAsistenciasPage() {
                                         {inc.estado === "Pendiente" ? (
                                             <>
                                                 <button
-                                                    onClick={() => handleAction(inc.id, "Aprobado")}
-                                                    className="w-full sm:w-auto inline-flex items-center justify-center space-x-1.5 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl text-xs shadow-xs transition-all cursor-pointer"
+                                                    type="button"
+                                                    onClick={() => setReplacementModalIncident(inc)}
+                                                    className="w-full sm:w-auto inline-flex items-center justify-center space-x-1.5 px-3.5 py-2 bg-[#1E3A8A] hover:bg-blue-800 text-white font-bold rounded-xl text-xs shadow-xs transition-all cursor-pointer"
                                                 >
-                                                    <Check className="w-4 h-4" />
+                                                    <ArrowRightLeft className="w-3.5 h-3.5" />
+                                                    <span>Confirmar Reemplazo / Horario</span>
+                                                </button>
+                                                <button
+                                                    onClick={() => handleAction(inc.id, "Aprobado")}
+                                                    className="w-full sm:w-auto inline-flex items-center justify-center space-x-1.5 px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl text-xs shadow-xs transition-all cursor-pointer"
+                                                >
+                                                    <Check className="w-3.5 h-3.5" />
                                                     <span>Aprobar Justificación</span>
                                                 </button>
                                                 <button
                                                     onClick={() => handleAction(inc.id, "Rechazado")}
-                                                    className="w-full sm:w-auto inline-flex items-center justify-center space-x-1.5 px-4 py-2 bg-white dark:bg-transparent hover:bg-rose-50 dark:hover:bg-rose-900/30 text-rose-700 dark:text-rose-400 border border-rose-300 dark:border-rose-500/50 font-bold rounded-xl text-xs transition-all cursor-pointer"
+                                                    className="w-full sm:w-auto inline-flex items-center justify-center space-x-1.5 px-3 py-2 bg-white dark:bg-transparent hover:bg-rose-50 dark:hover:bg-rose-900/30 text-rose-700 dark:text-rose-400 border border-rose-300 dark:border-rose-500/50 font-bold rounded-xl text-xs transition-all cursor-pointer"
                                                 >
-                                                    <X className="w-4 h-4" />
+                                                    <X className="w-3.5 h-3.5" />
                                                     <span>Rechazar</span>
                                                 </button>
                                             </>
@@ -289,6 +446,16 @@ export default function ControlAsistenciasPage() {
                 <DocumentPreviewModal
                     fileData={selectedFile}
                     onClose={() => setSelectedFile(null)}
+                />
+            )}
+
+            {/* MODAL DE CONFIRMACIÓN DE REEMPLAZO Y HORARIO (SCRM-52) */}
+            {replacementModalIncident && (
+                <ConfirmarReemplazoModal
+                    isOpen={!!replacementModalIncident}
+                    incident={replacementModalIncident}
+                    onClose={() => setReplacementModalIncident(null)}
+                    onConfirm={handleConfirmReplacement}
                 />
             )}
         </div>

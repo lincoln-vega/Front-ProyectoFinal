@@ -1,4 +1,5 @@
 import { insforge } from "../lib/insforge";
+import { courseService } from "./cursosServices";
 
 const SYSTEM_ROLES = ["Admin", "Docente", "Estudiante"];
 const USER_COLUMNS = [
@@ -86,6 +87,8 @@ export const userService = {
   }
 };
 
+export { courseService } from "./cursosServices";
+
 export const roleService = {
   getRoles: () => {
     const saved = localStorage.getItem("app_roles");
@@ -121,6 +124,14 @@ export const incidentService = {
     const { error } = await insforge.database
       .from("incidents")
       .update({ estado })
+      .eq("id", id);
+    throwIfError(error, "actualizar incidencia");
+  },
+
+  async updateIncident(id, fields) {
+    const { error } = await insforge.database
+      .from("incidents")
+      .update(fields)
       .eq("id", id);
     throwIfError(error, "actualizar incidencia");
   },
@@ -203,3 +214,5 @@ export const pagoService = {
     return data?.[0] || null;
   }
 };
+
+export { courseService };
