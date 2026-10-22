@@ -1,4 +1,5 @@
 import { insforge } from "../lib/insforge";
+import { courseService } from "./cursosServices";
 
 const SYSTEM_ROLES = ["Admin", "Docente", "Estudiante"];
 const USER_COLUMNS = [
@@ -213,3 +214,5 @@ export const pagoService = {
     return data?.[0] || null;
   }
 };
+
+export { courseService };
