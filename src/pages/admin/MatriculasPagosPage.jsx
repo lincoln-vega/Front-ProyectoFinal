@@ -594,8 +594,8 @@ export default function MatriculasPagosPage({ defaultTab = "matriculas" }) {
 
   return (
     <div className="space-y-6">
-      {error && <p role="alert" className="rounded-lg border border-red-300 bg-red-50 p-3 text-sm text-red-700">{error}</p>}
-      {loadingData && <p className="text-sm text-slate-500">Consultando matrículas y pagos en InsForge...</p>}
+      {error && <p role="alert" className="rounded-lg border border-red-300 dark:border-red-800 bg-red-50 dark:bg-red-950/40 p-3 text-sm text-red-700 dark:text-red-300">{error}</p>}
+      {loadingData && <p className="text-sm text-slate-500 dark:text-slate-400">Consultando matrículas y pagos en InsForge...</p>}
       {/* Notificación Toast */}
       {notification && (
         <div className="fixed top-4 right-4 z-50 bg-[#1E3A8A] text-white px-5 py-3 rounded-xl shadow-lg border border-blue-400/40 flex items-center gap-3 animate-fade-in text-sm font-medium">
@@ -605,17 +605,17 @@ export default function MatriculasPagosPage({ defaultTab = "matriculas" }) {
       )}
 
       {/* BANNER SUPERIOR INSTITUCIONAL */}
-      <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-xs">
+      <div className="bg-white/60 dark:bg-white/5 backdrop-blur-2xl p-6 rounded-2xl border border-slate-200 dark:border-white/10 shadow-xs">
         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
           <div>
-            <div className="inline-flex items-center space-x-2 px-2.5 py-1 rounded bg-blue-50 text-[#1E3A8A] text-xs font-bold uppercase tracking-wider border border-blue-200 mb-2">
-              <Wallet className="w-3.5 h-3.5 text-[#1E3A8A]" />
+            <div className="inline-flex items-center space-x-2 px-2.5 py-1 rounded bg-blue-50 dark:bg-blue-900/30 text-[#1E3A8A] dark:text-blue-300 text-xs font-bold uppercase tracking-wider border border-blue-200 dark:border-blue-800/40 mb-2">
+              <Wallet className="w-3.5 h-3.5 text-[#1E3A8A] dark:text-blue-400" />
               <span>Módulo de Matrículas y Pagos</span>
             </div>
-            <h1 className="text-2xl font-extrabold text-slate-800">
+            <h1 className="text-2xl font-extrabold text-slate-800 dark:text-white">
               Gestión de Matrículas, Cobranzas y Comprobantes
             </h1>
-            <p className="text-xs text-slate-500 mt-1 max-w-2xl">
+            <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 max-w-2xl">
               Control centralizado de inscripciones por ciclo académico, seguimiento de cronogramas de pensiones, registro de vouchers bancarios y emisión de comprobantes.
             </p>
           </div>
@@ -623,9 +623,9 @@ export default function MatriculasPagosPage({ defaultTab = "matriculas" }) {
           <div className="flex flex-wrap items-center gap-2.5">
             <button
               onClick={handleExportPagos}
-              className="inline-flex items-center space-x-1.5 px-3.5 py-2 border border-slate-300 hover:bg-slate-50 text-slate-700 rounded-xl text-xs font-semibold shadow-2xs transition-colors cursor-pointer"
+              className="inline-flex items-center space-x-1.5 px-3.5 py-2 border border-slate-300 dark:border-white/10 hover:bg-slate-50 dark:hover:bg-white/5 text-slate-700 dark:text-slate-200 rounded-xl text-xs font-semibold shadow-2xs transition-colors cursor-pointer"
             >
-              <Download className="w-4 h-4 text-slate-500" />
+              <Download className="w-4 h-4 text-slate-500 dark:text-slate-400" />
               <span>Exportar Excel</span>
             </button>
 
@@ -661,80 +661,80 @@ export default function MatriculasPagosPage({ defaultTab = "matriculas" }) {
         </div>
 
         {/* TARJETAS DE MÉTRICAS / KPIS */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mt-6 pt-6 border-t border-slate-100">
-          <div className="bg-slate-50 p-4 rounded-xl border border-slate-200/80">
-            <span className="text-xs font-bold text-slate-400 uppercase tracking-wider block">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mt-6 pt-6 border-t border-slate-100 dark:border-white/10">
+          <div className="bg-slate-50 dark:bg-white/5 p-4 rounded-xl border border-slate-200/80 dark:border-white/10">
+            <span className="text-xs font-bold text-slate-400 dark:text-slate-400 uppercase tracking-wider block">
               Total Recaudado (S/.)
             </span>
             <div className="flex items-center justify-between mt-2">
-              <span className="text-xl font-extrabold text-slate-800">
+              <span className="text-xl font-extrabold text-slate-800 dark:text-white">
                 S/. {totalRecaudado.toLocaleString("es-PE", { minimumFractionDigits: 2 })}
               </span>
-              <div className="p-2 bg-emerald-100 text-emerald-700 rounded-lg">
+              <div className="p-2 bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400 rounded-lg">
                 <DollarSign className="w-5 h-5" />
               </div>
             </div>
-            <span className="text-xs text-emerald-600 font-medium mt-1 flex items-center gap-1">
+            <span className="text-xs text-emerald-600 dark:text-emerald-400 font-medium mt-1 flex items-center gap-1">
               <TrendingUp className="w-3 h-3" /> {pagos.length} transacciones validadas
             </span>
           </div>
 
-          <div className="bg-slate-50 p-4 rounded-xl border border-slate-200/80">
-            <span className="text-xs font-bold text-slate-400 uppercase tracking-wider block">
+          <div className="bg-slate-50 dark:bg-white/5 p-4 rounded-xl border border-slate-200/80 dark:border-white/10">
+            <span className="text-xs font-bold text-slate-400 dark:text-slate-400 uppercase tracking-wider block">
               Alumnos Matriculados
             </span>
             <div className="flex items-center justify-between mt-2">
-              <span className="text-xl font-extrabold text-slate-800">{matriculas.length} alumnos</span>
-              <div className="p-2 bg-blue-100 text-[#1E3A8A] rounded-lg">
+              <span className="text-xl font-extrabold text-slate-800 dark:text-white">{matriculas.length} alumnos</span>
+              <div className="p-2 bg-blue-100 dark:bg-blue-900/30 text-[#1E3A8A] dark:text-blue-300 rounded-lg">
                 <GraduationCap className="w-5 h-5" />
               </div>
             </div>
-            <span className="text-xs text-slate-500 mt-1 block">
+            <span className="text-xs text-slate-500 dark:text-slate-400 mt-1 block">
               {matriculasAlDia} al día / {matriculas.length - matriculasAlDia} pendientes
             </span>
           </div>
 
-          <div className="bg-slate-50 p-4 rounded-xl border border-slate-200/80">
-            <span className="text-xs font-bold text-slate-400 uppercase tracking-wider block">
+          <div className="bg-slate-50 dark:bg-white/5 p-4 rounded-xl border border-slate-200/80 dark:border-white/10">
+            <span className="text-xs font-bold text-slate-400 dark:text-slate-400 uppercase tracking-wider block">
               Saldo Pendiente de Cobro
             </span>
             <div className="flex items-center justify-between mt-2">
-              <span className="text-xl font-extrabold text-amber-600">
+              <span className="text-xl font-extrabold text-amber-600 dark:text-amber-400">
                 S/. {totalPorCobrar.toLocaleString("es-PE", { minimumFractionDigits: 2 })}
               </span>
-              <div className="p-2 bg-amber-100 text-amber-700 rounded-lg">
+              <div className="p-2 bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 rounded-lg">
                 <Clock className="w-5 h-5" />
               </div>
             </div>
-            <span className="text-xs text-slate-500 mt-1 block">Por vencer en el ciclo</span>
+            <span className="text-xs text-slate-500 dark:text-slate-400 mt-1 block">Por vencer en el ciclo</span>
           </div>
 
-          <div className="bg-slate-50 p-4 rounded-xl border border-slate-200/80">
-            <span className="text-xs font-bold text-slate-400 uppercase tracking-wider block">
+          <div className="bg-slate-50 dark:bg-white/5 p-4 rounded-xl border border-slate-200/80 dark:border-white/10">
+            <span className="text-xs font-bold text-slate-400 dark:text-slate-400 uppercase tracking-wider block">
               Tasa de Cumplimiento
             </span>
             <div className="flex items-center justify-between mt-2">
-              <span className="text-xl font-extrabold text-slate-800">{porcentajeCumplimiento}%</span>
-              <div className="p-2 bg-indigo-100 text-indigo-700 rounded-lg">
+              <span className="text-xl font-extrabold text-slate-800 dark:text-white">{porcentajeCumplimiento}%</span>
+              <div className="p-2 bg-indigo-100 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-400 rounded-lg">
                 <CheckCircle2 className="w-5 h-5" />
               </div>
             </div>
-            <span className="text-xs text-emerald-600 font-medium mt-1 block">Cobranzas al día</span>
+            <span className="text-xs text-emerald-600 dark:text-emerald-400 font-medium mt-1 block">Cobranzas al día</span>
           </div>
         </div>
       </div>
 
       {/* TABS Y BARRA DE FILTROS */}
-      <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-xs space-y-4">
+      <div className="bg-white/60 dark:bg-white/5 backdrop-blur-2xl p-4 rounded-2xl border border-slate-200 dark:border-white/10 shadow-xs space-y-4">
         {/* Selector de Pestañas */}
-        <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+        <div className="flex items-center justify-between border-b border-slate-100 dark:border-white/10 pb-3">
           <div className="flex items-center space-x-2">
             <button
               onClick={() => setTabActiva("matriculas")}
               className={`px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-2 ${
                 tabActiva === "matriculas"
                   ? "bg-[#1E3A8A] text-white shadow-xs"
-                  : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+                  : "bg-slate-100 dark:bg-white/5 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-white/10"
               }`}
             >
               <FileText className="w-3.5 h-3.5" />
@@ -746,7 +746,7 @@ export default function MatriculasPagosPage({ defaultTab = "matriculas" }) {
               className={`px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-2 ${
                 tabActiva === "pagos"
                   ? "bg-[#1E3A8A] text-white shadow-xs"
-                  : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+                  : "bg-slate-100 dark:bg-white/5 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-white/10"
               }`}
             >
               <Receipt className="w-3.5 h-3.5" />
@@ -754,8 +754,8 @@ export default function MatriculasPagosPage({ defaultTab = "matriculas" }) {
             </button>
           </div>
 
-          <span className="text-xs text-slate-400 hidden sm:inline">
-            Periodo Actual: <strong className="text-slate-700">Ciclo 2026-I</strong>
+          <span className="text-xs text-slate-400 dark:text-slate-400 hidden sm:inline">
+            Periodo Actual: <strong className="text-slate-700 dark:text-slate-200">Ciclo 2026-I</strong>
           </span>
         </div>
 
@@ -772,7 +772,7 @@ export default function MatriculasPagosPage({ defaultTab = "matriculas" }) {
               }
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-9 pr-3 py-2 text-xs border border-slate-200 rounded-xl bg-slate-50 focus:bg-white focus:outline-hidden focus:ring-2 focus:ring-blue-800/20 focus:border-[#1E3A8A] transition-all"
+              className="w-full pl-9 pr-3 py-2 text-xs border border-slate-200 dark:border-white/10 rounded-xl bg-slate-50 dark:bg-white/5 text-slate-800 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 focus:bg-white dark:focus:bg-slate-900 focus:outline-hidden focus:ring-2 focus:ring-blue-800/20 focus:border-[#1E3A8A] transition-all"
             />
           </div>
 
@@ -781,7 +781,7 @@ export default function MatriculasPagosPage({ defaultTab = "matriculas" }) {
               <select
                 value={filtroPrograma}
                 onChange={(e) => setFiltroPrograma(e.target.value)}
-                className="px-3 py-2 text-xs border border-slate-200 rounded-xl bg-slate-50 text-slate-700 font-medium focus:outline-none"
+                className="px-3 py-2 text-xs border border-slate-200 dark:border-white/10 rounded-xl bg-slate-50 dark:bg-slate-900 text-slate-700 dark:text-slate-200 font-medium focus:outline-none"
               >
                 <option value="TODOS">Todos los Programas</option>
                 {PROGRAMAS_ACADEMICOS.map((p) => (
@@ -794,7 +794,7 @@ export default function MatriculasPagosPage({ defaultTab = "matriculas" }) {
               <select
                 value={filtroEstado}
                 onChange={(e) => setFiltroEstado(e.target.value)}
-                className="px-3 py-2 text-xs border border-slate-200 rounded-xl bg-slate-50 text-slate-700 font-medium focus:outline-none"
+                className="px-3 py-2 text-xs border border-slate-200 dark:border-white/10 rounded-xl bg-slate-50 dark:bg-slate-900 text-slate-700 dark:text-slate-200 font-medium focus:outline-none"
               >
                 <option value="TODOS">Todos los Estados</option>
                 <option value="Pagado Total">Pagado Total</option>
@@ -809,11 +809,11 @@ export default function MatriculasPagosPage({ defaultTab = "matriculas" }) {
 
       {/* VISTA 1: TABLA DE MATRÍCULAS */}
       {tabActiva === "matriculas" && (
-        <div className="bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden">
+        <div className="bg-white/60 dark:bg-white/5 backdrop-blur-2xl rounded-2xl border border-slate-200 dark:border-white/10 shadow-xs overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full text-left border-collapse">
               <thead>
-                <tr className="bg-slate-50/80 border-b border-slate-200 text-xs font-bold uppercase tracking-wider text-slate-500">
+                <tr className="bg-slate-50/80 dark:bg-white/5 border-b border-slate-200 dark:border-white/10 text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
                   <th className="py-3.5 px-4">Código / Fecha</th>
                   <th className="py-3.5 px-4">Estudiante</th>
                   <th className="py-3.5 px-4">Programa / Modalidad</th>
@@ -824,19 +824,19 @@ export default function MatriculasPagosPage({ defaultTab = "matriculas" }) {
                   <th className="py-3.5 px-4 text-center">Acciones</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-100 text-xs text-slate-700">
+              <tbody className="divide-y divide-slate-100 dark:divide-white/5 text-xs text-slate-700 dark:text-slate-300">
                 {matriculasFiltradas.length > 0 ? (
                   matriculasFiltradas.map((mat) => {
                     return (
-                      <tr key={mat.id} className="hover:bg-slate-50/70 transition-colors">
+                      <tr key={mat.id} className="hover:bg-slate-50/70 dark:hover:bg-white/5 transition-colors">
                         <td className="py-3.5 px-4 whitespace-nowrap">
-                          <span className="font-bold text-[#1E3A8A] font-mono block">{mat.id}</span>
-                          <span className="text-xs text-slate-400">{mat.fechaMatricula}</span>
+                          <span className="font-bold text-[#1E3A8A] dark:text-blue-400 font-mono block">{mat.id}</span>
+                          <span className="text-xs text-slate-400 dark:text-slate-500">{mat.fechaMatricula}</span>
                         </td>
 
                         <td className="py-3.5 px-4">
-                          <div className="font-bold text-slate-800">{mat.estudiante}</div>
-                          <div className="text-xs text-slate-500 flex items-center gap-2">
+                          <div className="font-bold text-slate-800 dark:text-white">{mat.estudiante}</div>
+                          <div className="text-xs text-slate-500 dark:text-slate-400 flex items-center gap-2">
                             <span>DNI: {mat.dni}</span>
                             <span>•</span>
                             <span>{mat.celular}</span>
@@ -844,29 +844,29 @@ export default function MatriculasPagosPage({ defaultTab = "matriculas" }) {
                         </td>
 
                         <td className="py-3.5 px-4">
-                          <div className="font-medium text-slate-800">{mat.programa}</div>
-                          <div className="text-xs text-slate-500 flex items-center gap-1.5">
-                            <span className="bg-slate-100 px-1.5 py-0.5 rounded text-slate-600 font-mono text-xs">
+                          <div className="font-medium text-slate-800 dark:text-white">{mat.programa}</div>
+                          <div className="text-xs text-slate-500 dark:text-slate-400 flex items-center gap-1.5">
+                            <span className="bg-slate-100 dark:bg-white/10 px-1.5 py-0.5 rounded text-slate-600 dark:text-slate-300 font-mono text-xs">
                               {mat.turno}
                             </span>
                             <span>•</span>
-                            <span className="text-slate-400">{mat.modalidadPago}</span>
+                            <span className="text-slate-400 dark:text-slate-500">{mat.modalidadPago}</span>
                           </div>
                         </td>
 
-                        <td className="py-3.5 px-4 text-right font-semibold text-slate-800">
+                        <td className="py-3.5 px-4 text-right font-semibold text-slate-800 dark:text-white">
                           S/. {mat.montoTotal.toFixed(2)}
                         </td>
 
-                        <td className="py-3.5 px-4 text-right font-bold text-emerald-600">
+                        <td className="py-3.5 px-4 text-right font-bold text-emerald-600 dark:text-emerald-400">
                           S/. {mat.montoPagado.toFixed(2)}
                         </td>
 
                         <td className="py-3.5 px-4 text-right font-bold">
                           {mat.saldoPendiente > 0 ? (
-                            <span className="text-amber-600">S/. {mat.saldoPendiente.toFixed(2)}</span>
+                            <span className="text-amber-600 dark:text-amber-400">S/. {mat.saldoPendiente.toFixed(2)}</span>
                           ) : (
-                            <span className="text-slate-400">S/. 0.00</span>
+                            <span className="text-slate-400 dark:text-slate-500">S/. 0.00</span>
                           )}
                         </td>
 
@@ -874,12 +874,12 @@ export default function MatriculasPagosPage({ defaultTab = "matriculas" }) {
                           <span
                             className={`inline-block px-2.5 py-1 rounded-full text-xs font-bold uppercase tracking-wider ${
                               mat.estado === "Pagado Total"
-                                ? "bg-emerald-100 text-emerald-800 border border-emerald-200"
+                                ? "bg-emerald-100 dark:bg-emerald-950/60 text-emerald-800 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800/60"
                                 : mat.estado === "Al día"
-                                ? "bg-blue-100 text-blue-800 border border-blue-200"
+                                ? "bg-blue-100 dark:bg-blue-950/60 text-blue-800 dark:text-blue-300 border border-blue-200 dark:border-blue-800/60"
                                 : mat.estado === "Cuota Vencida"
-                                ? "bg-red-100 text-red-800 border border-red-200"
-                                : "bg-amber-100 text-amber-800 border border-amber-200"
+                                ? "bg-red-100 dark:bg-red-950/60 text-red-800 dark:text-red-300 border border-red-200 dark:border-red-800/60"
+                                : "bg-amber-100 dark:bg-amber-950/60 text-amber-800 dark:text-amber-300 border border-amber-200 dark:border-amber-800/60"
                             }`}
                           >
                             {mat.estado}
@@ -891,7 +891,7 @@ export default function MatriculasPagosPage({ defaultTab = "matriculas" }) {
                             {/* Ver Ficha */}
                             <button
                               onClick={() => setFichaMatricula(mat)}
-                              className="p-1.5 text-slate-500 hover:text-[#1E3A8A] hover:bg-blue-50 rounded-lg transition-colors cursor-pointer"
+                              className="p-1.5 text-slate-500 dark:text-slate-400 hover:text-[#1E3A8A] dark:hover:text-blue-400 hover:bg-blue-50 dark:hover:bg-white/5 rounded-lg transition-colors cursor-pointer"
                               title="Ver Ficha de Matrícula"
                             >
                               <Eye className="w-4 h-4" />
@@ -901,7 +901,7 @@ export default function MatriculasPagosPage({ defaultTab = "matriculas" }) {
                             {mat.saldoPendiente > 0 && (
                               <button
                                 onClick={() => handleAbrirPagoParaMatricula(mat)}
-                                className="p-1.5 text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50 rounded-lg transition-colors cursor-pointer"
+                                className="p-1.5 text-emerald-600 dark:text-emerald-400 hover:text-emerald-700 dark:hover:text-emerald-300 hover:bg-emerald-50 dark:hover:bg-emerald-950/50 rounded-lg transition-colors cursor-pointer"
                                 title="Abonar Cuota"
                               >
                                 <DollarSign className="w-4 h-4" />
@@ -911,7 +911,7 @@ export default function MatriculasPagosPage({ defaultTab = "matriculas" }) {
                             {/* Eliminar */}
                             <button
                               onClick={() => handleEliminarMatricula(mat.id, mat.estudiante)}
-                              className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors cursor-pointer"
+                              className="p-1.5 text-slate-400 dark:text-slate-500 hover:text-red-600 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/50 rounded-lg transition-colors cursor-pointer"
                               title="Anular matrícula"
                             >
                               <Trash2 className="w-4 h-4" />
@@ -923,7 +923,7 @@ export default function MatriculasPagosPage({ defaultTab = "matriculas" }) {
                   })
                 ) : (
                   <tr>
-                    <td colSpan={8} className="py-8 text-center text-slate-400 text-xs">
+                    <td colSpan={8} className="py-8 text-center text-slate-400 dark:text-slate-500 text-xs">
                       No se encontraron matrículas con los criterios de búsqueda.
                     </td>
                   </tr>
@@ -936,11 +936,11 @@ export default function MatriculasPagosPage({ defaultTab = "matriculas" }) {
 
       {/* VISTA 2: HISTORIAL DE PAGOS */}
       {tabActiva === "pagos" && (
-        <div className="bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden">
+        <div className="bg-white/60 dark:bg-white/5 backdrop-blur-2xl rounded-2xl border border-slate-200 dark:border-white/10 shadow-xs overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full text-left border-collapse">
               <thead>
-                <tr className="bg-slate-50/80 border-b border-slate-200 text-xs font-bold uppercase tracking-wider text-slate-500">
+                <tr className="bg-slate-50/80 dark:bg-white/5 border-b border-slate-200 dark:border-white/10 text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
                   <th className="py-3.5 px-4">N° Recibo / Fecha</th>
                   <th className="py-3.5 px-4">Estudiante / Matrícula</th>
                   <th className="py-3.5 px-4">Concepto</th>
@@ -951,41 +951,41 @@ export default function MatriculasPagosPage({ defaultTab = "matriculas" }) {
                   <th className="py-3.5 px-4 text-center">Recibo</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-100 text-xs text-slate-700">
+              <tbody className="divide-y divide-slate-100 dark:divide-white/5 text-xs text-slate-700 dark:text-slate-300">
                 {pagosFiltrados.length > 0 ? (
                   pagosFiltrados.map((pago) => (
-                    <tr key={pago.id} className="hover:bg-slate-50/70 transition-colors">
+                    <tr key={pago.id} className="hover:bg-slate-50/70 dark:hover:bg-white/5 transition-colors">
                       <td className="py-3.5 px-4 whitespace-nowrap">
-                        <span className="font-bold text-slate-800 font-mono block">{pago.comprobante}</span>
-                        <span className="text-xs text-slate-400">{pago.fecha}</span>
+                        <span className="font-bold text-slate-800 dark:text-white font-mono block">{pago.comprobante}</span>
+                        <span className="text-xs text-slate-400 dark:text-slate-500">{pago.fecha}</span>
                       </td>
 
                       <td className="py-3.5 px-4">
-                        <div className="font-bold text-slate-800">{pago.estudiante}</div>
-                        <span className="text-xs text-[#1E3A8A] font-mono font-medium">
+                        <div className="font-bold text-slate-800 dark:text-white">{pago.estudiante}</div>
+                        <span className="text-xs text-[#1E3A8A] dark:text-blue-400 font-mono font-medium">
                           Ref: {pago.matriculaId}
                         </span>
                       </td>
 
-                      <td className="py-3.5 px-4 font-medium text-slate-800">{pago.concepto}</td>
+                      <td className="py-3.5 px-4 font-medium text-slate-800 dark:text-white">{pago.concepto}</td>
 
                       <td className="py-3.5 px-4">
-                        <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-slate-100 text-slate-700 text-xs font-medium">
-                          <CreditCard className="w-3 h-3 text-slate-500" />
+                        <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-slate-100 dark:bg-white/10 text-slate-700 dark:text-slate-300 text-xs font-medium">
+                          <CreditCard className="w-3 h-3 text-slate-500 dark:text-slate-400" />
                           {pago.metodo}
                         </span>
                       </td>
 
-                      <td className="py-3.5 px-4 font-mono text-slate-600 text-xs">
+                      <td className="py-3.5 px-4 font-mono text-slate-600 dark:text-slate-400 text-xs">
                         {pago.operacion}
                       </td>
 
-                      <td className="py-3.5 px-4 text-right font-extrabold text-emerald-600 text-sm">
+                      <td className="py-3.5 px-4 text-right font-extrabold text-emerald-600 dark:text-emerald-400 text-sm">
                         S/. {Number(pago.monto).toFixed(2)}
                       </td>
 
                       <td className="py-3.5 px-4 text-center">
-                        <span className="inline-block px-2.5 py-1 rounded-full text-xs font-bold uppercase tracking-wider bg-emerald-100 text-emerald-800 border border-emerald-200">
+                        <span className="inline-block px-2.5 py-1 rounded-full text-xs font-bold uppercase tracking-wider bg-emerald-100 dark:bg-emerald-950/60 text-emerald-800 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800/60">
                           {pago.estado}
                         </span>
                       </td>
@@ -993,7 +993,7 @@ export default function MatriculasPagosPage({ defaultTab = "matriculas" }) {
                       <td className="py-3.5 px-4 text-center">
                         <button
                           onClick={() => setReciboPago(pago)}
-                          className="inline-flex items-center gap-1 px-2.5 py-1 bg-slate-100 hover:bg-[#1E3A8A] hover:text-white text-slate-700 rounded-lg text-xs font-semibold transition-colors cursor-pointer"
+                          className="inline-flex items-center gap-1 px-2.5 py-1 bg-slate-100 dark:bg-white/10 hover:bg-[#1E3A8A] hover:text-white text-slate-700 dark:text-slate-200 rounded-lg text-xs font-semibold transition-colors cursor-pointer"
                         >
                           <Receipt className="w-3.5 h-3.5" />
                           <span>Boleta</span>
@@ -1003,7 +1003,7 @@ export default function MatriculasPagosPage({ defaultTab = "matriculas" }) {
                   ))
                 ) : (
                   <tr>
-                    <td colSpan={8} className="py-8 text-center text-slate-400 text-xs">
+                    <td colSpan={8} className="py-8 text-center text-slate-400 dark:text-slate-500 text-xs">
                       No se encontraron registros de pagos.
                     </td>
                   </tr>
@@ -1017,7 +1017,7 @@ export default function MatriculasPagosPage({ defaultTab = "matriculas" }) {
       {/* MODAL 1: REGISTRAR NUEVA MATRÍCULA */}
       {modalMatriculaOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-xs p-4 overflow-y-auto">
-          <div className="bg-white rounded-2xl shadow-2xl border border-slate-200 w-full max-w-xl overflow-hidden animate-scale-up my-8">
+          <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-2xl border border-slate-200 dark:border-white/10 w-full max-w-xl overflow-hidden animate-scale-up my-8">
             <div className="bg-[#1E3A8A] text-white p-5 flex items-center justify-between">
               <div className="flex items-center space-x-2.5">
                 <div className="p-2 bg-white/10 rounded-lg">
@@ -1037,13 +1037,13 @@ export default function MatriculasPagosPage({ defaultTab = "matriculas" }) {
             </div>
 
             <form onSubmit={handleGuardarMatricula} className="p-6 space-y-4">
-              <div className="space-y-3 rounded-xl border border-slate-200 bg-slate-50 p-4">
+              <div className="space-y-3 rounded-xl border border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-white/5 p-4">
                 <div className="flex items-center justify-between gap-3">
                   <div>
-                    <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
+                    <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-1">
                       Estudiante *
                     </label>
-                    <p className="text-xs text-slate-500">Busca por nombre, DNI o correo.</p>
+                    <p className="text-xs text-slate-500 dark:text-slate-400">Busca por nombre, DNI o correo.</p>
                   </div>
                   <button
                     type="button"
@@ -1053,7 +1053,7 @@ export default function MatriculasPagosPage({ defaultTab = "matriculas" }) {
                       setStudentSearch("");
                       setFormMatricula({ ...formMatricula, estudiante: "", dni: "", correo: "", celular: "" });
                     }}
-                    className="text-xs font-semibold text-[#1E3A8A] hover:underline cursor-pointer"
+                    className="text-xs font-semibold text-[#1E3A8A] dark:text-blue-400 hover:underline cursor-pointer"
                   >
                     Registrar nuevo
                   </button>
@@ -1071,7 +1071,7 @@ export default function MatriculasPagosPage({ defaultTab = "matriculas" }) {
                         setSelectedStudentId("");
                         setFormMatricula({ ...formMatricula, estudiante: "", dni: "", correo: "", celular: "" });
                       }}
-                      className="w-full px-3 py-2 text-xs border border-slate-200 rounded-xl bg-white focus:outline-none focus:border-[#1E3A8A]"
+                      className="w-full px-3 py-2 text-xs border border-slate-200 dark:border-white/10 rounded-xl bg-white dark:bg-slate-800 text-slate-800 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:border-[#1E3A8A]"
                     />
                     <div className="max-h-36 overflow-y-auto space-y-1">
                       {matchingStudents.map((student) => (
@@ -1079,13 +1079,13 @@ export default function MatriculasPagosPage({ defaultTab = "matriculas" }) {
                           type="button"
                           key={student.id}
                           onClick={() => handleStudentSelect(student)}
-                          className={`w-full text-left px-3 py-2 rounded-lg border text-xs transition-colors cursor-pointer ${selectedStudentId === student.id ? "border-blue-400 bg-blue-50" : "border-slate-200 bg-white hover:border-blue-300"}`}
+                          className={`w-full text-left px-3 py-2 rounded-lg border text-xs transition-colors cursor-pointer ${selectedStudentId === student.id ? "border-blue-400 bg-blue-50 dark:bg-blue-900/40 text-blue-900 dark:text-blue-200" : "border-slate-200 dark:border-white/10 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:border-blue-300"}`}
                         >
-                          <span className="font-semibold text-slate-800">{student.nombres} {student.apellidos}</span>
-                          <span className="block text-xs text-slate-500">DNI: {student.dni} · {student.correo}</span>
+                          <span className="font-semibold text-slate-800 dark:text-white">{student.nombres} {student.apellidos}</span>
+                          <span className="block text-xs text-slate-500 dark:text-slate-400">DNI: {student.dni} · {student.correo}</span>
                         </button>
                       ))}
-                      {!matchingStudents.length && <p className="text-xs text-slate-400 py-2">No se encontró un estudiante. Usa “Registrar nuevo”.</p>}
+                      {!matchingStudents.length && <p className="text-xs text-slate-400 dark:text-slate-500 py-2">No se encontró un estudiante. Usa “Registrar nuevo”.</p>}
                     </div>
                   </>
                 ) : (
@@ -1096,7 +1096,7 @@ export default function MatriculasPagosPage({ defaultTab = "matriculas" }) {
                       placeholder="Nombres y apellidos"
                       value={formMatricula.estudiante}
                       onChange={(e) => setFormMatricula({ ...formMatricula, estudiante: e.target.value })}
-                      className="w-full px-3 py-2 text-xs border border-slate-200 rounded-xl bg-white focus:outline-none focus:border-[#1E3A8A]"
+                      className="w-full px-3 py-2 text-xs border border-slate-200 dark:border-white/10 rounded-xl bg-white dark:bg-slate-800 text-slate-800 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:border-[#1E3A8A]"
                     />
                     <input
                       type="text"
@@ -1105,13 +1105,13 @@ export default function MatriculasPagosPage({ defaultTab = "matriculas" }) {
                       placeholder="DNI / Documento"
                       value={formMatricula.dni}
                       onChange={(e) => setFormMatricula({ ...formMatricula, dni: e.target.value })}
-                      className="w-full px-3 py-2 text-xs border border-slate-200 rounded-xl bg-white focus:outline-none focus:border-[#1E3A8A]"
+                      className="w-full px-3 py-2 text-xs border border-slate-200 dark:border-white/10 rounded-xl bg-white dark:bg-slate-800 text-slate-800 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:border-[#1E3A8A]"
                     />
                   </div>
                 )}
 
                 {selectedStudentId && (
-                  <div className="flex items-center justify-between rounded-lg bg-emerald-50 border border-emerald-200 px-3 py-2 text-xs text-emerald-800">
+                  <div className="flex items-center justify-between rounded-lg bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800/60 px-3 py-2 text-xs text-emerald-800 dark:text-emerald-300">
                     <span>Estudiante seleccionado: <strong>{formMatricula.estudiante}</strong></span>
                     <button type="button" onClick={resetStudentSelection} className="font-semibold hover:underline cursor-pointer">Cambiar</button>
                   </div>
@@ -1120,7 +1120,7 @@ export default function MatriculasPagosPage({ defaultTab = "matriculas" }) {
                 {isNewStudent && <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
 
                 <div>
-                  <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
+                  <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-1">
                     Correo Electrónico
                   </label>
                   <input
@@ -1128,12 +1128,12 @@ export default function MatriculasPagosPage({ defaultTab = "matriculas" }) {
                     placeholder="alumno@correo.com"
                     value={formMatricula.correo}
                     onChange={(e) => setFormMatricula({ ...formMatricula, correo: e.target.value })}
-                    className="w-full px-3 py-2 text-xs border border-slate-200 rounded-xl focus:outline-none focus:border-[#1E3A8A]"
+                    className="w-full px-3 py-2 text-xs border border-slate-200 dark:border-white/10 rounded-xl bg-white dark:bg-slate-800 text-slate-800 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:border-[#1E3A8A]"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
+                  <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-1">
                     Celular de Contacto
                   </label>
                   <input
@@ -1141,14 +1141,14 @@ export default function MatriculasPagosPage({ defaultTab = "matriculas" }) {
                     placeholder="987654321"
                     value={formMatricula.celular}
                     onChange={(e) => setFormMatricula({ ...formMatricula, celular: e.target.value })}
-                    className="w-full px-3 py-2 text-xs border border-slate-200 rounded-xl focus:outline-none focus:border-[#1E3A8A]"
+                    className="w-full px-3 py-2 text-xs border border-slate-200 dark:border-white/10 rounded-xl bg-white dark:bg-slate-800 text-slate-800 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:border-[#1E3A8A]"
                   />
                 </div>
                 </div>}
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
+                <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-1">
                   Programa Académico
                 </label>
                 <select
@@ -1161,7 +1161,7 @@ export default function MatriculasPagosPage({ defaultTab = "matriculas" }) {
                       montoTotal: sel ? sel.costo : formMatricula.montoTotal,
                     });
                   }}
-                  className="w-full px-3 py-2 text-xs border border-slate-200 rounded-xl focus:outline-none focus:border-[#1E3A8A] bg-white"
+                  className="w-full px-3 py-2 text-xs border border-slate-200 dark:border-white/10 rounded-xl focus:outline-none focus:border-[#1E3A8A] bg-white dark:bg-slate-800 text-slate-800 dark:text-white"
                 >
                   {PROGRAMAS_ACADEMICOS.map((p) => (
                     <option key={p.nombre} value={p.nombre}>
@@ -1173,13 +1173,13 @@ export default function MatriculasPagosPage({ defaultTab = "matriculas" }) {
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
+                  <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-1">
                     Turno Asignado
                   </label>
                   <select
                     value={formMatricula.turno}
                     onChange={(e) => setFormMatricula({ ...formMatricula, turno: e.target.value })}
-                    className="w-full px-3 py-2 text-xs border border-slate-200 rounded-xl focus:outline-none focus:border-[#1E3A8A] bg-white"
+                    className="w-full px-3 py-2 text-xs border border-slate-200 dark:border-white/10 rounded-xl focus:outline-none focus:border-[#1E3A8A] bg-white dark:bg-slate-800 text-slate-800 dark:text-white"
                   >
                     <option value="Mañana (08:00 - 13:00)">Mañana (08:00 - 13:00)</option>
                     <option value="Tarde (14:00 - 19:00)">Tarde (14:00 - 19:00)</option>
@@ -1188,13 +1188,13 @@ export default function MatriculasPagosPage({ defaultTab = "matriculas" }) {
                 </div>
 
                 <div>
-                  <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
+                  <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-1">
                     Modalidad de Pago
                   </label>
                   <select
                     value={formMatricula.modalidadPago}
                     onChange={(e) => setFormMatricula({ ...formMatricula, modalidadPago: e.target.value })}
-                    className="w-full px-3 py-2 text-xs border border-slate-200 rounded-xl focus:outline-none focus:border-[#1E3A8A] bg-white"
+                    className="w-full px-3 py-2 text-xs border border-slate-200 dark:border-white/10 rounded-xl focus:outline-none focus:border-[#1E3A8A] bg-white dark:bg-slate-800 text-slate-800 dark:text-white"
                   >
                     <option value="Contado (Descuento 10%)">Contado (10% Dcto)</option>
                     <option value="Cuotas (2 cuotas)">En 2 Cuotas</option>
@@ -1204,9 +1204,9 @@ export default function MatriculasPagosPage({ defaultTab = "matriculas" }) {
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 bg-slate-50 p-3.5 rounded-xl border border-slate-200">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 bg-slate-50 dark:bg-white/5 p-3.5 rounded-xl border border-slate-200 dark:border-white/10">
                 <div>
-                  <label className="block text-xs font-bold text-slate-600 uppercase mb-1">
+                  <label className="block text-xs font-bold text-slate-600 dark:text-slate-300 uppercase mb-1">
                     Costo Total del Ciclo
                   </label>
                   <div className="relative">
@@ -1215,13 +1215,13 @@ export default function MatriculasPagosPage({ defaultTab = "matriculas" }) {
                       type="number"
                       value={formMatricula.montoTotal}
                       onChange={(e) => setFormMatricula({ ...formMatricula, montoTotal: Number(e.target.value) })}
-                      className="w-full pl-9 pr-3 py-1.5 text-xs font-bold text-slate-800 border border-slate-200 rounded-lg bg-white"
+                      className="w-full pl-9 pr-3 py-1.5 text-xs font-bold text-slate-800 dark:text-white border border-slate-200 dark:border-white/10 rounded-lg bg-white dark:bg-slate-800"
                     />
                   </div>
                 </div>
 
                 <div>
-                  <label className="block text-xs font-bold text-slate-600 uppercase mb-1">
+                  <label className="block text-xs font-bold text-slate-600 dark:text-slate-300 uppercase mb-1">
                     Abono Inicial en Matrícula
                   </label>
                   <div className="relative">
@@ -1230,17 +1230,17 @@ export default function MatriculasPagosPage({ defaultTab = "matriculas" }) {
                       type="number"
                       value={formMatricula.primerAbono}
                       onChange={(e) => setFormMatricula({ ...formMatricula, primerAbono: Number(e.target.value) })}
-                      className="w-full pl-9 pr-3 py-1.5 text-xs font-bold text-emerald-700 border border-slate-200 rounded-lg bg-white"
+                      className="w-full pl-9 pr-3 py-1.5 text-xs font-bold text-emerald-700 dark:text-emerald-400 border border-slate-200 dark:border-white/10 rounded-lg bg-white dark:bg-slate-800"
                     />
                   </div>
                 </div>
               </div>
 
-              <div className="flex items-center justify-end space-x-2 pt-3 border-t border-slate-100">
+              <div className="flex items-center justify-end space-x-2 pt-3 border-t border-slate-100 dark:border-white/10">
                 <button
                   type="button"
                   onClick={() => setModalMatriculaOpen(false)}
-                  className="px-4 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-100 rounded-xl transition-colors cursor-pointer"
+                  className="px-4 py-2 text-xs font-semibold text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-white/10 rounded-xl transition-colors cursor-pointer"
                 >
                   Cancelar
                 </button>
@@ -1259,8 +1259,8 @@ export default function MatriculasPagosPage({ defaultTab = "matriculas" }) {
       {/* MODAL 2: REGISTRAR NUEVO PAGO */}
       {modalPagoOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-xs p-4 overflow-y-auto">
-          <div className="bg-white rounded-2xl shadow-2xl border border-slate-200 w-full max-w-lg overflow-hidden animate-scale-up my-8">
-            <div className="bg-emerald-700 text-white p-5 flex items-center justify-between">
+          <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-2xl border border-slate-200 dark:border-white/10 w-full max-w-lg overflow-hidden animate-scale-up my-8">
+            <div className="bg-emerald-700 dark:bg-emerald-900 text-white p-5 flex items-center justify-between">
               <div className="flex items-center space-x-2.5">
                 <div className="p-2 bg-white/10 rounded-lg">
                   <CreditCard className="w-5 h-5 text-emerald-200" />
@@ -1280,7 +1280,7 @@ export default function MatriculasPagosPage({ defaultTab = "matriculas" }) {
 
             <form onSubmit={handleGuardarPago} className="p-6 space-y-4">
               <div>
-                <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
+                <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-1">
                   Matrícula / Estudiante *
                 </label>
                 <select
@@ -1294,7 +1294,7 @@ export default function MatriculasPagosPage({ defaultTab = "matriculas" }) {
                       monto: mat && mat.saldoPendiente > 0 ? Math.min(mat.saldoPendiente, 400) : formPago.monto,
                     });
                   }}
-                  className="w-full px-3 py-2 text-xs border border-slate-200 rounded-xl focus:outline-none focus:border-emerald-600 bg-white"
+                  className="w-full px-3 py-2 text-xs border border-slate-200 dark:border-white/10 rounded-xl focus:outline-none focus:border-emerald-600 bg-white dark:bg-slate-800 text-slate-800 dark:text-white"
                 >
                   <option value="">-- Seleccionar Estudiante --</option>
                   {matriculas.map((m) => (
@@ -1307,7 +1307,7 @@ export default function MatriculasPagosPage({ defaultTab = "matriculas" }) {
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
+                  <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-1">
                     Monto a Abonar (S/.) *
                   </label>
                   <input
@@ -1317,18 +1317,18 @@ export default function MatriculasPagosPage({ defaultTab = "matriculas" }) {
                     placeholder="Monto S/."
                     value={formPago.monto}
                     onChange={(e) => setFormPago({ ...formPago, monto: e.target.value })}
-                    className="w-full px-3 py-2 text-xs font-bold text-emerald-700 border border-slate-200 rounded-xl focus:outline-none focus:border-emerald-600"
+                    className="w-full px-3 py-2 text-xs font-bold text-emerald-700 dark:text-emerald-400 border border-slate-200 dark:border-white/10 rounded-xl bg-white dark:bg-slate-800 focus:outline-none focus:border-emerald-600"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
+                  <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-1">
                     Método de Pago
                   </label>
                   <select
                     value={formPago.metodo}
                     onChange={(e) => setFormPago({ ...formPago, metodo: e.target.value })}
-                    className="w-full px-3 py-2 text-xs border border-slate-200 rounded-xl focus:outline-none focus:border-emerald-600 bg-white"
+                    className="w-full px-3 py-2 text-xs border border-slate-200 dark:border-white/10 rounded-xl focus:outline-none focus:border-emerald-600 bg-white dark:bg-slate-800 text-slate-800 dark:text-white"
                   >
                     <option value="Yape / Plin">Yape / Plin</option>
                     <option value="Transferencia BCP">Transferencia BCP</option>
@@ -1340,7 +1340,7 @@ export default function MatriculasPagosPage({ defaultTab = "matriculas" }) {
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
+                <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-1">
                   Concepto del Pago
                 </label>
                 <input
@@ -1349,13 +1349,13 @@ export default function MatriculasPagosPage({ defaultTab = "matriculas" }) {
                   placeholder="Ej. Cuota 2 - Pensión Febrero"
                   value={formPago.concepto}
                   onChange={(e) => setFormPago({ ...formPago, concepto: e.target.value })}
-                  className="w-full px-3 py-2 text-xs border border-slate-200 rounded-xl focus:outline-none focus:border-emerald-600"
+                  className="w-full px-3 py-2 text-xs border border-slate-200 dark:border-white/10 rounded-xl bg-white dark:bg-slate-800 text-slate-800 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:border-emerald-600"
                 />
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
+                  <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-1">
                     N° de Operación Bancaria / Voucher
                   </label>
                   <input
@@ -1363,18 +1363,18 @@ export default function MatriculasPagosPage({ defaultTab = "matriculas" }) {
                     placeholder="Ej. OP-4892103"
                     value={formPago.operacion}
                     onChange={(e) => setFormPago({ ...formPago, operacion: e.target.value })}
-                    className="w-full px-3 py-2 text-xs border border-slate-200 rounded-xl focus:outline-none focus:border-emerald-600"
+                    className="w-full px-3 py-2 text-xs border border-slate-200 dark:border-white/10 rounded-xl bg-white dark:bg-slate-800 text-slate-800 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:border-emerald-600"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
+                  <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-1">
                     Tipo de Comprobante
                   </label>
                   <select
                     value={formPago.comprobanteTipo}
                     onChange={(e) => setFormPago({ ...formPago, comprobanteTipo: e.target.value })}
-                    className="w-full px-3 py-2 text-xs border border-slate-200 rounded-xl focus:outline-none focus:border-emerald-600 bg-white"
+                    className="w-full px-3 py-2 text-xs border border-slate-200 dark:border-white/10 rounded-xl focus:outline-none focus:border-emerald-600 bg-white dark:bg-slate-800 text-slate-800 dark:text-white"
                   >
                     <option value="Boleta de Venta Electrónica">Boleta de Venta Electrónica</option>
                     <option value="Factura Electrónica">Factura Electrónica</option>
@@ -1383,11 +1383,11 @@ export default function MatriculasPagosPage({ defaultTab = "matriculas" }) {
                 </div>
               </div>
 
-              <div className="flex items-center justify-end space-x-2 pt-3 border-t border-slate-100">
+              <div className="flex items-center justify-end space-x-2 pt-3 border-t border-slate-100 dark:border-white/10">
                 <button
                   type="button"
                   onClick={() => setModalPagoOpen(false)}
-                  className="px-4 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-100 rounded-xl transition-colors cursor-pointer"
+                  className="px-4 py-2 text-xs font-semibold text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-white/10 rounded-xl transition-colors cursor-pointer"
                 >
                   Cancelar
                 </button>
@@ -1406,7 +1406,7 @@ export default function MatriculasPagosPage({ defaultTab = "matriculas" }) {
       {/* MODAL 3: FICHA DE MATRÍCULA Y ESTADO DE CUENTA */}
       {fichaMatricula && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-xs p-4 overflow-y-auto">
-          <div className="bg-white rounded-2xl shadow-2xl border border-slate-200 w-full max-w-2xl overflow-hidden animate-scale-up my-8">
+          <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-2xl border border-slate-200 dark:border-white/10 w-full max-w-2xl overflow-hidden animate-scale-up my-8">
             <div className="bg-[#1E3A8A] text-white p-6 flex items-center justify-between">
               <div>
                 <span className="text-xs font-mono tracking-widest text-amber-300 font-bold uppercase">
@@ -1425,50 +1425,50 @@ export default function MatriculasPagosPage({ defaultTab = "matriculas" }) {
 
             <div className="p-6 space-y-6">
               {/* Datos del Alumno */}
-              <div className="bg-slate-50 p-4 rounded-xl border border-slate-200 grid grid-cols-2 md:grid-cols-3 gap-3 text-xs">
+              <div className="bg-slate-50 dark:bg-white/5 p-4 rounded-xl border border-slate-200 dark:border-white/10 grid grid-cols-2 md:grid-cols-3 gap-3 text-xs">
                 <div>
-                  <span className="text-slate-400 block text-xs uppercase font-bold">Estudiante</span>
-                  <span className="font-bold text-slate-800">{fichaMatricula.estudiante}</span>
+                  <span className="text-slate-400 dark:text-slate-400 block text-xs uppercase font-bold">Estudiante</span>
+                  <span className="font-bold text-slate-800 dark:text-white">{fichaMatricula.estudiante}</span>
                 </div>
                 <div>
-                  <span className="text-slate-400 block text-xs uppercase font-bold">DNI</span>
-                  <span className="font-semibold text-slate-700">{fichaMatricula.dni}</span>
+                  <span className="text-slate-400 dark:text-slate-400 block text-xs uppercase font-bold">DNI</span>
+                  <span className="font-semibold text-slate-700 dark:text-slate-300">{fichaMatricula.dni}</span>
                 </div>
                 <div>
-                  <span className="text-slate-400 block text-xs uppercase font-bold">Celular</span>
-                  <span className="text-slate-700">{fichaMatricula.celular}</span>
+                  <span className="text-slate-400 dark:text-slate-400 block text-xs uppercase font-bold">Celular</span>
+                  <span className="text-slate-700 dark:text-slate-300">{fichaMatricula.celular}</span>
                 </div>
                 <div className="col-span-2">
-                  <span className="text-slate-400 block text-xs uppercase font-bold">Programa</span>
-                  <span className="font-semibold text-[#1E3A8A]">{fichaMatricula.programa}</span>
+                  <span className="text-slate-400 dark:text-slate-400 block text-xs uppercase font-bold">Programa</span>
+                  <span className="font-semibold text-[#1E3A8A] dark:text-blue-400">{fichaMatricula.programa}</span>
                 </div>
                 <div>
-                  <span className="text-slate-400 block text-xs uppercase font-bold">Turno</span>
-                  <span className="text-slate-700">{fichaMatricula.turno}</span>
+                  <span className="text-slate-400 dark:text-slate-400 block text-xs uppercase font-bold">Turno</span>
+                  <span className="text-slate-700 dark:text-slate-300">{fichaMatricula.turno}</span>
                 </div>
               </div>
 
               {/* Estado de Cuenta */}
               <div>
-                <h4 className="text-xs font-bold text-slate-700 uppercase tracking-wider mb-2.5">
+                <h4 className="text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-2.5">
                   Resumen de Cuenta del Estudiante
                 </h4>
                 <div className="grid grid-cols-3 gap-3">
-                  <div className="p-3 rounded-xl bg-slate-100 border border-slate-200 text-center">
-                    <span className="text-xs font-bold text-slate-500 uppercase block">Costo Total</span>
-                    <span className="text-base font-extrabold text-slate-800">
+                  <div className="p-3 rounded-xl bg-slate-100 dark:bg-white/5 border border-slate-200 dark:border-white/10 text-center">
+                    <span className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase block">Costo Total</span>
+                    <span className="text-base font-extrabold text-slate-800 dark:text-white">
                       S/. {fichaMatricula.montoTotal.toFixed(2)}
                     </span>
                   </div>
-                  <div className="p-3 rounded-xl bg-emerald-50 border border-emerald-200 text-center">
-                    <span className="text-xs font-bold text-emerald-700 uppercase block">Total Abonado</span>
-                    <span className="text-base font-extrabold text-emerald-700">
+                  <div className="p-3 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800/60 text-center">
+                    <span className="text-xs font-bold text-emerald-700 dark:text-emerald-400 uppercase block">Total Abonado</span>
+                    <span className="text-base font-extrabold text-emerald-700 dark:text-emerald-400">
                       S/. {fichaMatricula.montoPagado.toFixed(2)}
                     </span>
                   </div>
-                  <div className="p-3 rounded-xl bg-amber-50 border border-amber-200 text-center">
-                    <span className="text-xs font-bold text-amber-700 uppercase block">Saldo Pendiente</span>
-                    <span className="text-base font-extrabold text-amber-700">
+                  <div className="p-3 rounded-xl bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800/60 text-center">
+                    <span className="text-xs font-bold text-amber-700 dark:text-amber-400 uppercase block">Saldo Pendiente</span>
+                    <span className="text-base font-extrabold text-amber-700 dark:text-amber-400">
                       S/. {fichaMatricula.saldoPendiente.toFixed(2)}
                     </span>
                   </div>
@@ -1477,12 +1477,12 @@ export default function MatriculasPagosPage({ defaultTab = "matriculas" }) {
 
               {/* Pagos Realizados por este alumno */}
               <div>
-                <h4 className="text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">
+                <h4 className="text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-2">
                   Abonos y Comprobantes Asociados
                 </h4>
-                <div className="border border-slate-200 rounded-xl overflow-hidden">
+                <div className="border border-slate-200 dark:border-white/10 rounded-xl overflow-hidden">
                   <table className="w-full text-left text-xs">
-                    <thead className="bg-slate-50 text-xs font-bold text-slate-500 uppercase border-b border-slate-200">
+                    <thead className="bg-slate-50 dark:bg-white/5 text-xs font-bold text-slate-500 dark:text-slate-400 uppercase border-b border-slate-200 dark:border-white/10">
                       <tr>
                         <th className="p-2.5">Comprobante</th>
                         <th className="p-2.5">Concepto</th>
@@ -1490,22 +1490,22 @@ export default function MatriculasPagosPage({ defaultTab = "matriculas" }) {
                         <th className="p-2.5 text-right">Monto</th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-slate-100">
+                    <tbody className="divide-y divide-slate-100 dark:divide-white/5">
                       {pagos
                         .filter((p) => p.matriculaId === fichaMatricula.id)
                         .map((p) => (
                           <tr key={p.id}>
-                            <td className="p-2.5 font-mono text-slate-700">{p.comprobante}</td>
-                            <td className="p-2.5 text-slate-800">{p.concepto}</td>
-                            <td className="p-2.5 text-slate-500 text-xs">{p.fecha}</td>
-                            <td className="p-2.5 text-right font-bold text-emerald-600">
+                            <td className="p-2.5 font-mono text-slate-700 dark:text-slate-300">{p.comprobante}</td>
+                            <td className="p-2.5 text-slate-800 dark:text-white">{p.concepto}</td>
+                            <td className="p-2.5 text-slate-500 dark:text-slate-400 text-xs">{p.fecha}</td>
+                            <td className="p-2.5 text-right font-bold text-emerald-600 dark:text-emerald-400">
                               S/. {Number(p.monto).toFixed(2)}
                             </td>
                           </tr>
                         ))}
                       {pagos.filter((p) => p.matriculaId === fichaMatricula.id).length === 0 && (
                         <tr>
-                          <td colSpan={4} className="p-4 text-center text-slate-400 text-xs">
+                          <td colSpan={4} className="p-4 text-center text-slate-400 dark:text-slate-500 text-xs">
                             No registra pagos aún.
                           </td>
                         </tr>
@@ -1516,13 +1516,13 @@ export default function MatriculasPagosPage({ defaultTab = "matriculas" }) {
               </div>
 
               {/* Botones de Acción del Modal */}
-              <div className="flex items-center justify-between pt-4 border-t border-slate-100">
+              <div className="flex items-center justify-between pt-4 border-t border-slate-100 dark:border-white/10">
                 <button
                   type="button"
                   onClick={() => {
                     showNotification("Comprobante enviado al correo del estudiante.");
                   }}
-                  className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-xl transition-colors cursor-pointer"
+                  className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-semibold text-slate-700 dark:text-slate-300 bg-slate-100 dark:bg-white/10 hover:bg-slate-200 dark:hover:bg-white/20 rounded-xl transition-colors cursor-pointer"
                 >
                   <Mail className="w-3.5 h-3.5" />
                   <span>Enviar por Correo</span>
@@ -1534,9 +1534,9 @@ export default function MatriculasPagosPage({ defaultTab = "matriculas" }) {
                     onClick={() => {
                       window.print();
                     }}
-                    className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold text-slate-700 border border-slate-300 hover:bg-slate-50 rounded-xl transition-colors cursor-pointer"
+                    className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold text-slate-700 dark:text-slate-300 border border-slate-300 dark:border-white/10 hover:bg-slate-50 dark:hover:bg-white/5 rounded-xl transition-colors cursor-pointer"
                   >
-                    <Printer className="w-3.5 h-3.5 text-slate-600" />
+                    <Printer className="w-3.5 h-3.5 text-slate-600 dark:text-slate-400" />
                     <span>Imprimir Ficha</span>
                   </button>
                   <button
@@ -1556,61 +1556,61 @@ export default function MatriculasPagosPage({ defaultTab = "matriculas" }) {
       {/* MODAL 4: RECIBO / BOLETA ELECTRÓNICA */}
       {reciboPago && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-xs p-4 overflow-y-auto">
-          <div className="bg-white rounded-2xl shadow-2xl border border-slate-200 w-full max-w-md overflow-hidden animate-scale-up my-8">
-            <div className="p-6 text-center border-b border-slate-100 space-y-1">
-              <div className="w-12 h-12 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mx-auto mb-2">
+          <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-2xl border border-slate-200 dark:border-white/10 w-full max-w-md overflow-hidden animate-scale-up my-8">
+            <div className="p-6 text-center border-b border-slate-100 dark:border-white/10 space-y-1">
+              <div className="w-12 h-12 bg-emerald-100 dark:bg-emerald-900/40 text-emerald-600 dark:text-emerald-400 rounded-full flex items-center justify-center mx-auto mb-2">
                 <Check className="w-6 h-6" />
               </div>
-              <span className="text-xs font-bold text-slate-500 uppercase tracking-widest block">
+              <span className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest block">
                 Comprobante Electrónico
               </span>
-              <h3 className="text-xl font-extrabold text-slate-800">{reciboPago.comprobante}</h3>
-              <p className="text-xs text-slate-500">Academia Preuniversitaria S.A.C. - RUC: 20608912345</p>
+              <h3 className="text-xl font-extrabold text-slate-800 dark:text-white">{reciboPago.comprobante}</h3>
+              <p className="text-xs text-slate-500 dark:text-slate-400">Academia Preuniversitaria S.A.C. - RUC: 20608912345</p>
             </div>
 
             <div className="p-6 space-y-4 text-xs">
-              <div className="space-y-2 border-b border-slate-100 pb-3">
+              <div className="space-y-2 border-b border-slate-100 dark:border-white/10 pb-3">
                 <div className="flex justify-between">
-                  <span className="text-slate-400">Estudiante:</span>
-                  <span className="font-bold text-slate-800 text-right">{reciboPago.estudiante}</span>
+                  <span className="text-slate-400 dark:text-slate-400">Estudiante:</span>
+                  <span className="font-bold text-slate-800 dark:text-white text-right">{reciboPago.estudiante}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-slate-400">Referencia Matrícula:</span>
-                  <span className="font-mono text-[#1E3A8A] font-bold">{reciboPago.matriculaId}</span>
+                  <span className="text-slate-400 dark:text-slate-400">Referencia Matrícula:</span>
+                  <span className="font-mono text-[#1E3A8A] dark:text-blue-400 font-bold">{reciboPago.matriculaId}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-slate-400">Concepto:</span>
-                  <span className="text-slate-700 text-right font-medium">{reciboPago.concepto}</span>
+                  <span className="text-slate-400 dark:text-slate-400">Concepto:</span>
+                  <span className="text-slate-700 dark:text-slate-300 text-right font-medium">{reciboPago.concepto}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-slate-400">Método de Pago:</span>
-                  <span className="text-slate-700">{reciboPago.metodo}</span>
+                  <span className="text-slate-400 dark:text-slate-400">Método de Pago:</span>
+                  <span className="text-slate-700 dark:text-slate-300">{reciboPago.metodo}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-slate-400">N° Operación:</span>
-                  <span className="font-mono text-slate-800">{reciboPago.operacion}</span>
+                  <span className="text-slate-400 dark:text-slate-400">N° Operación:</span>
+                  <span className="font-mono text-slate-800 dark:text-slate-200">{reciboPago.operacion}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-slate-400">Fecha y Hora:</span>
-                  <span className="text-slate-600">{reciboPago.fecha}</span>
+                  <span className="text-slate-400 dark:text-slate-400">Fecha y Hora:</span>
+                  <span className="text-slate-600 dark:text-slate-400">{reciboPago.fecha}</span>
                 </div>
               </div>
 
-              <div className="flex justify-between items-center py-2 bg-emerald-50 px-3.5 rounded-xl border border-emerald-200">
-                <span className="text-xs font-bold text-emerald-800 uppercase">Total Abonado:</span>
-                <span className="text-xl font-extrabold text-emerald-700">
+              <div className="flex justify-between items-center py-2 bg-emerald-50 dark:bg-emerald-950/40 px-3.5 rounded-xl border border-emerald-200 dark:border-emerald-800/60">
+                <span className="text-xs font-bold text-emerald-800 dark:text-emerald-300 uppercase">Total Abonado:</span>
+                <span className="text-xl font-extrabold text-emerald-700 dark:text-emerald-400">
                   S/. {Number(reciboPago.monto).toFixed(2)}
                 </span>
               </div>
             </div>
 
-            <div className="p-4 bg-slate-50 border-t border-slate-100 flex items-center justify-between">
+            <div className="p-4 bg-slate-50 dark:bg-white/5 border-t border-slate-100 dark:border-white/10 flex items-center justify-between">
               <button
                 type="button"
                 onClick={() => {
                   window.print();
                 }}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-slate-700 border border-slate-300 rounded-lg hover:bg-white transition-colors cursor-pointer"
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-slate-700 dark:text-slate-300 border border-slate-300 dark:border-white/10 rounded-lg hover:bg-white dark:hover:bg-white/10 transition-colors cursor-pointer"
               >
                 <Printer className="w-3.5 h-3.5" />
                 <span>Imprimir</span>
