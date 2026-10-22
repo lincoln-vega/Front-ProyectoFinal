@@ -1,6 +1,5 @@
 import { insforge } from "../lib/insforge";
 export { courseService } from "./cursosServices";
-import { courseService } from "./cursosServices";
 
 const SYSTEM_ROLES = ["Admin", "Docente", "Estudiante"];
 const USER_COLUMNS = [
@@ -87,8 +86,6 @@ export const userService = {
     return userService.getUsers();
   }
 };
-
-export { courseService } from "./cursosServices";
 
 export const roleService = {
   getRoles: () => {
@@ -215,5 +212,3 @@ export const pagoService = {
     return data?.[0] || null;
   }
 };
-
-export { courseService };

@@ -77,6 +77,8 @@ export async function getMeetAttendanceHistory(cursoId) {
   const data = await invokeMeetFunction(FUNCTION_NAMES.audit, cursoId);
   const records = data?.historial || data?.history || data?.rows || data?.items || data?.data || data;
   return (Array.isArray(records) ? records : [records].filter(Boolean)).map(normalizeAttendance);
+}
+
 const ATTENDANCE_COLUMNS = "id, cursoId, asignatura, docenteId, docente, fecha, horaApertura, modalidad, asistentesPuntuales, tardanzas, ausentes, created_at";
 
 const throwIfError = (error, operation) => {

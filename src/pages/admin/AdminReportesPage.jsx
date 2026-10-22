@@ -191,7 +191,7 @@ export default function AdminReportesPage() {
           <div>
             <div className="inline-flex items-center space-x-2 px-2.5 py-1 rounded bg-blue-50 dark:bg-blue-900/30 text-blue-800 dark:text-blue-400 text-xs font-bold uppercase tracking-wider border border-blue-200 dark:border-blue-500/30 mb-2">
               <FileSpreadsheet className="w-3.5 h-3.5" />
-              <span>SCRM-106 • Reporte de Pagos, Nómina y Auditoría</span>
+              <span>Reporte de Pagos, Nómina y Auditoría</span>
             </div>
             <h1 className="text-2xl font-extrabold text-slate-800 dark:text-white">
               Liquidación de Nómina y Cruce Automatizado de Horas

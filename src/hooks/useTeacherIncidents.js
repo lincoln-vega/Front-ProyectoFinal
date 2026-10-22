@@ -22,25 +22,17 @@ export default function useTeacherIncidents() {
     setIncidents((current) => current.map((incident) =>
       incident.id === id ? { ...incident, estado: newStatus } : incident
     ));
-  const updateIncident = async (id, updatedFields) => {
-    setError("");
-    await incidentService.updateIncident(id, updatedFields);
-    setIncidents((current) =>
-      current.map((incident) =>
-        incident.id === id ? { ...incident, ...updatedFields } : incident
-      )
-    );
   };
 
-  const updateIncidentStatus = async (id, newStatus) => {
-    await updateIncident(id, { estado: newStatus });
-  const updateIncident = (id, updatedFields) => {
+  const updateIncident = async (id, updatedFields) => {
+    setError("");
     const patch = typeof updatedFields === "string" ? { estado: updatedFields } : updatedFields;
-    const updated = incidents.map((inc) =>
-      inc.id === id ? { ...inc, ...patch } : inc
+    await incidentService.updateIncident(id, patch);
+    setIncidents((current) =>
+      current.map((incident) =>
+        incident.id === id ? { ...incident, ...patch } : incident
+      )
     );
-    setIncidents(updated);
-    incidentService.saveIncidents(updated);
   };
 
   const resetIncidents = async () => {
@@ -56,12 +48,5 @@ export default function useTeacherIncidents() {
     }
   };
 
-  return { incidents, loading, error, updateIncidentStatus, resetIncidents };
   return { incidents, loading, error, updateIncidentStatus, updateIncident, resetIncidents };
-  const resetIncidents = () => {
-    const initial = incidentService.resetIncidents();
-    setIncidents(initial);
-  };
-
-  return { incidents, updateIncidentStatus, updateIncident, resetIncidents };
 }

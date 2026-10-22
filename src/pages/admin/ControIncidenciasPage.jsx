@@ -14,13 +14,15 @@ import {
 import useTeacherIncidents from "../../hooks/useTeacherIncidents";
 import DocumentPreviewModal from "../../components/admin/DocumentPreview";
 import Notification from "../../components/admin/Notification";
+import ConfirmarReemplazoModal from "../../components/admin/ConfirmarReemplazoModal";
+import { exportToCSV } from "../../utils/exportUtils";
+import { courseService } from "../../services/cursosServices";
 
 export default function ControlAsistenciasPage() {
-    const { incidents, updateIncidentStatus, loading, error } = useTeacherIncidents();
     const { incidents, updateIncidentStatus, updateIncident, loading, error } = useTeacherIncidents();
-    const { incidents, updateIncidentStatus, updateIncident } = useTeacherIncidents();
     const [filterType, setFilterType] = useState("TODOS");
     const [selectedFile, setSelectedFile] = useState(null);
+    const [replacementModalIncident, setReplacementModalIncident] = useState(null);
     const [notification, setNotification] = useState(null);
 
     const showNotification = (msg) => {
@@ -37,14 +39,7 @@ export default function ControlAsistenciasPage() {
         }
     };
 
-    const handleAction = async (id, status) => {
-        try {
-            await updateIncidentStatus(id, status);
-            showNotification(`Justificación marcada como: ${status}`);
-        } catch (err) {
-            showNotification(`No se pudo actualizar la incidencia en InsForge: ${err.message}`);
-        }
-
+    const handleExportReport = () => {
         const columns = [
             { key: "id", label: "ID INCIDENCIA" },
             { key: "docente", label: "DOCENTE TITULAR" },
@@ -58,31 +53,13 @@ export default function ControlAsistenciasPage() {
             { key: "estado", label: "ESTADO VALIDACION" }
         ];
 
-       const success = exportToCSV(filteredIncidents, "reporte_auditoria_horas_docentes", columns);
-       if (success) {
-           showNotification("Reporte exportado exitosamente a CSV/Excel.");
-       }
-   };
-
-   const handleAction = async (id, status) => {
-       try {
-           await updateIncidentStatus(id, status);
-           showNotification(`Justificación marcada como: ${status}`);
-       } catch (err) {
-           showNotification(`No se pudo actualizar la incidencia en InsForge: ${err.message}`);
-       }
-   };
-
-    const handleConfirmReplacement = async ({
+        const success = exportToCSV(filteredIncidents, "reporte_auditoria_horas_docentes", columns);
+        if (success) {
+            showNotification("Reporte exportado exitosamente a CSV/Excel.");
         }
     };
 
-    const handleAction = (id, status) => {
-        updateIncidentStatus(id, status);
-        showNotification(`Justificación marcada como: ${status}`);
-    };
-
-    const handleConfirmReplacement = ({
+    const handleConfirmReplacement = async ({
         incidentId,
         substituteTeacherId,
         substituteTeacherName,
@@ -91,7 +68,6 @@ export default function ControlAsistenciasPage() {
         remarks
     }) => {
         try {
-            // 1. Actualizar estado de la incidencia y registrar datos de la sustitución
             await updateIncident(incidentId, {
                 estado: "Aprobado",
                 resolucion: "Reemplazo Confirmado",
@@ -102,9 +78,8 @@ export default function ControlAsistenciasPage() {
                 fechaResolucion: new Date().toLocaleString("es-PE")
             });
 
-            // 2. Actualizar curso en el catálogo oficial de courses
             if (courseId) {
-                const allCourses = courseService.getCourses() || [];
+                const allCourses = await courseService.getCourses() || [];
                 const updatedCourses = allCourses.map((c) => {
                     if (c.id === courseId) {
                         return {
@@ -119,7 +94,7 @@ export default function ControlAsistenciasPage() {
                     }
                     return c;
                 });
-                courseService.saveCourses(updatedCourses);
+                await courseService.saveCourses(updatedCourses);
             }
 
             setReplacementModalIncident(null);
@@ -127,39 +102,6 @@ export default function ControlAsistenciasPage() {
         } catch (err) {
             showNotification(`No se pudo confirmar el reemplazo en InsForge: ${err.message}`);
         }
-        // 1. Actualizar estado de la incidencia y registrar datos de la sustitución
-        updateIncident(incidentId, {
-            estado: "Aprobado",
-            resolucion: "Reemplazo Confirmado",
-            docenteReemplazo: substituteTeacherName,
-            docenteReemplazoId: substituteTeacherId,
-            horarioActualizado: newSchedule,
-            observacionesResolucion: remarks,
-            fechaResolucion: new Date().toLocaleString("es-PE")
-        });
-
-        // 2. Actualizar curso en el catálogo oficial de courses
-        if (courseId) {
-            const allCourses = courseService.getCourses() || [];
-            const updatedCourses = allCourses.map((c) => {
-                if (c.id === courseId) {
-                    return {
-                        ...c,
-                        docente: substituteTeacherName,
-                        docenteId: substituteTeacherId,
-                        horario: newSchedule || c.horario,
-                        reemplazoActivo: true,
-                        docenteTitularOriginal: c.docenteTitularOriginal || c.docente,
-                        fechaActualizacionReemplazo: new Date().toISOString()
-                    };
-                }
-                return c;
-            });
-            courseService.saveCourses(updatedCourses);
-        }
-
-        setReplacementModalIncident(null);
-        showNotification(`Reemplazo confirmado: ${substituteTeacherName} asignado al curso y horario actualizado.`);
     };
 
     const pendingCount = incidents.filter(i => i.estado === "Pendiente").length;
@@ -196,7 +138,7 @@ export default function ControlAsistenciasPage() {
 
                     <div className="flex flex-wrap items-center gap-2">
                         <button
-                            onClick={() => showNotification("Exportación de reporte de incidencias en Excel iniciada.")}
+                            onClick={handleExportReport}
                             className="inline-flex items-center space-x-1.5 px-3.5 py-2 border border-slate-300 dark:border-white/10 text-slate-700 dark:text-white bg-white/60 dark:bg-white/5 backdrop-blur-2xl hover:bg-slate-50 dark:hover:bg-white/10 rounded-xl text-xs font-semibold shadow-2xs transition-colors cursor-pointer"
                         >
                             <Download className="w-4 h-4 text-slate-500 dark:text-slate-400" />
@@ -384,6 +326,17 @@ export default function ControlAsistenciasPage() {
                     )}
                 </div>
             </div>
+
+            
+            {/* MODAL DE REEMPLAZO */}
+            {replacementModalIncident && (
+                <ConfirmarReemplazoModal
+                    isOpen={Boolean(replacementModalIncident)}
+                    incident={replacementModalIncident}
+                    onClose={() => setReplacementModalIncident(null)}
+                    onConfirm={handleConfirmReplacement}
+                />
+            )}
 
             {/* MODAL DE VISTA PREVIA */}
             {selectedFile && (

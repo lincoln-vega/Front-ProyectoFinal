@@ -126,7 +126,7 @@ export default function ConfirmarReemplazoModal({
                 Confirmar Reemplazo y Actualizar Horario
               </h3>
               <p className="text-xs text-blue-100">
-                Ticket SCRM-52 • Gestión de incidencias, suplencias y horarios académicos
+                Gestión institucional de incidencias, suplencias y horarios académicos
               </p>
             </div>
           </div>

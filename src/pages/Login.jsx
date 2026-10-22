@@ -20,18 +20,12 @@ export default function Login() {
     try {
       const trimmedEmail = email.trim().toLowerCase();
       const { data: authData, error: authError } = await insforge.auth.signInWithPassword({
-      const { error: authError } = await insforge.auth.signInWithPassword({
         email: trimmedEmail,
         password
       });
 
       if (authError) {
         throw new Error(
-          "No se pudo iniciar sesión. Verifica que el correo y la contraseña estén registrados en InsForge Auth. Los datos de la tabla users solo contienen el perfil."
-        );
-      }
-
-      const foundUser = await userService.getUserByEmail(authData.user.email);
           "No se pudo iniciar sesión. Verifica tu correo y contraseña registrados."
         );
       }
@@ -53,7 +47,6 @@ export default function Login() {
       
       localStorage.setItem("userRole", role);
       localStorage.setItem("userName", name || foundUser.correo);
-      localStorage.setItem("userEmail", foundUser.correo || authData.user.email);
       localStorage.setItem("userEmail", foundUser.correo || trimmedEmail);
       localStorage.setItem("userId", foundUser.id || "1");
       localStorage.setItem("user", JSON.stringify(foundUser));
@@ -87,9 +80,6 @@ export default function Login() {
             <div className="inline-flex items-center justify-center w-12 h-12 bg-blue-600/10 dark:bg-white/5 rounded-xl mb-4 border border-blue-600/20 dark:border-white/10">
               <ShieldCheck className="w-6 h-6 text-blue-600 dark:text-blue-400" />
             </div>
-            <h1 className="text-2xl font-semibold tracking-tight text-slate-900 dark:text-white">Academia SCRM</h1>
-            <p className="text-sm text-slate-500 dark:text-slate-400 mt-1 font-light">
-              Ingresa con una cuenta creada en InsForge Auth
             <h1 className="text-2xl font-semibold tracking-tight text-slate-900 dark:text-white">Academia Preuniversitaria</h1>
             <p className="text-sm text-slate-500 dark:text-slate-400 mt-1 font-light">
               Ingresa tus credenciales para acceder a la plataforma

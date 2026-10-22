@@ -21,6 +21,9 @@ jobs:
         run: npm ci
 
       - name: Build project
+        env:
+          VITE_INSFORGE_URL: ${{ secrets.VITE_INSFORGE_URL || 'https://rbxki34t.us-east.insforge.app' }}
+          VITE_INSFORGE_ANON_KEY: ${{ secrets.VITE_INSFORGE_ANON_KEY || 'ik_d0819137e3c783ce6a002a534d62e4e6' }}
         run: npm run build
 
       - name: Deploy to Vercel (Production)

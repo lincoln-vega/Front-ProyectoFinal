@@ -106,7 +106,7 @@ export default function SolicitudPermutaModal({ isOpen, onClose, onSuccess, curr
                 Nueva Solicitud de Permuta o Justificación
               </h3>
               <p className="text-xs text-blue-100">
-                Ticket SCRM-106 • Gestión de permutas, suplencias y dispensa docente
+                Gestión institucional de permutas, suplencias y dispensa docente
               </p>
             </div>
           </div>
