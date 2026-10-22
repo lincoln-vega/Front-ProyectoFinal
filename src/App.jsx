@@ -5,6 +5,7 @@ import ProtectedRoute from "./components/ProtectedRoute";
 import AdminLayout from "./components/AdminLayout";
 import AdminUsersPage from "./pages/admin/AdminUsersPage";
 import CursoPage from "./pages/admin/CursoPage";
+import HorariosSalonesPage from "./pages/admin/HorariosSalonesPage";
 import StudentLayout from "./components/StudentLayout";
 import StudentDashboardPage from "./pages/student/StudentDashboardPage";
 import ControlAsistenciasPage from "./pages/admin/ControIncidenciasPage";
@@ -49,8 +50,9 @@ export default function App() {
           <Route index element={<Navigate to="/admin/usuarios" replace />} />
           <Route path="usuarios" element={<AdminUsersPage />} />
           <Route path="cursos" element={<CursoPage />} />
+          <Route path="horarios" element={<HorariosSalonesPage />} />
           <Route path="docentes" element={<DocentesPage />} />
-          <Route path="incidentes" element= {<ControlAsistenciasPage/>} />
+          <Route path="incidentes" element={<ControlAsistenciasPage />} />
           <Route path="matriculas" element={<AdminMatriculasPage />} />
           <Route path="reportes" element={<AdminReportesPage />} />
           <Route path="configuracion" element={<AdminConfiguracionPage />} />

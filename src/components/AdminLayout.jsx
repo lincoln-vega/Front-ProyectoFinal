@@ -37,6 +37,7 @@ export default function AdminLayout() {
   const navItems = [
     { name: "Gestión de Usuarios", path: "/admin/usuarios", icon: Users },
     { name: "Cursos y Materias", path: "/admin/cursos", icon: BookOpen },
+    { name: "Horarios y Salones", path: "/admin/horarios", icon: Calendar },
     { name: "Docentes y Nóminas", path: "/admin/docentes", icon: CreditCard },
     { name: "Control de Asistencias", path: "/admin/incidentes", icon: ClipboardCheck },
     { name: "Matrículas y Pagos", path: "/admin/matriculas", icon: CreditCard },
