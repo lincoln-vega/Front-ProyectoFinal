@@ -134,6 +134,27 @@ export const incidentService = {
     throwIfError(error, "actualizar incidencia");
   },
 
+  async saveIncident(incident) {
+    const { created_at, ...row } = incident;
+    const { data, error } = await insforge.database
+      .from("incidents")
+      .upsert([row])
+      .select();
+    throwIfError(error, "guardar incidencia");
+    return data?.[0] || null;
+  },
+
+  async saveIncidents(incidents) {
+    if (incidents.length === 0) return [];
+    const rows = incidents.map(({ created_at, ...inc }) => inc);
+    const { data, error } = await insforge.database
+      .from("incidents")
+      .upsert(rows)
+      .select();
+    throwIfError(error, "guardar incidencias");
+    return data || [];
+  },
+
   resetIncidents() {
     return incidentService.getIncidents();
   }

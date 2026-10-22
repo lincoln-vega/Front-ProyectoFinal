@@ -25,55 +25,84 @@ export default function ConfirmarReemplazoModal({
   const [newSchedule, setNewSchedule] = useState("");
   const [remarks, setRemarks] = useState("");
   const [notificarDocentes, setNotificarDocentes] = useState(true);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
 
   useEffect(() => {
     if (!isOpen || !incident) return;
 
-    // Cargar docentes activos
-    const allUsers = userService.getUsers() || [];
-    const teacherUsers = allUsers.filter(
-      (u) => u.rol === "docente" || u.rol === "profesor"
-    );
-    setTeachers(teacherUsers);
+    let cancelled = false;
 
-    // Cargar cursos
-    const allCourses = courseService.getCourses() || [];
-    setCourses(allCourses);
+    async function loadModalData() {
+      try {
+        setLoading(true);
+        setError("");
 
-    // Detección automática del curso correspondiente
-    let matchedCourse = null;
-    if (incident.cursoId) {
-      matchedCourse = allCourses.find((c) => c.id === incident.cursoId);
+        const [allUsers, allCourses] = await Promise.all([
+          userService.getUsers(),
+          courseService.getCourses()
+        ]);
+
+        if (cancelled) return;
+
+        const safeUsers = allUsers || [];
+        const safeCourses = allCourses || [];
+
+        const teacherUsers = safeUsers.filter((u) => {
+          const r = String(u.rol || "").toLowerCase();
+          return r === "docente" || r === "profesor" || r === "profesora";
+        });
+        setTeachers(teacherUsers);
+        setCourses(safeCourses);
+
+        // Detección automática del curso correspondiente
+        let matchedCourse = null;
+        if (incident.cursoId) {
+          matchedCourse = safeCourses.find((c) => c.id === incident.cursoId);
+        }
+        if (!matchedCourse && incident.materia) {
+          const cleanSubject = incident.materia.split("(")[0].trim().toLowerCase();
+          matchedCourse = safeCourses.find((c) =>
+            c.asignatura.toLowerCase().includes(cleanSubject) ||
+            cleanSubject.includes(c.asignatura.toLowerCase())
+          );
+        }
+
+        if (matchedCourse) {
+          setSelectedCourseId(matchedCourse.id);
+          setNewSchedule(matchedCourse.horario || incident.horario || "");
+        } else {
+          setSelectedCourseId(safeCourses[0]?.id || "");
+          setNewSchedule(incident.horario || "");
+        }
+
+        // Seleccionar por defecto al primer docente disponible que no sea el titular
+        const titularName = (incident.docente || "").toLowerCase();
+        const availableTeacher = teacherUsers.find(
+          (t) => !titularName.includes((t.nombres || "").toLowerCase()) && !titularName.includes((t.apellidos || "").toLowerCase())
+        ) || teacherUsers[0];
+
+        if (availableTeacher) {
+          setSelectedTeacherId(availableTeacher.id);
+        }
+
+        setRemarks(
+          `Reemplazo académico asignado y horario confirmado ante reporte de incidencia (${incident.id}).`
+        );
+      } catch (err) {
+        if (!cancelled) {
+          console.error("Error al cargar datos del modal de reemplazo:", err);
+          setError(err.message || "Error al cargar docentes o cursos.");
+        }
+      } finally {
+        if (!cancelled) {
+          setLoading(false);
+        }
+      }
     }
-    if (!matchedCourse && incident.materia) {
-      const cleanSubject = incident.materia.split("(")[0].trim().toLowerCase();
-      matchedCourse = allCourses.find((c) =>
-        c.asignatura.toLowerCase().includes(cleanSubject) ||
-        cleanSubject.includes(c.asignatura.toLowerCase())
-      );
-    }
 
-    if (matchedCourse) {
-      setSelectedCourseId(matchedCourse.id);
-      setNewSchedule(matchedCourse.horario || incident.horario || "");
-    } else {
-      setSelectedCourseId(allCourses[0]?.id || "");
-      setNewSchedule(incident.horario || "");
-    }
-
-    // Seleccionar por defecto al primer docente disponible que no sea el titular
-    const titularName = (incident.docente || "").toLowerCase();
-    const availableTeacher = teacherUsers.find(
-      (t) => !titularName.includes(t.nombres.toLowerCase()) && !titularName.includes(t.apellidos.toLowerCase())
-    ) || teacherUsers[0];
-
-    if (availableTeacher) {
-      setSelectedTeacherId(availableTeacher.id);
-    }
-
-    setRemarks(
-      `Reemplazo académico asignado y horario confirmado ante reporte de incidencia (${incident.id}).`
-    );
+    loadModalData();
+    return () => { cancelled = true; };
   }, [isOpen, incident]);
 
   if (!isOpen || !incident) return null;
@@ -142,6 +171,16 @@ export default function ConfirmarReemplazoModal({
 
         {/* CONTENIDO DEL FORMULARIO */}
         <form onSubmit={handleConfirm} className="p-6 space-y-5">
+          {error && (
+            <div className="p-3 bg-red-500/10 border border-red-500/20 text-red-600 dark:text-red-400 text-xs rounded-xl">
+              {error}
+            </div>
+          )}
+          {loading && (
+            <div className="p-3 bg-blue-500/10 border border-blue-500/20 text-blue-600 dark:text-blue-400 text-xs rounded-xl">
+              Cargando catálogo docente y de cursos...
+            </div>
+          )}
           {/* DETALLES DE LA INCIDENCIA */}
           <div className="p-4 bg-slate-50 dark:bg-white/5 rounded-xl border border-slate-200 dark:border-white/10 space-y-2 text-xs">
             <div className="flex items-center justify-between text-slate-500 dark:text-slate-400">

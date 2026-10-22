@@ -104,11 +104,12 @@ export default function ControlAsistenciasPage() {
         }
     };
 
-    const pendingCount = incidents.filter(i => i.estado === "Pendiente").length;
+    const pendingCount = (incidents || []).filter(i => i.estado === "Pendiente").length;
 
-    const filteredIncidents = incidents.filter(inc => {
-        if (filterType === "Tardanza") return inc.tipo.includes("Tardanza");
-        if (filterType === "Inasistencia") return inc.tipo.includes("Inasistencia");
+    const filteredIncidents = (incidents || []).filter(inc => {
+        const tipo = (inc.tipo || "").toLowerCase();
+        if (filterType === "Tardanza") return tipo.includes("tardanza");
+        if (filterType === "Inasistencia") return tipo.includes("inasistencia");
         return true;
     });
 

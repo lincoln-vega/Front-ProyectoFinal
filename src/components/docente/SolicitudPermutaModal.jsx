@@ -15,6 +15,9 @@ import { courseService, incidentService, userService } from "../../services/api"
 export default function SolicitudPermutaModal({ isOpen, onClose, onSuccess, currentTeacherName }) {
   const [courses, setCourses] = useState([]);
   const [teachers, setTeachers] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState("");
   const [formData, setFormData] = useState({
     tipo: "Solicitud de Permuta / Reemplazo",
     cursoId: "",
@@ -28,63 +31,116 @@ export default function SolicitudPermutaModal({ isOpen, onClose, onSuccess, curr
   useEffect(() => {
     if (!isOpen) return;
 
-    const allCourses = courseService.getCourses() || [];
-    setCourses(allCourses);
+    let cancelled = false;
 
-    const allUsers = userService.getUsers() || [];
-    const teacherUsers = allUsers.filter(u => u.rol === "docente" || u.rol === "profesor");
-    setTeachers(teacherUsers);
+    async function loadData() {
+      try {
+        setLoading(true);
+        setError("");
 
-    if (allCourses.length > 0) {
-      setFormData(prev => ({
-        ...prev,
-        cursoId: allCourses[0].id,
-        materia: allCourses[0].asignatura,
-        horario: allCourses[0].horario || ""
-      }));
+        const [allCourses, allUsers] = await Promise.all([
+          courseService.getCourses(),
+          userService.getUsers()
+        ]);
+
+        if (cancelled) return;
+
+        const safeCourses = allCourses || [];
+        const safeUsers = allUsers || [];
+        setCourses(safeCourses);
+
+        const teacherUsers = safeUsers.filter((u) => {
+          const r = String(u.rol || "").toLowerCase();
+          return r === "docente" || r === "profesor" || r === "profesora";
+        });
+        setTeachers(teacherUsers);
+
+        if (safeCourses.length > 0) {
+          const firstCourse = safeCourses[0];
+          const horarioTexto = firstCourse.horario || (
+            Array.isArray(firstCourse.dias) && firstCourse.horaInicio
+              ? `${firstCourse.dias.join(", ")} ${firstCourse.horaInicio} - ${firstCourse.horaFin || ""}`
+              : ""
+          );
+
+          setFormData((prev) => ({
+            ...prev,
+            cursoId: firstCourse.id,
+            materia: firstCourse.asignatura,
+            horario: horarioTexto
+          }));
+        }
+      } catch (err) {
+        if (!cancelled) {
+          console.error("Error al cargar cursos o docentes en permuta:", err);
+          setError(err.message || "No se pudieron cargar los datos de cursos y docentes.");
+        }
+      } finally {
+        if (!cancelled) {
+          setLoading(false);
+        }
+      }
     }
+
+    loadData();
+    return () => { cancelled = true; };
   }, [isOpen]);
 
   if (!isOpen) return null;
 
   const handleCourseChange = (e) => {
     const courseId = e.target.value;
-    const selected = courses.find(c => c.id === courseId);
-    setFormData(prev => ({
+    const selected = courses.find((c) => c.id === courseId);
+    const horarioTexto = selected?.horario || (
+      selected && Array.isArray(selected.dias) && selected.horaInicio
+        ? `${selected.dias.join(", ")} ${selected.horaInicio} - ${selected.horaFin || ""}`
+        : ""
+    );
+
+    setFormData((prev) => ({
       ...prev,
       cursoId,
       materia: selected ? selected.asignatura : "",
-      horario: selected ? selected.horario : prev.horario
+      horario: horarioTexto || prev.horario
     }));
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
 
-    const currentIncidents = incidentService.getIncidents() || [];
-    const newId = `INC-D${String(currentIncidents.length + 1).padStart(2, "0")}`;
+    try {
+      setSubmitting(true);
+      setError("");
 
-    const newIncident = {
-      id: newId,
-      docente: currentTeacherName || "Docente Titular",
-      tipo: formData.tipo,
-      fechaPresentacion: `Hoy ${new Date().toLocaleTimeString("es-PE", { hour: "2-digit", minute: "2-digit" })}`,
-      materia: formData.materia,
-      cursoId: formData.cursoId,
-      horario: formData.horario,
-      motivo: formData.motivo,
-      archivoNombre: formData.archivoNombre,
-      docentePropuesto: formData.docentePropuesto || null,
-      estado: "Pendiente"
-    };
+      const currentIncidents = (await incidentService.getIncidents()) || [];
+      const newId = `INC-D${String(currentIncidents.length + 1).padStart(2, "0")}`;
 
-    const updated = [newIncident, ...currentIncidents];
-    incidentService.saveIncidents(updated);
+      const newIncident = {
+        id: newId,
+        docente: currentTeacherName || "Docente Titular",
+        tipo: formData.tipo,
+        fechaPresentacion: `Hoy ${new Date().toLocaleTimeString("es-PE", { hour: "2-digit", minute: "2-digit" })}`,
+        materia: formData.materia,
+        cursoId: formData.cursoId,
+        horario: formData.horario,
+        motivo: formData.motivo,
+        archivoNombre: formData.archivoNombre,
+        docentePropuesto: formData.docentePropuesto || null,
+        estado: "Pendiente"
+      };
 
-    if (onSuccess) {
-      onSuccess(newIncident);
+      await incidentService.saveIncident(newIncident);
+
+      if (onSuccess) {
+        onSuccess(newIncident);
+      }
+      onClose();
+    } catch (err) {
+      console.error("Error al registrar solicitud de permuta:", err);
+      setError(err.message || "No se pudo registrar la solicitud en InsForge.");
+    } finally {
+      setSubmitting(false);
     }
-    onClose();
   };
 
   return (
@@ -122,6 +178,16 @@ export default function SolicitudPermutaModal({ isOpen, onClose, onSuccess, curr
 
         {/* FORMULARIO */}
         <form onSubmit={handleSubmit} className="p-6 space-y-4 text-xs">
+          {error && (
+            <div className="p-3 bg-red-500/10 border border-red-500/20 text-red-600 dark:text-red-400 text-xs rounded-xl">
+              {error}
+            </div>
+          )}
+          {loading && (
+            <div className="p-3 bg-blue-500/10 border border-blue-500/20 text-blue-600 dark:text-blue-400 text-xs rounded-xl">
+              Cargando cursos y docentes disponibles...
+            </div>
+          )}
           {/* TIPO DE SOLICITUD */}
           <div>
             <label className="block font-bold text-slate-700 dark:text-slate-200 mb-1">
@@ -239,10 +305,11 @@ export default function SolicitudPermutaModal({ isOpen, onClose, onSuccess, curr
             </button>
             <button
               type="submit"
-              className="inline-flex items-center space-x-2 px-5 py-2.5 bg-[#1E3A8A] hover:bg-blue-800 text-white rounded-xl text-xs font-bold shadow-xs transition-colors cursor-pointer"
+              disabled={submitting}
+              className="inline-flex items-center space-x-2 px-5 py-2.5 bg-[#1E3A8A] hover:bg-blue-800 disabled:opacity-50 text-white rounded-xl text-xs font-bold shadow-xs transition-colors cursor-pointer"
             >
               <CheckCircle2 className="w-4 h-4" />
-              <span>Enviar Solicitud a Coordinación</span>
+              <span>{submitting ? "Enviando..." : "Enviar Solicitud a Coordinación"}</span>
             </button>
           </div>
         </form>

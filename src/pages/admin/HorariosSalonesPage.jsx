@@ -23,17 +23,32 @@ function parseTime(value, period = "") {
 }
 
 function expandCourseSchedule(course) {
+    if (Array.isArray(course.dias) && course.dias.length > 0 && course.horaInicio && course.horaFin) {
+        const start = parseTime(course.horaInicio);
+        const end = parseTime(course.horaFin);
+        const validDays = course.dias
+            .map((day) => DAY_ALIASES[String(day).trim().toLowerCase()] || day)
+            .filter((d) => DAYS.includes(d));
+        return validDays.map((day) => ({
+            ...course,
+            horario: course.horario || `${course.horaInicio} - ${course.horaFin}`,
+            day,
+            start,
+            end
+        }));
+    }
+
     const match = (course.horario || "").match(/^(.*?)\s+(\d{1,2}:\d{2})\s*-\s*(\d{1,2}:\d{2})(?:\s*(AM|PM))?(?:\s*hrs?\.?)?$/i);
     if (!match) return [];
     const [, dayText, startValue, endValue, period] = match;
     const start = parseTime(startValue, period);
     const end = parseTime(endValue, period);
-    const days = dayText.split(/\s+y\s+|,\s*|\s*\/\s*/i).map((day) => DAY_ALIASES[day.trim().toLowerCase()]).filter(Boolean);
+    const days = dayText.split(/\s+y\s+|,\s*|\s*\/\s*/i).map((day) => DAY_ALIASES[day.trim().toLowerCase()]).filter((d) => DAYS.includes(d));
     return days.map((day) => ({ ...course, day, start, end }));
 }
 
 export default function HorariosSalonesPage() {
-    const { courses: initialCourses } = useCurse();
+    const { courses: initialCourses, loading, error } = useCurse();
     const [coursesList, setCoursesList] = useState([]);
     const [searchTerm, setSearchTerm] = useState("");
 
@@ -43,7 +58,7 @@ export default function HorariosSalonesPage() {
         .filter((course) => course.estado !== "Inactivo")
         .filter((course) => {
             const term = searchTerm.toLowerCase();
-            return !term || `${course.asignatura} ${course.docente}`.toLowerCase().includes(term);
+            return !term || `${course.asignatura || ""} ${course.docente || ""}`.toLowerCase().includes(term);
         })
         .flatMap(expandCourseSchedule), [coursesList, searchTerm]);
 
@@ -52,6 +67,8 @@ export default function HorariosSalonesPage() {
 
     return (
         <div className="space-y-6">
+            {error && <p role="alert" className="rounded-lg border border-red-300 bg-red-50 p-3 text-sm text-red-700">{error}</p>}
+            {loading && <p className="text-sm text-slate-500">Consultando calendario académico en InsForge...</p>}
             <div className="bg-white p-5 rounded-xl shadow-sm border border-slate-200 flex flex-col lg:flex-row lg:items-center justify-between gap-4">
                 <div>
                     <h2 className="text-xl font-bold text-slate-800 flex items-center gap-2"><Calendar className="w-6 h-6 text-[#1E3A8A]" />Calendario académico</h2>

@@ -31,37 +31,64 @@ export default function DocenteDashboardPage() {
   const [docenteData, setDocenteData] = useState(null);
 
   useEffect(() => {
+    let cancelled = false;
+
     async function cargarDatosDashboard() {
       try {
         setLoading(true);
+        setError("");
         
         // 1. Cargar cursos desde el servicio
         const cursos = await courseService.getCourses();
+        if (cancelled) return;
+
         setListaCursos(cursos || []);
-        const assigned = cursos.filter((course) =>
+        const assigned = (cursos || []).filter((course) =>
           course.estado === "Activo" &&
-          (course.docenteId === userId || matchesTeacherName(course.docente, userName))
+          (course.docenteId === userId ||
+           matchesTeacherName(course.docente, userName) ||
+           Boolean(userEmail && (course.docente || "").toLowerCase().includes(userEmail.toLowerCase())))
         );
-        const studentCount = await courseService.countStudentsForTeacher(assigned.map((course) => course.id));
-        setTotalEstudiantes(studentCount);
+
+        let studentCount = 0;
+        try {
+          if (assigned.length > 0) {
+            studentCount = await courseService.countStudentsForTeacher(assigned.map((course) => course.id));
+          }
+        } catch (rpcErr) {
+          console.warn("[DocenteDashboard] Conteo vía RPC no disponible o sin permisos:", rpcErr);
+        }
+
+        if (!cancelled) {
+          setTotalEstudiantes(studentCount);
+        }
 
         // 3. Buscar información adicional de nómina/especialidad en localStorage si existe
         const stored = localStorage.getItem("docentesData");
-        if (stored) {
-          const docentes = JSON.parse(stored);
-          const mine = docentes.find(d => d.nombre === userName);
-          if (mine) setDocenteData(mine);
+        if (stored && !cancelled) {
+          try {
+            const docentes = JSON.parse(stored);
+            const mine = docentes.find((d) => d.nombre === userName);
+            if (mine) setDocenteData(mine);
+          } catch {
+            // Ignorar error de parsing local
+          }
         }
       } catch (err) {
-        console.error("Error al cargar datos del dashboard:", err);
-        setError(err.message);
+        if (!cancelled) {
+          console.error("Error al cargar datos del dashboard:", err);
+          setError(err.message || "No se pudieron cargar los datos del panel docente.");
+        }
       } finally {
-        setLoading(false);
+        if (!cancelled) {
+          setLoading(false);
+        }
       }
     }
 
     cargarDatosDashboard();
-  }, [userName, userId]);
+    return () => { cancelled = true; };
+  }, [userName, userId, userEmail]);
 
   // Filtrar los cursos asignados al docente activo con estado 'Activo'
   const cursosAsignados = useMemo(() => {

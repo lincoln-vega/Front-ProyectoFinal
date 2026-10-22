@@ -28,6 +28,8 @@ export default function DocentesPage() {
   const [searchTerm, setSearchTerm] = useState("");
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [currentDocente, setCurrentDocente] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
   
   // Form states
   const [nombre, setNombre] = useState("");
@@ -37,32 +39,52 @@ export default function DocentesPage() {
   const [incidenciaDesc, setIncidenciaDesc] = useState("");
 
   useEffect(() => {
+    let cancelled = false;
+
     async function loadTeachers() {
       try {
+        setLoading(true);
+        setError("");
         const savedProfiles = JSON.parse(localStorage.getItem(TEACHER_PROFILE_KEY) || "{}");
         const allUsers = await userService.getUsers();
-        const teacherUsers = allUsers.filter((user) => String(user.rol).toLowerCase() === "docente");
+
+        if (cancelled) return;
+
+        const teacherUsers = (allUsers || []).filter((user) => {
+          const r = String(user.rol || "").toLowerCase();
+          return r === "docente" || r === "profesor" || r === "profesora";
+        });
+
         const initialData = teacherUsers.map((user) => ({
           id: user.id,
           userId: user.id,
-          nombre: `${user.nombres} ${user.apellidos}`.trim(),
-          documento: user.dni,
-          especialidad: user.carreraObjetivo || "Sin especialidad asignada",
+          nombre: `${user.nombres || ""} ${user.apellidos || ""}`.trim() || user.correo || "Docente",
+          documento: user.dni || "N/A",
+          especialidad: user.carreraObjetivo || user.areaAcademica || "Sin especialidad asignada",
           salario: Number(savedProfiles[user.id]?.salario || 0),
           incidencias: savedProfiles[user.id]?.incidencias || [],
-          estado: user.estado
+          estado: user.estado || "Activo"
         }));
-        setUsers(allUsers);
+
+        setUsers(allUsers || []);
         setDocentes(initialData);
         localStorage.setItem(TEACHER_PROFILE_KEY, JSON.stringify(
           Object.fromEntries(initialData.map(({ id, userId, salario, incidencias }) => [userId || id, { salario, incidencias }]))
         ));
-      } catch (error) {
-        console.error("Error al cargar docentes desde InsForge:", error);
-        window.alert(`No se pudieron cargar los docentes: ${error.message}`);
+      } catch (err) {
+        if (!cancelled) {
+          console.error("Error al cargar docentes desde InsForge:", err);
+          setError(err.message || "No se pudieron cargar los docentes desde InsForge.");
+        }
+      } finally {
+        if (!cancelled) {
+          setLoading(false);
+        }
       }
     }
+
     loadTeachers();
+    return () => { cancelled = true; };
   }, []);
 
   const saveToStorage = (data) => {
@@ -249,7 +271,22 @@ export default function DocentesPage() {
       </div>
 
       {/* LIST OF DOCENTES */}
+      {error && (
+        <p role="alert" className="rounded-lg border border-red-300 bg-red-50 p-3 text-sm text-red-700">
+          {error}
+        </p>
+      )}
+      {loading && (
+        <p className="text-sm text-slate-500">
+          Consultando docentes en InsForge...
+        </p>
+      )}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+        {!loading && filteredDocentes.length === 0 && !error && (
+          <div className="col-span-full py-12 text-center bg-white/60 dark:bg-white/5 backdrop-blur-2xl rounded-xl border border-slate-200 dark:border-white/10">
+            <p className="text-slate-500 dark:text-slate-400">No se encontraron docentes con los filtros actuales.</p>
+          </div>
+        )}
         {filteredDocentes.map((docente) => (
           <div key={docente.id} className="bg-white/60 dark:bg-white/5 backdrop-blur-2xl border border-slate-200 dark:border-white/10 rounded-xl overflow-hidden shadow-xs hover:shadow-md transition-shadow flex flex-col">
             <div className="p-4 border-b border-slate-100 dark:border-white/10 bg-slate-50/50 dark:bg-white/5 flex items-start justify-between">

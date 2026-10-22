@@ -37,6 +37,7 @@ const matchesTeacherName = (courseName, userName) => {
 export default function HorariosView() {
   const [listaCursos, setListaCursos] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
 
   // Obtener las credenciales exactamente igual que DocenteCursosPage
   const userId = localStorage.getItem('userId') || 'USR-002';
@@ -44,19 +45,30 @@ export default function HorariosView() {
   const userEmail = localStorage.getItem('userEmail') || 'carmen.herrera@universidad.edu';
 
   useEffect(() => {
+    let cancelled = false;
+
     async function cargarCursos() {
       try {
         setLoading(true);
+        setError("");
         const data = await courseService.getCourses();
-        setListaCursos(data || []);
+        if (!cancelled) {
+          setListaCursos(data || []);
+        }
       } catch (err) {
-        console.error('Error al cargar cursos para el horario:', err);
+        if (!cancelled) {
+          console.error('Error al cargar cursos para el horario:', err);
+          setError(err.message || "Error al cargar los cursos desde InsForge.");
+        }
       } finally {
-        setLoading(false);
+        if (!cancelled) {
+          setLoading(false);
+        }
       }
     }
 
     cargarCursos();
+    return () => { cancelled = true; };
   }, []);
 
   // Lógica de filtrado 100% idéntica a DocenteCursosPage
@@ -87,6 +99,12 @@ export default function HorariosView() {
           Visualización semanal de clases programadas (Formato 24 horas)
         </p>
       </div>
+
+      {error && (
+        <div role="alert" className="rounded-xl border border-red-500/20 bg-red-500/10 p-4 text-sm text-red-500">
+          {error}
+        </div>
+      )}
 
       <div className="bg-white/70 dark:bg-slate-900/80 backdrop-blur-xl rounded-3xl border border-white/40 dark:border-slate-800 shadow-xl overflow-hidden flex flex-col h-[650px]">
         

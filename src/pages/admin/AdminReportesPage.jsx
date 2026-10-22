@@ -21,6 +21,8 @@ export default function AdminReportesPage() {
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("TODOS");
   const [payrollData, setPayrollData] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
   const [metrics, setMetrics] = useState({
     totalPlanilla: 0,
     totalHorasProgramadas: 0,
@@ -36,107 +38,137 @@ export default function AdminReportesPage() {
   };
 
   useEffect(() => {
-    // 1. Obtener usuarios docentes
-    const allUsers = userService.getUsers() || [];
-    const teachers = allUsers.filter(u => u.rol === "docente" || u.rol === "profesor");
+    let cancelled = false;
 
-    // 2. Obtener cursos e incidencias
-    const courses = courseService.getCourses() || [];
-    const incidents = incidentService.getIncidents() || [];
+    async function loadReportData() {
+      try {
+        setLoading(true);
+        setError("");
 
-    const TARIFA_HORA = 50.0; // S/ 50 por hora lectiva
-    let sumPlanilla = 0;
-    let sumHorasProg = 0;
-    let sumHorasEfect = 0;
-    let sumDescuentos = 0;
+        const [allUsers, courses, incidents] = await Promise.all([
+          userService.getUsers(),
+          courseService.getCourses(),
+          incidentService.getIncidents()
+        ]);
 
-    const calculated = teachers.map((teacher) => {
-      const teacherName = `${teacher.nombres || ""} ${teacher.apellidos || ""}`.trim() || teacher.name || "Docente";
-      
-      // Cursos dictados
-      const teacherCourses = courses.filter(
-        c => c.docenteId === teacher.id || c.docente?.toLowerCase().includes(teacher.apellidos?.toLowerCase() || "")
-      );
+        if (cancelled) return;
 
-      // Horas programadas (16h mensuales por curso o mínimo 16h)
-      const horasProgramadas = teacherCourses.length > 0 ? teacherCourses.length * 16 : 16;
+        const safeUsers = allUsers || [];
+        const safeCourses = courses || [];
+        const safeIncidents = incidents || [];
 
-      // Incidencias del docente
-      const teacherIncidents = incidents.filter(
-        i => i.docenteId === teacher.id || i.docente?.toLowerCase().includes(teacher.apellidos?.toLowerCase() || "")
-      );
+        const teachers = safeUsers.filter((u) => {
+          const r = String(u.rol || "").toLowerCase();
+          return r === "docente" || r === "profesor" || r === "profesora";
+        });
 
-      let horasDescontadas = 0;
-      let tardanzasMin = 0;
-      let inasistenciasNoJust = 0;
-      let permutasAprobadas = 0;
+        const TARIFA_HORA = 50.0; // S/ 50 por hora lectiva
+        let sumPlanilla = 0;
+        let sumHorasProg = 0;
+        let sumHorasEfect = 0;
+        let sumDescuentos = 0;
 
-      teacherIncidents.forEach((inc) => {
-        const tipo = (inc.tipo || "").toLowerCase();
-        const estado = inc.estado;
+        const calculated = teachers.map((teacher) => {
+          const teacherName = `${teacher.nombres || ""} ${teacher.apellidos || ""}`.trim() || teacher.name || "Docente";
+          
+          // Cursos dictados
+          const teacherCourses = safeCourses.filter(
+            c => c.docenteId === teacher.id || (teacher.apellidos && c.docente?.toLowerCase().includes(teacher.apellidos.toLowerCase()))
+          );
 
-        if (tipo.includes("tardanza")) {
-          const mins = tipo.includes("+20") ? 20 : 15;
-          tardanzasMin += mins;
-          if (estado !== "Aprobado") {
-            horasDescontadas += mins / 60;
+          // Horas programadas (16h mensuales por curso o mínimo 16h)
+          const horasProgramadas = teacherCourses.length > 0 ? teacherCourses.length * 16 : 16;
+
+          // Incidencias del docente
+          const teacherIncidents = safeIncidents.filter(
+            i => i.docenteId === teacher.id || (teacher.apellidos && i.docente?.toLowerCase().includes(teacher.apellidos.toLowerCase()))
+          );
+
+          let horasDescontadas = 0;
+          let tardanzasMin = 0;
+          let inasistenciasNoJust = 0;
+          let permutasAprobadas = 0;
+
+          teacherIncidents.forEach((inc) => {
+            const tipo = (inc.tipo || "").toLowerCase();
+            const estado = inc.estado;
+
+            if (tipo.includes("tardanza")) {
+              const mins = tipo.includes("+20") ? 20 : 15;
+              tardanzasMin += mins;
+              if (estado !== "Aprobado") {
+                horasDescontadas += mins / 60;
+              }
+            } else if (tipo.includes("inasistencia")) {
+              if (estado !== "Aprobado") {
+                inasistenciasNoJust += 1;
+                horasDescontadas += 2.0; // Bloque de 2 horas
+              }
+            } else if (tipo.includes("permuta") || tipo.includes("reemplazo")) {
+              if (estado === "Aprobado") {
+                permutasAprobadas += 1;
+              }
+            }
+          });
+
+          const horasEfectivas = Math.max(0, horasProgramadas - horasDescontadas);
+          const montoBruto = horasProgramadas * TARIFA_HORA;
+          const descuentoPEN = horasDescontadas * TARIFA_HORA;
+          const montoNeto = horasEfectivas * TARIFA_HORA;
+
+          let estadoAuditoria = "100% Efectivo";
+          if (horasDescontadas > 0) {
+            estadoAuditoria = "Con Descuentos";
+          } else if (teacherIncidents.length > 0 && horasDescontadas === 0) {
+            estadoAuditoria = "Regularizado";
           }
-        } else if (tipo.includes("inasistencia")) {
-          if (estado !== "Aprobado") {
-            inasistenciasNoJust += 1;
-            horasDescontadas += 2.0; // Bloque de 2 horas
-          }
-        } else if (tipo.includes("permuta") || tipo.includes("reemplazo")) {
-          if (estado === "Aprobado") {
-            permutasAprobadas += 1;
-          }
+
+          sumPlanilla += montoNeto;
+          sumHorasProg += horasProgramadas;
+          sumHorasEfect += horasEfectivas;
+          sumDescuentos += descuentoPEN;
+
+          return {
+            id: teacher.id,
+            docente: teacherName,
+            dni: teacher.dni || "N/A",
+            correo: teacher.correo || "N/A",
+            cursosAsignados: teacherCourses.length,
+            nombresCursos: teacherCourses.map(c => c.asignatura).join(", ") || "General",
+            horasProgramadas,
+            tardanzasMin,
+            horasDescontadas: Number(horasDescontadas.toFixed(2)),
+            horasEfectivas: Number(horasEfectivas.toFixed(2)),
+            tarifaHora: TARIFA_HORA,
+            montoBruto: Number(montoBruto.toFixed(2)),
+            descuentoPEN: Number(descuentoPEN.toFixed(2)),
+            montoNeto: Number(montoNeto.toFixed(2)),
+            estadoAuditoria
+          };
+        });
+
+        setPayrollData(calculated);
+        setMetrics({
+          totalPlanilla: sumPlanilla,
+          totalHorasProgramadas: sumHorasProg,
+          totalHorasEfectivas: sumHorasEfect,
+          totalDescuentos: sumDescuentos,
+          eficiencia: sumHorasProg > 0 ? `${((sumHorasEfect / sumHorasProg) * 100).toFixed(1)}%` : "100%"
+        });
+      } catch (err) {
+        if (!cancelled) {
+          console.error("Error al cargar datos de nómina y auditoría:", err);
+          setError(err.message || "No se pudieron consultar los reportes en InsForge.");
         }
-      });
-
-      const horasEfectivas = Math.max(0, horasProgramadas - horasDescontadas);
-      const montoBruto = horasProgramadas * TARIFA_HORA;
-      const descuentoPEN = horasDescontadas * TARIFA_HORA;
-      const montoNeto = horasEfectivas * TARIFA_HORA;
-
-      let estadoAuditoria = "100% Efectivo";
-      if (horasDescontadas > 0) {
-        estadoAuditoria = "Con Descuentos";
-      } else if (teacherIncidents.length > 0 && horasDescontadas === 0) {
-        estadoAuditoria = "Regularizado";
+      } finally {
+        if (!cancelled) {
+          setLoading(false);
+        }
       }
+    }
 
-      sumPlanilla += montoNeto;
-      sumHorasProg += horasProgramadas;
-      sumHorasEfect += horasEfectivas;
-      sumDescuentos += descuentoPEN;
-
-      return {
-        id: teacher.id,
-        docente: teacherName,
-        dni: teacher.dni || "N/A",
-        correo: teacher.correo || "N/A",
-        cursosAsignados: teacherCourses.length,
-        nombresCursos: teacherCourses.map(c => c.asignatura).join(", ") || "General",
-        horasProgramadas,
-        tardanzasMin,
-        horasDescontadas: Number(horasDescontadas.toFixed(2)),
-        horasEfectivas: Number(horasEfectivas.toFixed(2)),
-        tarifaHora: TARIFA_HORA,
-        montoBruto: Number(montoBruto.toFixed(2)),
-        descuentoPEN: Number(descuentoPEN.toFixed(2)),
-        montoNeto: Number(montoNeto.toFixed(2)),
-        estadoAuditoria
-      };
-    });
-
-    setPayrollData(calculated);
-    setMetrics({
-      totalPlanilla: sumPlanilla,
-      totalHorasProgramadas: sumHorasProg,
-      totalHorasEfectivas: sumHorasEfect,
-      totalDescuentos: sumDescuentos,
-      eficiencia: sumHorasProg > 0 ? `${((sumHorasEfect / sumHorasProg) * 100).toFixed(1)}%` : "100%"
-    });
+    loadReportData();
+    return () => { cancelled = true; };
   }, []);
 
   const handleExportPayroll = () => {
@@ -183,6 +215,16 @@ export default function AdminReportesPage() {
     <div className="space-y-6">
       {notification && (
         <Notification message={notification} onClose={() => setNotification(null)} />
+      )}
+      {error && (
+        <p role="alert" className="rounded-lg border border-red-300 bg-red-50 p-3 text-sm text-red-700">
+          {error}
+        </p>
+      )}
+      {loading && (
+        <p className="text-sm text-slate-500">
+          Consultando nómina y reporte de horas en InsForge...
+        </p>
       )}
 
       {/* ENCABEZADO */}
@@ -313,7 +355,13 @@ export default function AdminReportesPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 dark:divide-white/5">
-              {filteredData.length > 0 ? (
+              {loading ? (
+                <tr>
+                  <td colSpan={8} className="py-8 text-center text-slate-400">
+                    Cargando registros de nómina desde InsForge...
+                  </td>
+                </tr>
+              ) : filteredData.length > 0 ? (
                 filteredData.map((item) => (
                   <tr key={item.id} className="hover:bg-slate-50/50 dark:hover:bg-white/5 transition-colors">
                     <td className="py-3.5 px-4">

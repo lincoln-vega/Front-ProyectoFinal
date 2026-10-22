@@ -25,9 +25,7 @@ export default function CursoPage() {
 
   // Inicializar el estado de cursos desde el hook o datos base
   useEffect(() => {
-    if (initialCourses && initialCourses.length > 0) {
-      setCoursesList(initialCourses);
-    }
+    setCoursesList(initialCourses || []);
   }, [initialCourses]);
 
   // Agregar nuevo curso a la lista en tiempo real
@@ -37,9 +35,9 @@ export default function CursoPage() {
 
   // Filtrado dinámico
   const filteredCourses = coursesList.filter((curso) => {
-    const matchesSearch = curso.asignatura.toLowerCase().includes(searchTerm.toLowerCase()) || 
-                          curso.docente.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesArea = areaFilter === "Todas las Áreas Académicas" || curso.area.includes(areaFilter);
+    const matchesSearch = (curso.asignatura || "").toLowerCase().includes(searchTerm.toLowerCase()) || 
+                          (curso.docente || "").toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesArea = areaFilter === "Todas las Áreas Académicas" || (curso.area || "").includes(areaFilter);
     const matchesStatus = statusFilter === "Todos los Estados" || curso.estado === statusFilter;
     
     return matchesSearch && matchesArea && matchesStatus;

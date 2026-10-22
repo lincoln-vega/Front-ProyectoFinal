@@ -20,28 +20,40 @@ export default function StudentDashboardPage() {
   const [error, setError] = useState("");
 
   useEffect(() => {
+    let cancelled = false;
+
     async function cargarDatosEstudiante() {
       try {
         setLoading(true);
+        setError("");
 
         const userEmail = localStorage.getItem("userEmail");
         if (!userEmail) throw new Error("No se encontró el correo de la sesión.");
+
         const [cursos, perfil] = await Promise.all([
           courseService.getCourses(),
           userService.getUserByEmail(userEmail)
         ]);
-        setListaCursosGlobal(cursos);
+
+        if (cancelled) return;
+
+        setListaCursosGlobal(cursos || []);
         if (!perfil) throw new Error("No se encontró el perfil del estudiante en InsForge.");
         setEstudianteActivo(perfil);
       } catch (err) {
-        console.error("Error al cargar datos del estudiante:", err);
-        setError(err.message);
+        if (!cancelled) {
+          console.error("Error al cargar datos del estudiante:", err);
+          setError(err.message || "Error al cargar los cursos del estudiante.");
+        }
       } finally {
-        setLoading(false);
+        if (!cancelled) {
+          setLoading(false);
+        }
       }
     }
 
     cargarDatosEstudiante();
+    return () => { cancelled = true; };
   }, []);
 
   // Construcción limpia del nombre completo
@@ -54,16 +66,29 @@ export default function StudentDashboardPage() {
 
   // Cruce de cursosInscritos de la sesión con la lista global del backend
   const misCursosInscritos = useMemo(() => {
-    if (!estudianteActivo || !estudianteActivo.cursosInscritos) return [];
+    if (!estudianteActivo) return [];
 
-    const idsInscritos = new Set(estudianteActivo.cursosInscritos.map(c => c.id));
+    const inscritos = estudianteActivo.cursosInscritos;
+    if (Array.isArray(inscritos) && inscritos.length > 0) {
+      const idsInscritos = new Set(
+        inscritos.map((c) => (typeof c === "object" && c !== null ? c.id : c))
+      );
+      const encontrados = (listaCursosGlobal || []).filter(
+        (curso) => idsInscritos.has(curso.id) && curso.estado === "Activo"
+      );
+      if (encontrados.length > 0) return encontrados;
+    }
 
-    // Filtrar los cursos globales que coincidan con los inscritos del alumno
-    const cursosEncontrados = listaCursosGlobal.filter(
-      (curso) => idsInscritos.has(curso.id) && curso.estado === 'Activo'
-    );
+    // Fallback inteligente: Filtrar según su área académica si no hay lista explícita
+    if (estudianteActivo.areaAcademica) {
+      const porArea = (listaCursosGlobal || []).filter(
+        (curso) => curso.estado === "Activo" && (curso.area || "").includes(estudianteActivo.areaAcademica)
+      );
+      if (porArea.length > 0) return porArea;
+    }
 
-    return cursosEncontrados;
+    // Si no tiene área académica definida, mostrar catálogo activo
+    return (listaCursosGlobal || []).filter((curso) => curso.estado === "Activo");
   }, [estudianteActivo, listaCursosGlobal]);
 
   const handleJoinMeet = (course) => {

@@ -229,6 +229,7 @@ export default function MatriculasPagosPage({ defaultTab = "matriculas" }) {
   const [filtroEstado, setFiltroEstado] = useState("TODOS");
   const [notification, setNotification] = useState(null);
   const [loadingData, setLoadingData] = useState(true);
+  const [error, setError] = useState("");
 
   // Modales
   const [modalMatriculaOpen, setModalMatriculaOpen] = useState(false);
@@ -260,24 +261,39 @@ export default function MatriculasPagosPage({ defaultTab = "matriculas" }) {
   });
 
   useEffect(() => {
+    let cancelled = false;
+
     async function loadData() {
       try {
+        setLoadingData(true);
+        setError("");
+
         const [users, remoteMatriculas, remotePagos] = await Promise.all([
           userService.getUsers(),
           matriculaService.getMatriculas(),
           pagoService.getPagos()
         ]);
-        setStudents(users.filter((user) => String(user.rol).toLowerCase() === "estudiante"));
-        setMatriculas(remoteMatriculas);
-        setPagos(remotePagos);
-      } catch (error) {
-        console.error("Error al cargar matrículas y pagos desde InsForge:", error);
-        showNotification(`No se pudieron cargar los datos desde InsForge: ${error.message}`);
+
+        if (cancelled) return;
+
+        setStudents((users || []).filter((user) => String(user.rol).toLowerCase() === "estudiante"));
+        setMatriculas(remoteMatriculas || []);
+        setPagos(remotePagos || []);
+      } catch (err) {
+        if (!cancelled) {
+          console.error("Error al cargar matrículas y pagos desde InsForge:", err);
+          setError(err.message || "No se pudieron cargar los datos desde InsForge.");
+          showNotification(`No se pudieron cargar los datos desde InsForge: ${err.message}`);
+        }
       } finally {
-        setLoadingData(false);
+        if (!cancelled) {
+          setLoadingData(false);
+        }
       }
     }
+
     loadData();
+    return () => { cancelled = true; };
   }, []);
 
   const resetStudentSelection = () => {
@@ -577,6 +593,7 @@ export default function MatriculasPagosPage({ defaultTab = "matriculas" }) {
 
   return (
     <div className="space-y-6">
+      {error && <p role="alert" className="rounded-lg border border-red-300 bg-red-50 p-3 text-sm text-red-700">{error}</p>}
       {loadingData && <p className="text-sm text-slate-500">Consultando matrículas y pagos en InsForge...</p>}
       {/* Notificación Toast */}
       {notification && (
