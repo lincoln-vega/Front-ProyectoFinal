@@ -111,7 +111,7 @@ export default function UsersTable({ users, totalUsers, activeUsers, inactiveUse
       </div>
 
       <div className="p-3 bg-slate-50 dark:bg-white/5 border-t border-slate-200 dark:border-white/10 flex flex-col sm:flex-row items-center justify-between text-xs text-slate-500 dark:text-slate-400 gap-2">
-        <div>Total en base de datos: <strong className="dark:text-slate-300">{totalUsers}</strong> registros simulados.</div>
+        <div>Total en base de datos: <strong className="dark:text-slate-300">{totalUsers}</strong> registros.</div>
         <div className="flex items-center space-x-4">
           <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-emerald-500 inline-block" /> Activos: {activeUsers}</span>
           <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-rose-500 inline-block" /> Inactivos: {inactiveUsers}</span>

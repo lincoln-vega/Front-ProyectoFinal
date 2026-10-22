@@ -26,7 +26,7 @@ export default function Login() {
 
       if (authError) {
         throw new Error(
-          "No se pudo iniciar sesión. Verifica que el correo y la contraseña estén registrados en InsForge Auth. Los datos de la tabla users solo contienen el perfil."
+          "No se pudo iniciar sesión. Verifica tu correo y contraseña registrados."
         );
       }
 
@@ -80,9 +80,9 @@ export default function Login() {
             <div className="inline-flex items-center justify-center w-12 h-12 bg-blue-600/10 dark:bg-white/5 rounded-xl mb-4 border border-blue-600/20 dark:border-white/10">
               <ShieldCheck className="w-6 h-6 text-blue-600 dark:text-blue-400" />
             </div>
-            <h1 className="text-2xl font-semibold tracking-tight text-slate-900 dark:text-white">Academia SCRM</h1>
+            <h1 className="text-2xl font-semibold tracking-tight text-slate-900 dark:text-white">Academia Preuniversitaria</h1>
             <p className="text-sm text-slate-500 dark:text-slate-400 mt-1 font-light">
-              Ingresa con una cuenta creada en InsForge Auth
+              Ingresa tus credenciales para acceder a la plataforma
             </p>
           </div>
 
