@@ -9,6 +9,7 @@ import HorariosSalonesPage from "./pages/admin/HorariosSalonesPage";
 import StudentLayout from "./components/StudentLayout";
 import StudentDashboardPage from "./pages/student/StudentDashboardPage";
 import StudentHorariosPage from "./pages/student/StudentHorariosPage";
+import StudentPagosPage from "./pages/student/StudentPagosPage";
 import ControlAsistenciasPage from "./pages/admin/ControIncidenciasPage";
 import DocentesPage from "./pages/admin/DocentesPage";
 
@@ -76,6 +77,7 @@ export default function App() {
           <Route index element={<Navigate to="/estudiante/panel" replace />} />
           <Route path="panel" element={<StudentDashboardPage />} />
           <Route path="horarios" element={<StudentHorariosPage />} />
+          <Route path="pagos" element={<StudentPagosPage />} />
         </Route>
       </Route>
 

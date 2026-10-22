@@ -7,7 +7,8 @@ import {
   Calendar,
   Sparkles,
   BookOpen,
-  Clock
+  Clock,
+  CreditCard
 } from "lucide-react";
 import ThemeToggle from "./ThemeToggle";
 import { signOutFromApp } from "../services/session";
@@ -81,6 +82,17 @@ export default function StudentLayout() {
             >
               <Calendar className="w-3.5 h-3.5" />
               <span>Mi Horario</span>
+            </NavLink>
+            <NavLink
+              to="/estudiante/pagos"
+              className={({ isActive }) => `flex items-center space-x-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+                isActive
+                  ? "bg-[#1E3A8A] text-white shadow-xs dark:bg-white/15 dark:text-white"
+                  : "text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-white/5"
+              }`}
+            >
+              <CreditCard className="w-3.5 h-3.5" />
+              <span>Mis Pagos</span>
             </NavLink>
           </nav>
 
