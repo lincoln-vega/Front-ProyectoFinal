@@ -1,110 +1,205 @@
-import db from "../data/db.json";
+import { insforge } from "../lib/insforge";
 
-const KEYS = {
-  USERS: "academia_users",
-  ROLES: "app_roles",
-  INCIDENTS: "academia_teacher_incidents",
-  COURSES: "academia_courses",
-  SECTIONS: "academia_sections"
-};
+const SYSTEM_ROLES = ["Admin", "Docente", "Estudiante"];
+const USER_COLUMNS = [
+  "id",
+  "apellidos",
+  "nombres",
+  "dni",
+  "fechaNacimiento",
+  "correo",
+  "celular",
+  "universidad",
+  "carreraObjetivo",
+  "areaAcademica",
+  "rol",
+  "estado",
+  "cursosAsignados",
+  "cursosInscritos",
+  "created_at"
+].join(", ");
 
-// --- SERVICIO DE USUARIOS ---
-export const userService = {
-  getUsers: () => {
-    const saved = localStorage.getItem(KEYS.USERS);
-    if (!saved) {
-      localStorage.setItem(KEYS.USERS, JSON.stringify(db.users));
-      return db.users;
-    }
-    try {
-      return JSON.parse(saved);
-    } catch {
-      return db.users;
-    }
-  },
-  saveUsers: (users) => localStorage.setItem(KEYS.USERS, JSON.stringify(users)),
-  resetUsers: () => {
-    localStorage.setItem(KEYS.USERS, JSON.stringify(db.users));
-    return db.users;
+const throwIfError = (error, operation) => {
+  if (error) {
+    console.error(`[InsForge] ${operation}:`, error);
+    throw new Error(error.message || `No se pudo completar: ${operation}`);
   }
 };
 
-// --- SERVICIO DE ROLES ---
+export const userService = {
+  async getUsers() {
+    const { data, error } = await insforge.database
+      .from("users")
+      .select(USER_COLUMNS)
+      .order("created_at", { ascending: false })
+      .limit(500);
+    throwIfError(error, "cargar usuarios");
+    return data || [];
+  },
+
+  async fetchUsers() {
+    return userService.getUsers();
+  },
+
+  async getUserByEmail(email) {
+    const { data, error } = await insforge.database
+      .from("users")
+      .select(USER_COLUMNS)
+      .eq("correo", email.trim().toLowerCase())
+      .limit(1);
+    throwIfError(error, "cargar perfil");
+    return data?.[0] || null;
+  },
+
+  async saveUsers(users) {
+    const safeUsers = users.map(({ password, created_at, ...user }) => user);
+    if (safeUsers.length === 0) return [];
+
+    const { data, error } = await insforge.database
+      .from("users")
+      .upsert(safeUsers)
+      .select(USER_COLUMNS);
+    throwIfError(error, "guardar usuarios");
+    return data || [];
+  },
+
+  async saveUser(user) {
+    const { password, created_at, ...safeUser } = user;
+    const { data, error } = await insforge.database
+      .from("users")
+      .upsert([safeUser])
+      .select(USER_COLUMNS);
+    throwIfError(error, "guardar usuario");
+    return data?.[0] || null;
+  },
+
+  async deleteUser(id) {
+    const { error } = await insforge.database
+      .from("users")
+      .delete()
+      .eq("id", id);
+    throwIfError(error, "eliminar usuario");
+  },
+
+  resetUsers() {
+    return userService.getUsers();
+  }
+};
+
 export const roleService = {
   getRoles: () => {
-    const saved = localStorage.getItem(KEYS.ROLES);
-    if (!saved) {
-      localStorage.setItem(KEYS.ROLES, JSON.stringify(db.roles));
-      return db.roles;
-    }
+    const saved = localStorage.getItem("app_roles");
+    if (!saved) return SYSTEM_ROLES;
     try {
-      return JSON.parse(saved);
+      const roles = JSON.parse(saved)
+        .map((role) => String(role).trim())
+        .filter((role) => SYSTEM_ROLES.includes(role));
+      return roles.length ? roles : SYSTEM_ROLES;
     } catch {
-      return db.roles;
+      return SYSTEM_ROLES;
     }
   },
-  saveRoles: (roles) => localStorage.setItem(KEYS.ROLES, JSON.stringify(roles)),
+  saveRoles: (roles) => localStorage.setItem("app_roles", JSON.stringify(roles)),
   resetRoles: () => {
-    localStorage.setItem(KEYS.ROLES, JSON.stringify(db.roles));
-    return db.roles;
+    localStorage.setItem("app_roles", JSON.stringify(SYSTEM_ROLES));
+    return SYSTEM_ROLES;
   }
 };
 
-// --- SERVICIO DE INCIDENCIAS ---
 export const incidentService = {
-  getIncidents: () => {
-    const saved = localStorage.getItem(KEYS.INCIDENTS);
-    if (!saved) {
-      localStorage.setItem(KEYS.INCIDENTS, JSON.stringify(db.incidents));
-      return db.incidents;
-    }
-    try {
-      return JSON.parse(saved);
-    } catch {
-      return db.incidents;
-    }
+  async getIncidents() {
+    const { data, error } = await insforge.database
+      .from("incidents")
+      .select("id, docente, dni, correo, tipo, fechaPresentacion, materia, horario, motivo, archivoNombre, estado, created_at")
+      .order("created_at", { ascending: false })
+      .limit(500);
+    throwIfError(error, "cargar incidencias");
+    return data || [];
   },
-  saveIncidents: (incidents) => localStorage.setItem(KEYS.INCIDENTS, JSON.stringify(incidents)),
-  resetIncidents: () => {
-    localStorage.setItem(KEYS.INCIDENTS, JSON.stringify(db.incidents));
-    return db.incidents;
+
+  async updateIncidentStatus(id, estado) {
+    const { error } = await insforge.database
+      .from("incidents")
+      .update({ estado })
+      .eq("id", id);
+    throwIfError(error, "actualizar incidencia");
+  },
+
+  resetIncidents() {
+    return incidentService.getIncidents();
   }
 };
 
-// --- SERVICIO DE CURSOS Y ESTUDIANTES ---
-export const courseService = {
-  getCourses: () => {
-    const saved = localStorage.getItem(KEYS.COURSES);
-    return saved ? JSON.parse(saved) : db.courses;
+export const matriculaService = {
+  async getMatriculas() {
+    const { data, error } = await insforge.database
+      .from("matriculas")
+      .select("id, estudiante, dni, correo, celular, programa, ciclo, turno, fechaMatricula, modalidadPago, montoTotal, montoPagado, saldoPendiente, estado, created_at")
+      .order("created_at", { ascending: false })
+      .limit(500);
+    throwIfError(error, "cargar matrículas");
+    return data || [];
+  },
+
+  async saveMatriculas(matriculas) {
+    if (matriculas.length === 0) return [];
+    const rows = matriculas.map(({ estudianteId, created_at, ...matricula }) => matricula);
+    const { data, error } = await insforge.database
+      .from("matriculas")
+      .upsert(rows)
+      .select();
+    throwIfError(error, "guardar matrículas");
+    return data || [];
+  },
+
+  async saveMatricula(matricula) {
+    const { estudianteId, created_at, ...row } = matricula;
+    const { data, error } = await insforge.database
+      .from("matriculas")
+      .upsert([row])
+      .select();
+    throwIfError(error, "guardar matrícula");
+    return data?.[0] || null;
+  },
+
+  async deleteMatricula(id) {
+    const { error } = await insforge.database
+      .from("matriculas")
+      .delete()
+      .eq("id", id);
+    throwIfError(error, "eliminar matrícula");
   }
 };
 
-export const studentService = {
-  getStudentCourses: () => db.studentCourses,
-  getStudentAttendance: () => db.studentAttendance
-};
+export const pagoService = {
+  async getPagos() {
+    const { data, error } = await insforge.database
+      .from("pagos")
+      .select("id, matriculaId, estudiante, concepto, monto, metodo, operacion, comprobante, fecha, estado, created_at")
+      .order("created_at", { ascending: false })
+      .limit(500);
+    throwIfError(error, "cargar pagos");
+    return data || [];
+  },
 
-// --- SERVICIO DE SECCIONES ---
-export const sectionService = {
-  getSections: () => {
-    const saved = localStorage.getItem(KEYS.SECTIONS);
-    if (!saved) {
-      const initialData = db.sections || db.secciones || [];
-      localStorage.setItem(KEYS.SECTIONS, JSON.stringify(initialData));
-      return initialData;
-    }
-    try {
-      return JSON.parse(saved);
-    } catch {
-      return db.sections || db.secciones || [];
-    }
+  async savePagos(pagos) {
+    if (pagos.length === 0) return [];
+    const rows = pagos.map(({ created_at, ...pago }) => pago);
+    const { data, error } = await insforge.database
+      .from("pagos")
+      .upsert(rows)
+      .select();
+    throwIfError(error, "guardar pagos");
+    return data || [];
   },
-  saveSections: (sections) => {
-    localStorage.setItem(KEYS.SECTIONS, JSON.stringify(sections));
-  },
-  resetSections: () => {
-    const initialData = db.sections || db.secciones || [];
-    localStorage.setItem(KEYS.SECTIONS, JSON.stringify(initialData));
-    return initialData;
+
+  async savePago(pago) {
+    const { created_at, ...row } = pago;
+    const { data, error } = await insforge.database
+      .from("pagos")
+      .upsert([row])
+      .select();
+    throwIfError(error, "guardar pago");
+    return data?.[0] || null;
   }
 };

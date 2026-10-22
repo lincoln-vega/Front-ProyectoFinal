@@ -16,7 +16,10 @@ export default function AdminUsersPage() {
     deleteRole,
     resetUsers,
     deleteUser,
-    saveUser
+    saveUser,
+    loading,
+    error,
+    setError
   } = useUsers();
 
   const [searchTerm, setSearchTerm] = useState("");
@@ -53,20 +56,28 @@ export default function AdminUsersPage() {
     setIsModalOpen(true);
   };
 
-  const handleDelete = (user) => {
+  const handleDelete = async (user) => {
     const fullName = `${user.nombres} ${user.apellidos}`;
     if (window.confirm(`¿Estás seguro de eliminar el registro de ${fullName}?`)) {
-      deleteUser(user.id);
-      showNotification(`Usuario "${fullName}" eliminado del registro.`);
+      try {
+        await deleteUser(user.id);
+        showNotification(`Usuario "${fullName}" eliminado del registro.`);
+      } catch (err) {
+        showNotification(`No se pudo eliminar el usuario: ${err.message}`);
+      }
     }
   };
 
-  const handleResetData = () => {
-    resetUsers();
-    showNotification("Se han restaurado los datos iniciales de prueba.");
+  const handleResetData = async () => {
+    try {
+      await resetUsers();
+      showNotification("Usuarios actualizados desde InsForge.");
+    } catch (err) {
+      showNotification(`No se pudieron cargar los usuarios: ${err.message}`);
+    }
   };
 
-  const handleSubmitForm = (event) => {
+  const handleSubmitForm = async (event) => {
     event.preventDefault();
     if (!formData.apellidos || !formData.nombres || !formData.dni) {
       window.alert("Por favor complete los campos obligatorios (Nombres, Apellidos, DNI).");
@@ -74,9 +85,13 @@ export default function AdminUsersPage() {
     }
 
     const isEditing = Boolean(editingUserId);
-    saveUser(formData, editingUserId);
-    showNotification(isEditing ? "Usuario actualizado correctamente." : "Nuevo usuario registrado con éxito.");
-    closeModal();
+    try {
+      await saveUser(formData, editingUserId);
+      showNotification(isEditing ? "Usuario actualizado correctamente." : "Usuario registrado correctamente.");
+      closeModal();
+    } catch (err) {
+      setError(err.message);
+    }
   };
 
   const normalizedSearchTerm = searchTerm.toLowerCase();
@@ -103,19 +118,16 @@ export default function AdminUsersPage() {
         <Notification message={notification} onClose={() => setNotification(null)} />
       )}
 
-      <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-2xs">
+      <div className="bg-white/60 dark:bg-white/5 backdrop-blur-2xl p-5 rounded-xl border border-slate-200 dark:border-white/10 shadow-2xs">
         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
           <div>
             <div className="flex items-center space-x-2">
-              <span className="px-2 py-0.5 rounded bg-blue-100 text-[#1E3A8A] text-xs font-bold uppercase tracking-wider">
-                Requerimiento SCRM-4
-              </span>
-              <h2 className="text-xl font-bold text-slate-800">
+              <h2 className="text-xl font-bold text-slate-800 dark:text-white">
                 Padrón General de Usuarios de la Academia
               </h2>
             </div>
             <p className="text-xs text-slate-500 mt-1">
-              Administración de matrículas, docentes y personal académico con persistencia en LocalStorage.
+              Administración general de estudiantes, docentes y personal académico.
             </p>
           </div>
 
@@ -124,10 +136,10 @@ export default function AdminUsersPage() {
               type="button"
               onClick={handleResetData}
               className="inline-flex items-center space-x-1.5 px-3 py-2 border border-slate-300 text-slate-700 bg-white hover:bg-slate-50 rounded-lg text-xs font-medium shadow-2xs transition-colors cursor-pointer"
-              title="Restaurar datos JSON simulados por defecto"
+              title="Volver a consultar usuarios en InsForge"
             >
               <RotateCcw className="w-3.5 h-3.5 text-slate-500" />
-              <span>Restablecer Mock</span>
+              <span>Actualizar usuarios</span>
             </button>
 
             <button
@@ -150,6 +162,12 @@ export default function AdminUsersPage() {
           </div>
         </div>
 
+        {error && (
+          <p role="alert" className="mt-4 rounded-lg border border-red-300 bg-red-50 p-3 text-sm text-red-700">
+            {error}
+          </p>
+        )}
+
         <UserFilters
           searchTerm={searchTerm}
           roleFilter={roleFilter}
@@ -169,6 +187,7 @@ export default function AdminUsersPage() {
         onEdit={handleEdit}
         onDelete={handleDelete}
       />
+      {loading && <p className="text-sm text-slate-500">Consultando usuarios en InsForge...</p>}
 
       {isModalOpen && (
         <UserFormModal

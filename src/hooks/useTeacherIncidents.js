@@ -3,23 +3,39 @@ import { incidentService } from "../services/api";
 
 export default function useTeacherIncidents() {
   const [incidents, setIncidents] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
 
   useEffect(() => {
-    setIncidents(incidentService.getIncidents());
+    incidentService.getIncidents()
+      .then(setIncidents)
+      .catch((err) => {
+        console.error("Error al cargar incidencias:", err);
+        setError(err.message);
+      })
+      .finally(() => setLoading(false));
   }, []);
 
-  const updateIncidentStatus = (id, newStatus) => {
-    const updated = incidents.map((inc) =>
-      inc.id === id ? { ...inc, estado: newStatus } : inc
-    );
-    setIncidents(updated);
-    incidentService.saveIncidents(updated);
+  const updateIncidentStatus = async (id, newStatus) => {
+    setError("");
+    await incidentService.updateIncidentStatus(id, newStatus);
+    setIncidents((current) => current.map((incident) =>
+      incident.id === id ? { ...incident, estado: newStatus } : incident
+    ));
   };
 
-  const resetIncidents = () => {
-    const initial = incidentService.resetIncidents();
-    setIncidents(initial);
+  const resetIncidents = async () => {
+    setLoading(true);
+    setError("");
+    try {
+      setIncidents(await incidentService.resetIncidents());
+    } catch (err) {
+      setError(err.message);
+      throw err;
+    } finally {
+      setLoading(false);
+    }
   };
 
-  return { incidents, updateIncidentStatus, resetIncidents };
+  return { incidents, loading, error, updateIncidentStatus, resetIncidents };
 }

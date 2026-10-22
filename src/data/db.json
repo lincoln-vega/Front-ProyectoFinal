@@ -10,7 +10,6 @@
       "password": "admin123",
       "celular": "998877665",
       "carreraObjetivo": "Dirección Académica",
-      "cicloVirtual": "Turno Mañana / Tarde",
       "rol": "admin",
       "estado": "Activo"
     },
@@ -24,7 +23,6 @@
       "password": "docente123",
       "celular": "976543210",
       "carreraObjetivo": "Cátedra de Álgebra",
-      "cicloVirtual": "Todos los ciclos",
       "rol": "docente",
       "estado": "Activo"
     },
@@ -38,7 +36,6 @@
       "password": "docente123",
       "celular": "965412389",
       "carreraObjetivo": "Cátedra de Física",
-      "cicloVirtual": "Todos los ciclos",
       "rol": "docente",
       "estado": "Activo"
     },
@@ -52,7 +49,6 @@
       "password": "docente123",
       "celular": "934567890",
       "carreraObjetivo": "Cátedra de Biología",
-      "cicloVirtual": "Todos los ciclos",
       "rol": "docente",
       "estado": "Activo"
     },
@@ -65,8 +61,9 @@
       "correo": "estudiante@gmail.com",
       "password": "estudiante123",
       "celular": "987654321",
-      "carreraObjetivo": "Medicina Humana (UNMSM)",
-      "cicloVirtual": "123ABC",
+      "universidad": "UNMSM",
+      "carreraObjetivo": "Medicina Humana",
+      "areaAcademica": "Ciencias Médicas",
       "rol": "estudiante",
       "estado": "Activo"
     },
@@ -79,8 +76,9 @@
       "correo": "v.quispe@academia.edu.pe",
       "password": "estudiante123",
       "celular": "912345678",
-      "carreraObjetivo": "Ing. de Sistemas (UNI)",
-      "cicloVirtual": "123ABC",
+      "universidad": "UNI",
+      "carreraObjetivo": "Ingeniería de Sistemas",
+      "areaAcademica": "Ciencias Exactas",
       "rol": "estudiante",
       "estado": "Activo"
     },
@@ -93,17 +91,17 @@
       "correo": "l.gomez@academia.edu.pe",
       "password": "estudiante123",
       "celular": "945612378",
-      "carreraObjetivo": "Derecho (PUCP)",
-      "cicloVirtual": "123ABC",
+      "universidad": "PUCP",
+      "carreraObjetivo": "Derecho",
+      "areaAcademica": "Humanidades y Letras",
       "rol": "estudiante",
       "estado": "Activo"
     }
   ],
   "roles": [
-    "Estudiante",
+    "Admin",
     "Docente",
-    "Administrativo",
-    "Super Admin"
+    "Estudiante"
   ],
   "incidents": [
     {
@@ -124,33 +122,36 @@
     {
       "id": "CRS-001",
       "asignatura": "Álgebra y Funciones",
-      "area": "Ciencias Exactas (UNI / SM)",
+      "area": "Ciencias Exactas",
+      "carrera": "Ingeniería de Sistemas",
+      "docenteId": "USR-002",
       "docente": "Prof. Carmen Rosa Herrera",
       "horario": "Lunes y Miércoles 08:00 - 10:00 AM",
-      "sala": "Zoom Activo",
-      "tipoSala": "zoom",
+      "meetUrl": "https://meet.google.com/abc-defg-hij",
       "repositorio": "drive.google.com/mat101",
       "estado": "Activo"
     },
     {
       "id": "CRS-002",
       "asignatura": "Física Fundamental",
-      "area": "Ciencias Exactas (UNI)",
+      "area": "Ciencias Exactas",
+      "carrera": "Ingeniería de Sistemas",
+      "docenteId": "USR-003",
       "docente": "Prof. Miguel Ángel Paredes",
       "horario": "Martes y Jueves 08:00 - 10:00 AM",
-      "sala": "Meet Sala A",
-      "tipoSala": "meet",
+      "meetUrl": "https://meet.google.com/klm-nopq-rst",
       "repositorio": "campus.pre.pe/fisica",
       "estado": "Activo"
     },
     {
       "id": "CRS-003",
       "asignatura": "Biología y Anatomía",
-      "area": "Ciencias Médicas (UNMSM)",
+      "area": "Ciencias Médicas",
+      "carrera": "Medicina Humana",
+      "docenteId": "USR-004",
       "docente": "Dra. Elena Sofía Torres",
       "horario": "Lunes y Viernes 03:00 - 05:00 PM",
-      "sala": "Zoom Sala B",
-      "tipoSala": "zoom",
+      "meetUrl": "https://meet.google.com/uvw-xyza-bcd",
       "repositorio": "campus.pre.pe/bio",
       "estado": "Activo"
     }
@@ -161,7 +162,6 @@
       "materia": "Álgebra y Funciones",
       "docente": "Prof. Carmen Rosa Herrera",
       "horario": "Lunes y Miércoles 08:00 - 10:00 AM",
-      "aula": "Aula Virtual A-101",
       "temaActual": "Ecuaciones Cuadráticas y Polinomios",
       "meetUrl": "https://meet.google.com/abc-defg-hij",
       "badge": "En curso"
@@ -171,7 +171,6 @@
       "materia": "Física Fundamental",
       "docente": "Prof. Miguel Ángel Paredes",
       "horario": "Martes y Jueves 08:00 - 10:00 AM",
-      "aula": "Aula Virtual B-204",
       "temaActual": "Cinemática y Dinámica Lineal",
       "meetUrl": "https://meet.google.com/klm-nopq-rst",
       "badge": "En curso"
@@ -181,7 +180,6 @@
       "materia": "Biología y Anatomía",
       "docente": "Dra. Elena Sofía Torres",
       "horario": "Lunes y Viernes 03:00 - 05:00 PM",
-      "aula": "Aula Virtual C-302",
       "temaActual": "Anatomía del Sistema Nervioso",
       "meetUrl": "https://meet.google.com/uvw-xyza-bcd",
       "badge": "En curso"
@@ -212,8 +210,5 @@
       "estado": "Asistió Puntual",
       "modalidad": "Virtual en vivo"
     }
-  ],
-  "secciones": [
-    { "id": "1", "nombre": "123ABC" }
   ]
 }

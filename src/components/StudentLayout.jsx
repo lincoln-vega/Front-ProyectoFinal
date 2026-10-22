@@ -9,39 +9,43 @@ import {
   BookOpen,
   Clock
 } from "lucide-react";
+import ThemeToggle from "./ThemeToggle";
+import { signOutFromApp } from "../services/session";
 
 export default function StudentLayout() {
   const navigate = useNavigate();
   const studentName = localStorage.getItem("userName") || "Juan Carlos Flores";
   const studentEmail = localStorage.getItem("userEmail") || "j.flores@academia.edu.pe";
 
-  const handleLogout = () => {
-    localStorage.removeItem("userRole");
-    localStorage.removeItem("userName");
-    localStorage.removeItem("userEmail");
-    navigate("/login");
+  const handleLogout = async () => {
+    try {
+      await signOutFromApp();
+      navigate("/login");
+    } catch (error) {
+      window.alert(error.message);
+    }
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 flex flex-col font-sans">
+    <div className="min-h-screen bg-slate-50 dark:bg-[#0a0a0e] flex flex-col font-sans transition-colors duration-500">
       {/* NAVBAR SUPERIOR ESTUDIANTIL */}
-      <header className="bg-white border-b border-slate-200 sticky top-0 z-30 shadow-2xs">
+      <header className="bg-white dark:bg-white/5 dark:backdrop-blur-2xl border-b border-slate-200 dark:border-white/10 sticky top-0 z-30 shadow-2xs transition-colors duration-500">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
           {/* Logo y Nombre */}
           <div className="flex items-center space-x-3">
-            <div className="w-10 h-10 rounded-xl bg-[#1E3A8A] flex items-center justify-center text-white shadow-xs">
+            <div className="w-10 h-10 rounded-xl bg-[#1E3A8A] dark:bg-white/10 flex items-center justify-center text-white shadow-xs">
               <School className="w-6 h-6 text-amber-300" />
             </div>
             <div>
               <div className="flex items-center space-x-2">
-                <span className="font-extrabold text-base text-slate-800 tracking-tight">
+                <span className="font-extrabold text-base text-slate-800 dark:text-white tracking-tight">
                   Academia Pre
                 </span>
-                <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-200">
+                <span className="px-2 py-0.5 rounded-full text-xs font-bold bg-emerald-100 dark:bg-emerald-900/40 text-emerald-800 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800">
                   Campus Virtual
                 </span>
               </div>
-              <p className="text-xs text-slate-500 hidden sm:block">
+              <p className="text-xs text-slate-500 dark:text-slate-400 hidden sm:block">
                 Ciclo Anual San Marcos 2026 • Aula A-101
               </p>
             </div>
@@ -49,21 +53,23 @@ export default function StudentLayout() {
 
           {/* Perfil del Estudiante y Logout */}
           <div className="flex items-center space-x-3 sm:space-x-4">
+            <ThemeToggle />
+            
             <div className="flex items-center space-x-2 sm:space-x-3 text-right">
               <div className="hidden sm:block">
-                <div className="text-xs font-bold text-slate-800">{studentName}</div>
-                <div className="text-[11px] text-slate-500">{studentEmail}</div>
+                <div className="text-xs font-bold text-slate-800 dark:text-white">{studentName}</div>
+                <div className="text-xs text-slate-500 dark:text-slate-400">{studentEmail}</div>
               </div>
-              <div className="w-9 h-9 rounded-full bg-emerald-600 text-white flex items-center justify-center font-bold text-sm shadow-xs border-2 border-emerald-200">
+              <div className="w-9 h-9 rounded-full bg-emerald-600 text-white flex items-center justify-center font-bold text-sm shadow-xs border-2 border-emerald-200 dark:border-emerald-800">
                 JC
               </div>
             </div>
 
-            <div className="h-6 w-px bg-slate-200" />
+            <div className="h-6 w-px bg-slate-200 dark:bg-slate-700" />
 
             <button
               onClick={handleLogout}
-              className="inline-flex items-center space-x-1.5 px-3 py-1.5 text-xs font-semibold text-rose-700 bg-rose-50 hover:bg-rose-100 border border-rose-200 rounded-lg transition-colors cursor-pointer"
+              className="inline-flex items-center space-x-1.5 px-3 py-1.5 text-xs font-semibold text-rose-700 dark:text-rose-400 bg-rose-50 dark:bg-rose-900/20 hover:bg-rose-100 dark:hover:bg-rose-900/40 border border-rose-200 dark:border-rose-800 rounded-lg transition-colors cursor-pointer"
               title="Cerrar sesión"
             >
               <LogOut className="w-3.5 h-3.5" />
@@ -79,8 +85,8 @@ export default function StudentLayout() {
       </main>
 
       {/* FOOTER */}
-      <footer className="bg-white border-t border-slate-200 py-4 text-center text-xs text-slate-500">
-        <p>© 2026 Plataforma Educativa Preuniversitaria — Requerimiento SCRM-30</p>
+      <footer className="bg-white dark:bg-white/5 dark:backdrop-blur-2xl border-t border-slate-200 dark:border-white/10 py-4 text-center text-xs text-slate-500 dark:text-slate-400 transition-colors duration-500">
+        <p>© 2026 Plataforma Educativa Preuniversitaria. Todos los derechos reservados.</p>
       </footer>
     </div>
   );

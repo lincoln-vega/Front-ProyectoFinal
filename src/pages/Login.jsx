@@ -1,91 +1,142 @@
-import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import dbData from '../data/db.json';
+import React, { useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { ShieldCheck, User, Lock, ArrowRight, Loader2 } from "lucide-react";
+import ThemeToggle from "../components/ThemeToggle";
+import { insforge } from "../lib/insforge";
+import { userService } from "../services/api";
 
 export default function Login() {
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
   const navigate = useNavigate();
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
 
-  const handleLogin = (e) => {
+  const handleLogin = async (e) => {
     e.preventDefault();
+    setError("");
+    setLoading(true);
 
-    const foundUser = dbData.users.find(
-      (u) => u.correo === email && u.password === password
-    );
+    try {
+      const trimmedEmail = email.trim().toLowerCase();
+      const { data: authData, error: authError } = await insforge.auth.signInWithPassword({
+        email: trimmedEmail,
+        password
+      });
 
-    if (foundUser) {
-      const userRoleLower = foundUser.rol.toLowerCase();
-      localStorage.setItem('userRole', userRoleLower);
-      localStorage.setItem('userName', `${foundUser.nombres} ${foundUser.apellidos}`);
-
-      if (userRoleLower === 'admin') {
-        navigate('/admin/usuarios');
-      } else if (userRoleLower === 'estudiante') {
-        navigate('/estudiante/panel');
-      } else if (userRoleLower === 'docente') {
-        navigate('/docente/panel');
-      } else {
-        alert('Rol no autorizado para esta vista.');
+      if (authError) {
+        throw new Error(
+          "No se pudo iniciar sesión. Verifica tu correo y contraseña registrados."
+        );
       }
-    } else {
-      alert('Correo o contraseña incorrectos.');
+
+      const foundUser = await userService.getUserByEmail(authData.user.email);
+      if (!foundUser) {
+        await insforge.auth.signOut();
+        throw new Error("La cuenta inició sesión, pero no tiene un perfil en la tabla users.");
+      }
+
+      if (foundUser.estado && foundUser.estado.toLowerCase() !== "activo") {
+        await insforge.auth.signOut();
+        setError("La cuenta se encuentra inactiva. Contacte al administrador.");
+        return;
+      }
+
+      const role = (foundUser.rol || foundUser.role || "estudiante").toLowerCase();
+      const name = `${foundUser.nombres || foundUser.name || ""} ${foundUser.apellidos || ""}`.trim();
+      
+      localStorage.setItem("userRole", role);
+      localStorage.setItem("userName", name || foundUser.correo);
+      localStorage.setItem("userEmail", foundUser.correo || authData.user.email);
+      localStorage.setItem("userId", foundUser.id || "1");
+      localStorage.setItem("user", JSON.stringify(foundUser));
+      localStorage.setItem("usuarioLogueado", JSON.stringify(foundUser));
+
+      if (role === "admin") navigate("/admin/usuarios");
+      else if (role === "docente") navigate("/docente/panel");
+      else navigate("/estudiante/panel");
+
+    } catch (err) {
+      console.error("Error en login:", err);
+      setError(err.message || "Error al conectar con InsForge Auth.");
+    } finally {
+      setLoading(false);
     }
   };
 
   return (
-    <div className="relative flex min-h-screen items-center justify-center overflow-hidden bg-slate-950 px-4">
-      {/* Elementos decorativos de fondo con degradados difuminados */}
-      <div className="absolute -top-40 -left-40 h-96 w-96 rounded-full bg-indigo-600/30 blur-3xl"></div>
-      <div className="absolute -bottom-40 -right-40 h-96 w-96 rounded-full bg-violet-600/30 blur-3xl"></div>
+    <div className="min-h-screen bg-slate-50 dark:bg-[#0a0a0e] relative flex items-center justify-center p-4 overflow-hidden transition-colors duration-500">
+      <div className="absolute top-1/4 left-1/4 w-[500px] h-[500px] bg-blue-600/20 dark:bg-blue-600/10 rounded-full blur-[120px] pointer-events-none" />
+      <div className="absolute bottom-1/4 right-1/4 w-[400px] h-[400px] bg-purple-600/20 dark:bg-purple-600/10 rounded-full blur-[100px] pointer-events-none" />
+      
+      <div className="absolute top-6 right-6 z-50">
+        <ThemeToggle />
+      </div>
 
-      {/* Tarjeta de Login principal */}
-      <div className="relative w-full max-w-md space-y-8 rounded-2xl border border-slate-800 bg-slate-900/80 p-8 shadow-2xl backdrop-blur-xl">
-        <div className="text-center">
-          <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-xl bg-indigo-600 text-white shadow-lg shadow-indigo-500/30">
-            <svg className="h-7 w-7" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 11c0 3.517-1.009 6.799-2.753 9.571m-3.44-2.04l.054-.09A13.916 13.916 0 008 11a4 4 0 118 0c0 1.017-.07 2.019-.203 3m-2.115 6.848l.015-.04M15 19a3 3 0 11-6 0 3 3 0 016 0z" />
-            </svg>
-          </div>
-          <h2 className="text-2xl font-bold tracking-tight text-white">Iniciar Sesión</h2>
-          <p className="mt-2 text-sm text-slate-400">Sistema de Gestión Académica</p>
-        </div>
-
-        <form className="mt-8 space-y-6" onSubmit={handleLogin}>
-          <div className="space-y-4">
-            <div>
-              <label className="block text-xs font-semibold uppercase tracking-wider text-slate-300">Correo Electrónico</label>
-              <input
-                type="email"
-                required
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder="admin@gmail.com"
-                className="mt-1 block w-full rounded-xl border border-slate-700 bg-slate-950/50 px-4 py-3 text-white placeholder-slate-500 shadow-inner focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 sm:text-sm"
-              />
+      <div className="w-full max-w-sm z-10">
+        <div className="bg-white/60 dark:bg-white/5 backdrop-blur-2xl border border-white/40 dark:border-white/10 p-8 rounded-3xl shadow-2xl dark:shadow-[0_0_40px_rgba(0,0,0,0.5)]">
+          
+          <div className="text-center mb-10">
+            <div className="inline-flex items-center justify-center w-12 h-12 bg-blue-600/10 dark:bg-white/5 rounded-xl mb-4 border border-blue-600/20 dark:border-white/10">
+              <ShieldCheck className="w-6 h-6 text-blue-600 dark:text-blue-400" />
             </div>
-            <div>
-              <label className="block text-xs font-semibold uppercase tracking-wider text-slate-300">Contraseña</label>
-              <input
-                type="password"
-                required
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                placeholder="••••••••"
-                className="mt-1 block w-full rounded-xl border border-slate-700 bg-slate-950/50 px-4 py-3 text-white placeholder-slate-500 shadow-inner focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 sm:text-sm"
-              />
-            </div>
+            <h1 className="text-2xl font-semibold tracking-tight text-slate-900 dark:text-white">Academia Preuniversitaria</h1>
+            <p className="text-sm text-slate-500 dark:text-slate-400 mt-1 font-light">
+              Ingresa tus credenciales para acceder a la plataforma
+            </p>
           </div>
 
-          <div>
-            <button
-              type="submit"
-              className="w-full rounded-xl bg-gradient-to-r from-indigo-600 to-violet-600 px-4 py-3 text-sm font-semibold text-white shadow-lg shadow-indigo-600/30 transition-all duration-200 hover:from-indigo-500 hover:to-violet-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 focus:ring-offset-slate-900"
+          <form onSubmit={handleLogin} className="space-y-6">
+            {error && (
+              <div className="p-3 bg-red-500/10 border border-red-500/20 text-red-600 dark:text-red-400 text-sm rounded-xl text-center backdrop-blur-md">
+                {error}
+              </div>
+            )}
+            
+            <div className="space-y-4">
+              <div className="relative group">
+                <User className="w-4 h-4 text-slate-400 dark:text-slate-500 absolute left-0 top-3" />
+                <input 
+                  type="email" 
+                  required
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="Correo institucional" 
+                  className="w-full pl-7 pr-4 py-2 bg-transparent border-b border-slate-300 dark:border-slate-700 text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 focus:border-blue-500 dark:focus:border-blue-400 outline-none transition-colors"
+                />
+              </div>
+
+              <div className="relative group">
+                <Lock className="w-4 h-4 text-slate-400 dark:text-slate-500 absolute left-0 top-3" />
+                <input 
+                  type="password" 
+                  required
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder="Contraseña" 
+                  className="w-full pl-7 pr-4 py-2 bg-transparent border-b border-slate-300 dark:border-slate-700 text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 focus:border-blue-500 dark:focus:border-blue-400 outline-none transition-colors"
+                />
+              </div>
+            </div>
+
+            <button 
+              type="submit" 
+              disabled={loading}
+              className="w-full bg-slate-900 dark:bg-white text-white dark:text-black font-medium py-2.5 px-4 rounded-xl hover:bg-slate-800 dark:hover:bg-gray-100 transition-all flex justify-center items-center gap-2 group shadow-sm disabled:opacity-50 cursor-pointer"
             >
-              Ingresar al Sistema
+              {loading ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin" /> Verificando...
+                </>
+              ) : (
+                <>
+                  Ingresar a la Plataforma <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+                </>
+              )}
             </button>
-          </div>
-        </form>
+          </form>
+
+        </div>
       </div>
     </div>
   );
