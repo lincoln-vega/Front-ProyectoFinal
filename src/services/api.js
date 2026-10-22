@@ -257,3 +257,25 @@ export const pagoService = {
     return data?.[0] || null;
   }
 };
+
+export const configService = {
+  async getConfig() {
+    const { data, error } = await insforge.database
+      .from("configuracion")
+      .select("*")
+      .eq("id", "general")
+      .limit(1);
+    throwIfError(error, "cargar configuración");
+    return data?.[0] || null;
+  },
+
+  async saveConfig(config) {
+    const { updated_at, ...row } = config;
+    const { data, error } = await insforge.database
+      .from("configuracion")
+      .upsert([{ id: "general", ...row, updated_at: new Date().toISOString() }])
+      .select();
+    throwIfError(error, "guardar configuración");
+    return data?.[0] || null;
+  }
+};
