@@ -10,6 +10,7 @@ export const createInitialUserForm = () => ({
   celular: "",
   areaAcademica: "",
   carreraObjetivo: "",
+  cicloVirtual: "Semestral",
   rol: "Estudiante",
   estado: "Activo"
 });

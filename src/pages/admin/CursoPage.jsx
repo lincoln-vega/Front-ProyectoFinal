@@ -13,7 +13,7 @@ import useCurse from "../../hooks/useCurse";
 import CursoRegistroModal from "../../components/admin/CursoRegistroModal";
 
 export default function CursoPage() {
-  const { courses: initialCourses, loading, error, addCourse } = useCurse();
+  const { courses: initialCourses, loading, error, addCourse, refreshCourses } = useCurse();
   const [coursesList, setCoursesList] = useState([]);
   
   const [searchTerm, setSearchTerm] = useState("");
@@ -35,8 +35,12 @@ export default function CursoPage() {
 
   // Filtrado dinámico
   const filteredCourses = coursesList.filter((curso) => {
-    const matchesSearch = (curso.asignatura || "").toLowerCase().includes(searchTerm.toLowerCase()) || 
-                          (curso.docente || "").toLowerCase().includes(searchTerm.toLowerCase());
+    const term = searchTerm.toLowerCase();
+    const matchesSearch = (curso.asignatura || "").toLowerCase().includes(term) || 
+                          (curso.docente || "").toLowerCase().includes(term) ||
+                          (curso.codigo || "").toLowerCase().includes(term) ||
+                          (curso.aula || "").toLowerCase().includes(term) ||
+                          (curso.id || "").toLowerCase().includes(term);
     const matchesArea = areaFilter === "Todas las Áreas Académicas" || (curso.area || "").includes(areaFilter);
     const matchesStatus = statusFilter === "Todos los Estados" || curso.estado === statusFilter;
     
@@ -62,10 +66,12 @@ export default function CursoPage() {
           <div className="flex flex-wrap items-center gap-2">
             <button
               type="button"
-              className="inline-flex items-center space-x-1.5 px-3 py-2 border border-slate-300 dark:border-white/10 text-slate-700 dark:text-slate-300 bg-white dark:bg-white/5 hover:bg-slate-50 dark:hover:bg-white/5 rounded-lg text-xs font-medium shadow-2xs transition-colors cursor-pointer"
+              onClick={() => refreshCourses()}
+              disabled={loading}
+              className="inline-flex items-center space-x-1.5 px-3 py-2 border border-slate-300 dark:border-white/10 text-slate-700 dark:text-slate-300 bg-white dark:bg-white/5 hover:bg-slate-50 dark:hover:bg-white/5 rounded-lg text-xs font-medium shadow-2xs transition-colors cursor-pointer disabled:opacity-50"
             >
-              <RefreshCcw className="w-3.5 h-3.5 text-slate-500 dark:text-slate-400" />
-              <span>Sincronizar Aulas</span>
+              <RefreshCcw className={`w-3.5 h-3.5 text-slate-500 dark:text-slate-400 ${loading ? "animate-spin" : ""}`} />
+              <span>{loading ? "Sincronizando..." : "Sincronizar Aulas"}</span>
             </button>
             <button
               type="button"
@@ -179,20 +185,34 @@ export default function CursoPage() {
               {/* Botones de Acción */}
               <div className="space-y-3 mt-auto pt-2 border-t border-slate-100 dark:border-white/10">
                 <button 
+                  type="button"
+                  onClick={() => {
+                    if (curso.meetUrl) {
+                      window.open(curso.meetUrl, "_blank", "noopener,noreferrer");
+                    } else {
+                      window.alert(`No hay enlace de sala síncrona configurado para ${curso.asignatura}.`);
+                    }
+                  }}
                   className="w-full bg-[#0F9D58] hover:bg-emerald-700 text-white font-bold py-2.5 rounded-lg flex items-center justify-center gap-2 text-sm transition-colors shadow-sm cursor-pointer"
-                  title="Acceder como Host/Co-host"
+                  title="Acceder a la sala sincrónica"
                 >
                   <Video className="w-4.5 h-4.5" />
                   Monitorear Sala ({curso.tipoSala === 'zoom' ? 'Zoom' : 'Meet'})
                 </button>
                 
                 <div className="grid grid-cols-2 gap-3">
-                  <button className="w-full py-2.5 text-sm font-semibold text-slate-700 dark:text-slate-200 bg-white dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-lg hover:bg-slate-50 dark:hover:bg-white/5 flex items-center justify-center gap-1.5 transition-colors cursor-pointer">
+                  <button 
+                    type="button"
+                    onClick={() => {
+                      window.alert(`Curso: ${curso.asignatura}\nCódigo: ${curso.codigo}\nDocente: ${curso.docente}\nHorario: ${curso.horario}\nCiclo: ${curso.ciclovirtual || "Semestral"}`);
+                    }}
+                    className="w-full py-2.5 text-sm font-semibold text-slate-700 dark:text-slate-200 bg-white dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-lg hover:bg-slate-50 dark:hover:bg-white/5 flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
+                  >
                     <Edit2 className="w-4 h-4" />
-                    Editar Curso
+                    Detalles
                   </button>
                   <a 
-                    href={`https://${curso.repositorio}`} 
+                    href={curso.repositorio?.startsWith("http") ? curso.repositorio : `https://${curso.repositorio || "drive.google.com"}`} 
                     target="_blank" 
                     rel="noopener noreferrer" 
                     className="w-full py-2.5 text-sm font-semibold text-[#1E3A8A] dark:text-blue-400 bg-blue-50 dark:bg-blue-900/30 border border-blue-100 dark:border-blue-900/50 rounded-lg hover:bg-blue-100 dark:hover:bg-blue-900/50 flex items-center justify-center gap-1.5 transition-colors cursor-pointer"

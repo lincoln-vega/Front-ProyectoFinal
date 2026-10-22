@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { courseService } from "../services/cursosServices";
 
 export const createInitialCourseForm = () => ({
@@ -13,6 +13,7 @@ export const createInitialCourseForm = () => ({
   horaFin: "10:00",
   meetUrl: "",
   repositorio: "",
+  ciclovirtual: "Semestral",
   estado: "Activo"
 });
 
@@ -21,28 +22,34 @@ export default function useCurse() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
-  useEffect(() => {
-    async function loadCourses() {
-      try {
-        setLoading(true);
-        // Usamos fetchCourses para traer la data actualizada del backend de FastAPI
-        const data = await courseService.fetchCourses();
-        setCourses(data || []);
-      } catch (error) {
-        console.error("Error al cargar cursos en el hook:", error);
-        setError(error.message);
-      } finally {
-        setLoading(false);
-      }
+  const refreshCourses = useCallback(async () => {
+    try {
+      setLoading(true);
+      setError("");
+      const data = await courseService.fetchCourses();
+      setCourses(data || []);
+      return data;
+    } catch (err) {
+      console.error("Error al cargar cursos en el hook:", err);
+      setError(err.message);
+    } finally {
+      setLoading(false);
     }
-
-    loadCourses();
   }, []);
 
+  useEffect(() => {
+    refreshCourses();
+  }, [refreshCourses]);
+
   const addCourse = async (courseData) => {
+    const cleanId = (courseData.id && String(courseData.id).startsWith("CRS-"))
+      ? courseData.id
+      : `CRS-${String(courses.length + 1).padStart(3, "0")}`;
+
     const newCourse = {
-      id: `CRS-${String(courses.length + 1).padStart(3, "0")}`,
-      ...courseData
+      ciclovirtual: "Semestral",
+      ...courseData,
+      id: cleanId
     };
 
     const savedCourses = await courseService.saveCourses([newCourse]);
@@ -57,5 +64,5 @@ export default function useCurse() {
     )));
   };
 
-  return { courses, loading, error, addCourse, updateCourse };
+  return { courses, loading, error, addCourse, updateCourse, refreshCourses };
 }

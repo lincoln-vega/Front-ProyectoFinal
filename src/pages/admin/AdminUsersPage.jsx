@@ -102,12 +102,14 @@ export default function AdminUsersPage() {
       user.nombres,
       user.dni,
       user.correo,
-      user.carreraObjetivo
+      user.carreraObjetivo,
+      user.cicloVirtual,
+      user.ciclovirtual
     ];
     const matchesSearch = searchableFields.some((field) =>
       String(field || "").toLowerCase().includes(normalizedSearchTerm)
     );
-    const matchesRole = roleFilter === "TODOS" || user.rol === roleFilter;
+    const matchesRole = roleFilter === "TODOS" || String(user.rol).toLowerCase() === roleFilter.toLowerCase();
     const matchesStatus = statusFilter === "TODOS" || user.estado === statusFilter;
 
     return matchesSearch && matchesRole && matchesStatus;

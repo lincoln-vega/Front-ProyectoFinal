@@ -124,7 +124,7 @@ export default function StudentDashboardPage() {
           <div className="mt-6 flex flex-wrap gap-4 text-xs">
             <div className="bg-white/10 backdrop-blur-md px-3.5 py-2 rounded-xl border border-white/15">
               <span className="text-blue-200 block">Ciclo Académico:</span>
-              <strong className="text-white text-sm">Anual UNI 2026</strong>
+              <strong className="text-white text-sm">{estudianteActivo?.cicloVirtual || estudianteActivo?.ciclovirtual || "Semestral"}</strong>
             </div>
             <div className="bg-white/10 backdrop-blur-md px-3.5 py-2 rounded-xl border border-white/15">
               <span className="text-blue-200 block">Meta Universitaria:</span>

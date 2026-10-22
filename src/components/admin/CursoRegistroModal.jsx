@@ -11,6 +11,7 @@ export default function CursoRegistroModal({ isOpen, onClose, onAddCourse }) {
     area: "Ciencias Exactas",
     estado: "Activo",
     tipoSala: "zoom",
+    meetUrl: "https://meet.google.com/new",
     repositorio: "drive.google.com"
   });
   const [saveError, setSaveError] = useState("");
@@ -28,10 +29,10 @@ export default function CursoRegistroModal({ isOpen, onClose, onAddCourse }) {
 
     // Crea el objeto del curso estructurado
     const newCourse = {
-      id: Date.now(),
       ...formData,
-      codigo: formData.codigo.toUpperCase() || "CURSO-NEW",
-      aula: formData.aula.toUpperCase() || "AULA-00"
+      codigo: (formData.codigo || "").toUpperCase() || "CRS-NEW",
+      aula: (formData.aula || "").toUpperCase() || "AULA-01",
+      ciclovirtual: "Semestral"
     };
 
     setSaveError("");
@@ -53,6 +54,7 @@ export default function CursoRegistroModal({ isOpen, onClose, onAddCourse }) {
       area: "Ciencias Exactas",
       estado: "Activo",
       tipoSala: "zoom",
+      meetUrl: "https://meet.google.com/new",
       repositorio: "drive.google.com"
     });
   };
@@ -126,6 +128,20 @@ export default function CursoRegistroModal({ isOpen, onClose, onAddCourse }) {
                 className="w-full px-3 py-2 border border-slate-200 dark:border-white/10 rounded-lg text-xs bg-slate-50 dark:bg-white/5 dark:text-white focus:bg-white dark:focus:bg-white/10 focus:outline-hidden focus:border-[#1E3A8A] dark:focus:border-blue-500 transition-all"
               />
             </div>
+          </div>
+
+          <div>
+            <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+              Enlace de Sala Sincrónica (Meet / Zoom)
+            </label>
+            <input
+              type="url"
+              name="meetUrl"
+              value={formData.meetUrl}
+              onChange={handleChange}
+              placeholder="https://meet.google.com/..."
+              className="w-full px-3 py-2 border border-slate-200 dark:border-white/10 rounded-lg text-xs bg-slate-50 dark:bg-white/5 dark:text-white focus:bg-white dark:focus:bg-white/10 focus:outline-hidden focus:border-[#1E3A8A] dark:focus:border-blue-500 transition-all"
+            />
           </div>
 
           <div className="grid grid-cols-2 gap-3">

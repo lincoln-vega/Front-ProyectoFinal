@@ -17,8 +17,21 @@ const USER_COLUMNS = [
   "estado",
   "cursosAsignados",
   "cursosInscritos",
-  "created_at"
+  "created_at",
+  "ciclovirtual"
 ].join(", ");
+
+const normalizeUser = (user) => {
+  if (!user) return user;
+  const ciclo = user.cicloVirtual || user.ciclovirtual || "Semestral";
+  return {
+    ...user,
+    cicloVirtual: ciclo,
+    ciclovirtual: ciclo,
+    carreraObjetivo: user.carreraObjetivo || user.areaAcademica || "General",
+    areaAcademica: user.areaAcademica || user.carreraObjetivo || "General"
+  };
+};
 
 const throwIfError = (error, operation) => {
   if (error) {
@@ -35,7 +48,7 @@ export const userService = {
       .order("created_at", { ascending: false })
       .limit(500);
     throwIfError(error, "cargar usuarios");
-    return data || [];
+    return (data || []).map(normalizeUser);
   },
 
   async fetchUsers() {
@@ -49,11 +62,17 @@ export const userService = {
       .eq("correo", email.trim().toLowerCase())
       .limit(1);
     throwIfError(error, "cargar perfil");
-    return data?.[0] || null;
+    return data?.[0] ? normalizeUser(data[0]) : null;
   },
 
   async saveUsers(users) {
-    const safeUsers = users.map(({ password, created_at, ...user }) => user);
+    const safeUsers = users.map(({ password, created_at, ...user }) => {
+      const ciclo = user.cicloVirtual || user.ciclovirtual || "Semestral";
+      return {
+        ...user,
+        ciclovirtual: ciclo
+      };
+    });
     if (safeUsers.length === 0) return [];
 
     const { data, error } = await insforge.database
@@ -61,17 +80,22 @@ export const userService = {
       .upsert(safeUsers)
       .select(USER_COLUMNS);
     throwIfError(error, "guardar usuarios");
-    return data || [];
+    return (data || []).map(normalizeUser);
   },
 
   async saveUser(user) {
     const { password, created_at, ...safeUser } = user;
+    const ciclo = safeUser.cicloVirtual || safeUser.ciclovirtual || "Semestral";
+    const payload = {
+      ...safeUser,
+      ciclovirtual: ciclo
+    };
     const { data, error } = await insforge.database
       .from("users")
-      .upsert([safeUser])
+      .upsert([payload])
       .select(USER_COLUMNS);
     throwIfError(error, "guardar usuario");
-    return data?.[0] || null;
+    return data?.[0] ? normalizeUser(data[0]) : null;
   },
 
   async deleteUser(id) {

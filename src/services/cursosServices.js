@@ -1,6 +1,6 @@
 import { insforge } from "../lib/insforge";
 
-const COURSE_COLUMNS = "id, asignatura, area, carrera, docenteId, docente, dias, horaInicio, horaFin, meetUrl, repositorio, estado, created_at";
+const COURSE_COLUMNS = "id, asignatura, area, carrera, docenteId, docente, dias, horaInicio, horaFin, meetUrl, repositorio, estado, created_at, ciclovirtual";
 
 const throwIfError = (error, operation) => {
   if (error) {
@@ -33,15 +33,30 @@ const parseSchedule = (schedule = "") => {
 };
 
 const normalizeCourse = (course) => {
-  const { aula, codigo, horario, tipoSala, created_at, ...storedCourse } = course;
-  const parsed = parseSchedule(horario);
+  if (!course) return course;
+  const { created_at, ...storedCourse } = course;
+  const parsed = parseSchedule(course.horario);
+  const dias = Array.isArray(storedCourse.dias) && storedCourse.dias.length
+    ? storedCourse.dias
+    : (parsed.days.length ? parsed.days : ["Lunes", "Miércoles"]);
+  const horaInicio = storedCourse.horaInicio || parsed.start || "08:00";
+  const horaFin = storedCourse.horaFin || parsed.end || "10:00";
+  const horarioTexto = course.horario || `${dias.join(" y ")} ${horaInicio} - ${horaFin}`;
+  const meetUrl = storedCourse.meetUrl || "";
+  const tipoSala = meetUrl.toLowerCase().includes("zoom") ? "zoom" : "meet";
+
   return {
-  ...storedCourse,
-  dias: Array.isArray(storedCourse.dias) ? storedCourse.dias : parsed.days,
-  horaInicio: storedCourse.horaInicio || parsed.start,
-  horaFin: storedCourse.horaFin || parsed.end,
-  docenteId: storedCourse.docenteId || "",
-  meetUrl: storedCourse.meetUrl || ""
+    ...storedCourse,
+    codigo: course.codigo || storedCourse.id,
+    aula: course.aula || `Aula ${storedCourse.id ? String(storedCourse.id).replace('CRS-', 'V-') : 'Virtual'}`,
+    horario: horarioTexto,
+    dias,
+    horaInicio,
+    horaFin,
+    meetUrl,
+    tipoSala,
+    cicloVirtual: storedCourse.cicloVirtual || storedCourse.ciclovirtual || "Semestral",
+    ciclovirtual: storedCourse.ciclovirtual || storedCourse.cicloVirtual || "Semestral"
   };
 };
 
@@ -64,8 +79,11 @@ export const courseService = {
     if (courses.length === 0) return [];
     const rows = courses.map((course) => {
       const normalized = normalizeCourse(course);
-      const { created_at, ...row } = normalized;
-      return row;
+      const { aula, codigo, horario, tipoSala, created_at, cicloVirtual, ...row } = normalized;
+      return {
+        ...row,
+        ciclovirtual: cicloVirtual || row.ciclovirtual || "Semestral"
+      };
     });
     const { data, error } = await insforge.database
       .from("courses")

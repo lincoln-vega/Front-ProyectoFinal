@@ -64,8 +64,15 @@ export default function AdminStudentsPage() {
   const students = users.filter((user) => String(user.rol).toLowerCase() === STUDENT_ROLE);
   const filteredStudents = students.filter((student) => {
     const term = searchTerm.toLowerCase();
-    const matchesSearch = [student.apellidos, student.nombres, student.dni, student.correo, student.carreraObjetivo]
-      .some((field) => String(field || "").toLowerCase().includes(term));
+    const matchesSearch = [
+      student.apellidos,
+      student.nombres,
+      student.dni,
+      student.correo,
+      student.carreraObjetivo,
+      student.cicloVirtual,
+      student.ciclovirtual
+    ].some((field) => String(field || "").toLowerCase().includes(term));
     return matchesSearch && (statusFilter === "TODOS" || student.estado === statusFilter);
   });
 

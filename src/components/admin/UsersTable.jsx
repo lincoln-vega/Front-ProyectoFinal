@@ -58,17 +58,19 @@ export default function UsersTable({ users, totalUsers, activeUsers, inactiveUse
                     </span>
                   </td>
                   <td className="py-2.5 px-3.5 whitespace-nowrap text-slate-600 dark:text-slate-400">
-                    <span className="px-2 py-0.5 rounded bg-slate-100 dark:bg-white/10 border border-slate-200 dark:border-white/10 text-xs">{user.cicloVirtual}</span>
+                    <span className="px-2 py-0.5 rounded bg-slate-100 dark:bg-white/10 border border-slate-200 dark:border-white/10 text-xs font-medium">
+                      {user.cicloVirtual || user.ciclovirtual || "Semestral"}
+                    </span>
                   </td>
                   <td className="py-2.5 px-3.5 whitespace-nowrap text-center">
-                    <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold tracking-wide ${
-                      user.rol === "Admin"
+                    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold tracking-wide ${
+                      String(user.rol).toLowerCase() === "admin"
                         ? "bg-purple-100 dark:bg-purple-900/30 text-purple-800 dark:text-purple-300 border border-purple-200 dark:border-purple-800/50"
-                        : user.rol === "Docente"
+                        : ["docente", "profesor"].includes(String(user.rol).toLowerCase())
                         ? "bg-amber-100 dark:bg-amber-900/30 text-amber-800 dark:text-amber-300 border border-amber-200 dark:border-amber-800/50"
                         : "bg-blue-100 dark:bg-blue-900/30 text-[#1E3A8A] dark:text-blue-300 border border-blue-200 dark:border-blue-800/50"
                     }`}>
-                      {user.rol}
+                      {String(user.rol).toLowerCase() === "admin" ? "Admin" : ["docente", "profesor"].includes(String(user.rol).toLowerCase()) ? "Docente" : "Estudiante"}
                     </span>
                   </td>
                   <td className="py-2.5 px-3.5 whitespace-nowrap text-center">

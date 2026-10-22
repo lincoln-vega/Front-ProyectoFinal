@@ -168,7 +168,7 @@ export default function ControlAsistenciasPage() {
                     <div className="bg-white/60 dark:bg-white/5 backdrop-blur-2xl p-4 rounded-xl border border-slate-200/80 dark:border-white/10">
                         <span className="text-xs font-bold text-slate-400 uppercase tracking-wider block">Tardanzas Registradas</span>
                         <div className="flex items-center justify-between mt-2">
-                            <span className="text-xl font-extrabold text-slate-800 dark:text-white">{incidents.filter(i => i.tipo.includes("Tardanza")).length} incidencias</span>
+                            <span className="text-xl font-extrabold text-slate-800 dark:text-white">{(incidents || []).filter(i => (i.tipo || "").includes("Tardanza")).length} incidencias</span>
                             <Clock className="w-5 h-5 text-amber-500" />
                         </div>
                         <span className="text-xs text-slate-500 dark:text-slate-400 mt-1 block">Promedio retraso: 12.5 min</span>
@@ -212,7 +212,7 @@ export default function ControlAsistenciasPage() {
                             onClick={() => setFilterType("TODOS")}
                             className={`px-3 py-1.5 rounded-lg font-medium transition-colors cursor-pointer ${filterType === "TODOS" ? "bg-white dark:bg-white/10 text-slate-800 dark:text-white shadow-xs" : "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white"}`}
                         >
-                            Todos ({incidents.length})
+                            Todos ({(incidents || []).length})
                         </button>
                         <button
                             onClick={() => setFilterType("Tardanza")}
@@ -245,11 +245,11 @@ export default function ControlAsistenciasPage() {
                                 <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                                     <div className="space-y-2 flex-1">
                                         <div className="flex flex-wrap items-center gap-2">
-                                            <span className={`px-2.5 py-0.5 rounded-full text-xs font-bold border ${inc.tipo.includes("Tardanza")
+                                            <span className={`px-2.5 py-0.5 rounded-full text-xs font-bold border ${(inc.tipo || "").includes("Tardanza")
                                                     ? "bg-amber-100 dark:bg-amber-900/30 text-amber-800 dark:text-amber-400 border-amber-200 dark:border-amber-500/30"
                                                     : "bg-rose-100 dark:bg-rose-900/30 text-rose-800 dark:text-rose-400 border-rose-200 dark:border-rose-500/30"
                                                 }`}>
-                                                {inc.tipo}
+                                                {inc.tipo || "Incidencia"}
                                             </span>
                                             <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-blue-100 dark:bg-blue-900/30 text-[#1E3A8A] dark:text-blue-400 border border-blue-200 dark:border-blue-500/30">
                                                 Docente Titular

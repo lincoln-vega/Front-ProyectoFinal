@@ -26,6 +26,7 @@ import {
   Phone,
   Mail,
   ArrowUpRight
+} from "lucide-react";
 import { userService, matriculaService, pagoService } from "../../services/api";
 import { exportToCSV } from "../../utils/exportUtils";
 
