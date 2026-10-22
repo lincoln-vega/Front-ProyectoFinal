@@ -7,7 +7,7 @@ export default function UsersTable({ users, totalUsers, activeUsers, inactiveUse
         <span className="font-semibold text-slate-800 dark:text-slate-300">
           Mostrando {users.length} de {totalUsers} registros cargados
         </span>
-        <span className="text-[11px] text-slate-400 dark:text-slate-500">
+        <span className="text-xs text-slate-400 dark:text-slate-500">
           * 11 columnas reglamentarias de usuario
         </span>
       </div>
@@ -15,7 +15,7 @@ export default function UsersTable({ users, totalUsers, activeUsers, inactiveUse
       <div className="overflow-x-auto">
         <table className="w-full text-left border-collapse text-xs">
           <thead>
-            <tr className="bg-[#1E3A8A] dark:bg-blue-950/40 text-white border-b border-blue-950 dark:border-white/10 font-semibold tracking-wider uppercase text-[11px] select-none">
+            <tr className="bg-[#1E3A8A] dark:bg-blue-950/40 text-white border-b border-blue-950 dark:border-white/10 font-semibold tracking-wider uppercase text-xs select-none">
               <th scope="col" className="py-3 px-3.5 whitespace-nowrap">1. Apellidos</th>
               <th scope="col" className="py-3 px-3.5 whitespace-nowrap">2. Nombres</th>
               <th scope="col" className="py-3 px-3.5 whitespace-nowrap">3. DNI</th>
@@ -58,10 +58,10 @@ export default function UsersTable({ users, totalUsers, activeUsers, inactiveUse
                     </span>
                   </td>
                   <td className="py-2.5 px-3.5 whitespace-nowrap text-slate-600 dark:text-slate-400">
-                    <span className="px-2 py-0.5 rounded bg-slate-100 dark:bg-white/10 border border-slate-200 dark:border-white/10 text-[11px]">{user.cicloVirtual}</span>
+                    <span className="px-2 py-0.5 rounded bg-slate-100 dark:bg-white/10 border border-slate-200 dark:border-white/10 text-xs">{user.cicloVirtual}</span>
                   </td>
                   <td className="py-2.5 px-3.5 whitespace-nowrap text-center">
-                    <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold tracking-wide ${
+                    <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold tracking-wide ${
                       user.rol === "Admin"
                         ? "bg-purple-100 dark:bg-purple-900/30 text-purple-800 dark:text-purple-300 border border-purple-200 dark:border-purple-800/50"
                         : user.rol === "Docente"
@@ -72,7 +72,7 @@ export default function UsersTable({ users, totalUsers, activeUsers, inactiveUse
                     </span>
                   </td>
                   <td className="py-2.5 px-3.5 whitespace-nowrap text-center">
-                    <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium ${
+                    <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
                       user.estado === "Activo"
                         ? "bg-emerald-50 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800/50"
                         : "bg-rose-50 dark:bg-rose-900/20 text-rose-700 dark:text-rose-400 border border-rose-200 dark:border-rose-800/50"
@@ -111,7 +111,7 @@ export default function UsersTable({ users, totalUsers, activeUsers, inactiveUse
       </div>
 
       <div className="p-3 bg-slate-50 dark:bg-white/5 border-t border-slate-200 dark:border-white/10 flex flex-col sm:flex-row items-center justify-between text-xs text-slate-500 dark:text-slate-400 gap-2">
-        <div>Total en base de datos: <strong className="dark:text-slate-300">{totalUsers}</strong> registros simulados.</div>
+        <div>Total en base de datos: <strong className="dark:text-slate-300">{totalUsers}</strong> registros.</div>
         <div className="flex items-center space-x-4">
           <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-emerald-500 inline-block" /> Activos: {activeUsers}</span>
           <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-rose-500 inline-block" /> Inactivos: {inactiveUsers}</span>

@@ -13,6 +13,7 @@ export default function CursoRegistroModal({ isOpen, onClose, onAddCourse }) {
     tipoSala: "zoom",
     repositorio: "drive.google.com"
   });
+  const [saveError, setSaveError] = useState("");
 
   if (!isOpen) return null;
 
@@ -21,7 +22,7 @@ export default function CursoRegistroModal({ isOpen, onClose, onAddCourse }) {
     setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     if (!formData.asignatura || !formData.docente) return;
 
@@ -33,8 +34,14 @@ export default function CursoRegistroModal({ isOpen, onClose, onAddCourse }) {
       aula: formData.aula.toUpperCase() || "AULA-00"
     };
 
-    onAddCourse(newCourse);
-    onClose();
+    setSaveError("");
+    try {
+      await onAddCourse(newCourse);
+      onClose();
+    } catch (error) {
+      setSaveError(error.message || "No se pudo guardar el curso en InsForge.");
+      return;
+    }
 
     // Resetear formulario
     setFormData({
@@ -65,6 +72,7 @@ export default function CursoRegistroModal({ isOpen, onClose, onAddCourse }) {
         </div>
 
         <form onSubmit={handleSubmit} className="p-5 space-y-4">
+          {saveError && <p role="alert" className="rounded-lg border border-red-300 bg-red-50 p-3 text-sm text-red-700">{saveError}</p>}
           <div>
             <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
               Nombre de la Asignatura *

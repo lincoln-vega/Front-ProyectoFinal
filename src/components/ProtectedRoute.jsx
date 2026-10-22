@@ -22,12 +22,6 @@ export default function ProtectedRoute({ allowedRoles }) {
 
   // Si no está autenticado
   if (!currentRole) {
-    // Si existe sesión iniciada (userName) pero se perdió temporalmente el rol, restaurar rol admin por defecto
-    const userName = localStorage.getItem("userName");
-    if (userName) {
-      localStorage.setItem("userRole", "admin");
-      return <Outlet />;
-    }
     return <Navigate to="/login" replace />;
   }
 

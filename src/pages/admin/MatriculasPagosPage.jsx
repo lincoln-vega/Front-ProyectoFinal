@@ -228,6 +228,7 @@ export default function MatriculasPagosPage({ defaultTab = "matriculas" }) {
   const [filtroPrograma, setFiltroPrograma] = useState("TODOS");
   const [filtroEstado, setFiltroEstado] = useState("TODOS");
   const [notification, setNotification] = useState(null);
+  const [loadingData, setLoadingData] = useState(true);
 
   // Modales
   const [modalMatriculaOpen, setModalMatriculaOpen] = useState(false);
@@ -259,27 +260,24 @@ export default function MatriculasPagosPage({ defaultTab = "matriculas" }) {
   });
 
   useEffect(() => {
-    setStudents(userService.getUsers().filter((user) => String(user.rol).toLowerCase() === "estudiante"));
-
-    const initialM = matriculaService.getMatriculas((cloudData) => {
-      if (cloudData && cloudData.length > 0) setMatriculas(cloudData);
-    });
-    if (initialM && initialM.length > 0) {
-      setMatriculas(initialM);
-    } else {
-      setMatriculas(INITIAL_MATRICULAS);
-      matriculaService.saveMatriculas(INITIAL_MATRICULAS);
+    async function loadData() {
+      try {
+        const [users, remoteMatriculas, remotePagos] = await Promise.all([
+          userService.getUsers(),
+          matriculaService.getMatriculas(),
+          pagoService.getPagos()
+        ]);
+        setStudents(users.filter((user) => String(user.rol).toLowerCase() === "estudiante"));
+        setMatriculas(remoteMatriculas);
+        setPagos(remotePagos);
+      } catch (error) {
+        console.error("Error al cargar matrículas y pagos desde InsForge:", error);
+        showNotification(`No se pudieron cargar los datos desde InsForge: ${error.message}`);
+      } finally {
+        setLoadingData(false);
+      }
     }
-
-    const initialP = pagoService.getPagos((cloudData) => {
-      if (cloudData && cloudData.length > 0) setPagos(cloudData);
-    });
-    if (initialP && initialP.length > 0) {
-      setPagos(initialP);
-    } else {
-      setPagos(INITIAL_PAGOS);
-      pagoService.savePagos(INITIAL_PAGOS);
-    }
+    loadData();
   }, []);
 
   const resetStudentSelection = () => {
@@ -316,14 +314,9 @@ export default function MatriculasPagosPage({ defaultTab = "matriculas" }) {
     };
   };
 
-  const saveMatriculasStorage = (data) => {
+  const saveMatriculasStorage = async (data) => {
+    await matriculaService.saveMatriculas(data);
     setMatriculas(data);
-    matriculaService.saveMatriculas(data);
-  };
-
-  const savePagosStorage = (data) => {
-    setPagos(data);
-    pagoService.savePagos(data);
   };
 
   const showNotification = (msg) => {
@@ -366,7 +359,7 @@ export default function MatriculasPagosPage({ defaultTab = "matriculas" }) {
   }).slice(0, 5);
 
   // Registro de Nueva Matrícula
-  const handleGuardarMatricula = (e) => {
+  const handleGuardarMatricula = async (e) => {
     e.preventDefault();
     if (!formMatricula.estudiante || !formMatricula.dni) {
       showNotification("Por favor completa los campos de nombre y DNI.");
@@ -374,6 +367,7 @@ export default function MatriculasPagosPage({ defaultTab = "matriculas" }) {
     }
 
     let estudianteId = selectedStudentId;
+    try {
     if (isNewStudent) {
       estudianteId = `USR-${Date.now().toString().slice(-6)}`;
       const newStudent = {
@@ -381,7 +375,6 @@ export default function MatriculasPagosPage({ defaultTab = "matriculas" }) {
         ...splitStudentName(formMatricula.estudiante),
         dni: formMatricula.dni,
         correo: formMatricula.correo || `${formMatricula.dni}@academia.edu.pe`,
-        password: "estudiante123",
         celular: formMatricula.celular || "",
         carreraObjetivo: "",
         areaAcademica: "",
@@ -389,7 +382,7 @@ export default function MatriculasPagosPage({ defaultTab = "matriculas" }) {
         estado: "Activo"
       };
       const updatedStudents = [newStudent, ...students];
-      userService.saveUsers([...userService.getUsers().filter((user) => user.id !== estudianteId), newStudent]);
+      await userService.saveUser(newStudent);
       setStudents(updatedStudents);
     }
 
@@ -420,8 +413,9 @@ export default function MatriculasPagosPage({ defaultTab = "matriculas" }) {
       estado: estado,
     };
 
+    await matriculaService.saveMatricula(nuevaMat);
     const nuevasMatriculas = [nuevaMat, ...matriculas];
-    saveMatriculasStorage(nuevasMatriculas);
+    setMatriculas(nuevasMatriculas);
 
     // Si hubo abono inicial, generamos su pago automáticamente
     if (abonoInicial > 0) {
@@ -437,7 +431,8 @@ export default function MatriculasPagosPage({ defaultTab = "matriculas" }) {
         fecha: new Date().toLocaleString("es-PE"),
         estado: "Aprobado",
       };
-      savePagosStorage([nuevoPago, ...pagos]);
+      await pagoService.savePago(nuevoPago);
+      setPagos((current) => [nuevoPago, ...current]);
     }
 
     setModalMatriculaOpen(false);
@@ -453,7 +448,14 @@ export default function MatriculasPagosPage({ defaultTab = "matriculas" }) {
       montoTotal: PROGRAMAS_ACADEMICOS[0].costo,
       primerAbono: 400,
     });
-    showNotification(`¡Matrícula ${nuevoId} registrada con éxito!`);
+    showNotification(`¡Matrícula ${nuevoId} registrada en InsForge!`);
+    if (isNewStudent) {
+      showNotification("Perfil guardado. Crea también la cuenta del estudiante en InsForge Auth para que pueda iniciar sesión.");
+    }
+    } catch (error) {
+      console.error("Error al guardar matrícula:", error);
+      showNotification(`No se pudo guardar la matrícula en InsForge: ${error.message}`);
+    }
   };
 
   // Abrir Modal de Pago para una matrícula específica
@@ -470,7 +472,7 @@ export default function MatriculasPagosPage({ defaultTab = "matriculas" }) {
   };
 
   // Registro de Pago
-  const handleGuardarPago = (e) => {
+  const handleGuardarPago = async (e) => {
     e.preventDefault();
     const montoNum = Number(formPago.monto);
     if (!formPago.matriculaId || !montoNum || montoNum <= 0) {
@@ -498,9 +500,6 @@ export default function MatriculasPagosPage({ defaultTab = "matriculas" }) {
       estado: "Aprobado",
     };
 
-    const nuevosPagos = [nuevoPago, ...pagos];
-    savePagosStorage(nuevosPagos);
-
     // Actualizar matrícula
     const nuevoPagado = mat.montoPagado + montoNum;
     const nuevoSaldo = Math.max(0, mat.montoTotal - nuevoPagado);
@@ -509,23 +508,35 @@ export default function MatriculasPagosPage({ defaultTab = "matriculas" }) {
     const nuevasMatriculas = matriculas.map((m) =>
       m.id === mat.id ? { ...m, montoPagado: nuevoPagado, saldoPendiente: nuevoSaldo, estado: nuevoEstado } : m
     );
-    saveMatriculasStorage(nuevasMatriculas);
-
-    setModalPagoOpen(false);
-    showNotification(`Pago de S/. ${montoNum.toFixed(2)} registrado correctamente.`);
+    try {
+      await pagoService.savePago(nuevoPago);
+      await saveMatriculasStorage(nuevasMatriculas);
+      setPagos((current) => [nuevoPago, ...current]);
+      setModalPagoOpen(false);
+      showNotification(`Pago de S/. ${montoNum.toFixed(2)} registrado en InsForge.`);
+    } catch (error) {
+      console.error("Error al guardar pago:", error);
+      showNotification(`No se pudo completar el pago en InsForge: ${error.message}`);
+    }
   };
 
   // Eliminar Matrícula
-  const handleEliminarMatricula = (id, nombre) => {
+  const handleEliminarMatricula = async (id, nombre) => {
     if (window.confirm(`¿Confirmas la anulación de la matrícula de ${nombre} (${id})?`)) {
-      const filtered = matriculas.filter((m) => m.id !== id);
-      saveMatriculasStorage(filtered);
-      showNotification(`Matrícula ${id} eliminada.`);
+      try {
+        await matriculaService.deleteMatricula(id);
+        setMatriculas((current) => current.filter((matricula) => matricula.id !== id));
+        showNotification(`Matrícula ${id} eliminada de InsForge.`);
+      } catch (error) {
+        console.error("Error al eliminar matrícula:", error);
+        showNotification(`No se pudo eliminar la matrícula: ${error.message}`);
+      }
     }
   };
 
   return (
     <div className="space-y-6">
+      {loadingData && <p className="text-sm text-slate-500">Consultando matrículas y pagos en InsForge...</p>}
       {/* Notificación Toast */}
       {notification && (
         <div className="fixed top-4 right-4 z-50 bg-[#1E3A8A] text-white px-5 py-3 rounded-xl shadow-lg border border-blue-400/40 flex items-center gap-3 animate-fade-in text-sm font-medium">
@@ -585,7 +596,7 @@ export default function MatriculasPagosPage({ defaultTab = "matriculas" }) {
         {/* TARJETAS DE MÉTRICAS / KPIS */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mt-6 pt-6 border-t border-slate-100">
           <div className="bg-slate-50 p-4 rounded-xl border border-slate-200/80">
-            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
+            <span className="text-xs font-bold text-slate-400 uppercase tracking-wider block">
               Total Recaudado (S/.)
             </span>
             <div className="flex items-center justify-between mt-2">
@@ -596,13 +607,13 @@ export default function MatriculasPagosPage({ defaultTab = "matriculas" }) {
                 <DollarSign className="w-5 h-5" />
               </div>
             </div>
-            <span className="text-[11px] text-emerald-600 font-medium mt-1 flex items-center gap-1">
+            <span className="text-xs text-emerald-600 font-medium mt-1 flex items-center gap-1">
               <TrendingUp className="w-3 h-3" /> {pagos.length} transacciones validadas
             </span>
           </div>
 
           <div className="bg-slate-50 p-4 rounded-xl border border-slate-200/80">
-            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
+            <span className="text-xs font-bold text-slate-400 uppercase tracking-wider block">
               Alumnos Matriculados
             </span>
             <div className="flex items-center justify-between mt-2">
@@ -611,13 +622,13 @@ export default function MatriculasPagosPage({ defaultTab = "matriculas" }) {
                 <GraduationCap className="w-5 h-5" />
               </div>
             </div>
-            <span className="text-[11px] text-slate-500 mt-1 block">
+            <span className="text-xs text-slate-500 mt-1 block">
               {matriculasAlDia} al día / {matriculas.length - matriculasAlDia} pendientes
             </span>
           </div>
 
           <div className="bg-slate-50 p-4 rounded-xl border border-slate-200/80">
-            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
+            <span className="text-xs font-bold text-slate-400 uppercase tracking-wider block">
               Saldo Pendiente de Cobro
             </span>
             <div className="flex items-center justify-between mt-2">
@@ -628,11 +639,11 @@ export default function MatriculasPagosPage({ defaultTab = "matriculas" }) {
                 <Clock className="w-5 h-5" />
               </div>
             </div>
-            <span className="text-[11px] text-slate-500 mt-1 block">Por vencer en el ciclo</span>
+            <span className="text-xs text-slate-500 mt-1 block">Por vencer en el ciclo</span>
           </div>
 
           <div className="bg-slate-50 p-4 rounded-xl border border-slate-200/80">
-            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
+            <span className="text-xs font-bold text-slate-400 uppercase tracking-wider block">
               Tasa de Cumplimiento
             </span>
             <div className="flex items-center justify-between mt-2">
@@ -641,7 +652,7 @@ export default function MatriculasPagosPage({ defaultTab = "matriculas" }) {
                 <CheckCircle2 className="w-5 h-5" />
               </div>
             </div>
-            <span className="text-[11px] text-emerald-600 font-medium mt-1 block">Cobranzas al día</span>
+            <span className="text-xs text-emerald-600 font-medium mt-1 block">Cobranzas al día</span>
           </div>
         </div>
       </div>
@@ -735,7 +746,7 @@ export default function MatriculasPagosPage({ defaultTab = "matriculas" }) {
           <div className="overflow-x-auto">
             <table className="w-full text-left border-collapse">
               <thead>
-                <tr className="bg-slate-50/80 border-b border-slate-200 text-[11px] font-bold uppercase tracking-wider text-slate-500">
+                <tr className="bg-slate-50/80 border-b border-slate-200 text-xs font-bold uppercase tracking-wider text-slate-500">
                   <th className="py-3.5 px-4">Código / Fecha</th>
                   <th className="py-3.5 px-4">Estudiante</th>
                   <th className="py-3.5 px-4">Programa / Modalidad</th>
@@ -753,12 +764,12 @@ export default function MatriculasPagosPage({ defaultTab = "matriculas" }) {
                       <tr key={mat.id} className="hover:bg-slate-50/70 transition-colors">
                         <td className="py-3.5 px-4 whitespace-nowrap">
                           <span className="font-bold text-[#1E3A8A] font-mono block">{mat.id}</span>
-                          <span className="text-[11px] text-slate-400">{mat.fechaMatricula}</span>
+                          <span className="text-xs text-slate-400">{mat.fechaMatricula}</span>
                         </td>
 
                         <td className="py-3.5 px-4">
                           <div className="font-bold text-slate-800">{mat.estudiante}</div>
-                          <div className="text-[11px] text-slate-500 flex items-center gap-2">
+                          <div className="text-xs text-slate-500 flex items-center gap-2">
                             <span>DNI: {mat.dni}</span>
                             <span>•</span>
                             <span>{mat.celular}</span>
@@ -767,8 +778,8 @@ export default function MatriculasPagosPage({ defaultTab = "matriculas" }) {
 
                         <td className="py-3.5 px-4">
                           <div className="font-medium text-slate-800">{mat.programa}</div>
-                          <div className="text-[11px] text-slate-500 flex items-center gap-1.5">
-                            <span className="bg-slate-100 px-1.5 py-0.5 rounded text-slate-600 font-mono text-[10px]">
+                          <div className="text-xs text-slate-500 flex items-center gap-1.5">
+                            <span className="bg-slate-100 px-1.5 py-0.5 rounded text-slate-600 font-mono text-xs">
                               {mat.turno}
                             </span>
                             <span>•</span>
@@ -794,7 +805,7 @@ export default function MatriculasPagosPage({ defaultTab = "matriculas" }) {
 
                         <td className="py-3.5 px-4 text-center">
                           <span
-                            className={`inline-block px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider ${
+                            className={`inline-block px-2.5 py-1 rounded-full text-xs font-bold uppercase tracking-wider ${
                               mat.estado === "Pagado Total"
                                 ? "bg-emerald-100 text-emerald-800 border border-emerald-200"
                                 : mat.estado === "Al día"
@@ -862,7 +873,7 @@ export default function MatriculasPagosPage({ defaultTab = "matriculas" }) {
           <div className="overflow-x-auto">
             <table className="w-full text-left border-collapse">
               <thead>
-                <tr className="bg-slate-50/80 border-b border-slate-200 text-[11px] font-bold uppercase tracking-wider text-slate-500">
+                <tr className="bg-slate-50/80 border-b border-slate-200 text-xs font-bold uppercase tracking-wider text-slate-500">
                   <th className="py-3.5 px-4">N° Recibo / Fecha</th>
                   <th className="py-3.5 px-4">Estudiante / Matrícula</th>
                   <th className="py-3.5 px-4">Concepto</th>
@@ -879,12 +890,12 @@ export default function MatriculasPagosPage({ defaultTab = "matriculas" }) {
                     <tr key={pago.id} className="hover:bg-slate-50/70 transition-colors">
                       <td className="py-3.5 px-4 whitespace-nowrap">
                         <span className="font-bold text-slate-800 font-mono block">{pago.comprobante}</span>
-                        <span className="text-[11px] text-slate-400">{pago.fecha}</span>
+                        <span className="text-xs text-slate-400">{pago.fecha}</span>
                       </td>
 
                       <td className="py-3.5 px-4">
                         <div className="font-bold text-slate-800">{pago.estudiante}</div>
-                        <span className="text-[11px] text-[#1E3A8A] font-mono font-medium">
+                        <span className="text-xs text-[#1E3A8A] font-mono font-medium">
                           Ref: {pago.matriculaId}
                         </span>
                       </td>
@@ -892,13 +903,13 @@ export default function MatriculasPagosPage({ defaultTab = "matriculas" }) {
                       <td className="py-3.5 px-4 font-medium text-slate-800">{pago.concepto}</td>
 
                       <td className="py-3.5 px-4">
-                        <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-slate-100 text-slate-700 text-[11px] font-medium">
+                        <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-slate-100 text-slate-700 text-xs font-medium">
                           <CreditCard className="w-3 h-3 text-slate-500" />
                           {pago.metodo}
                         </span>
                       </td>
 
-                      <td className="py-3.5 px-4 font-mono text-slate-600 text-[11px]">
+                      <td className="py-3.5 px-4 font-mono text-slate-600 text-xs">
                         {pago.operacion}
                       </td>
 
@@ -907,7 +918,7 @@ export default function MatriculasPagosPage({ defaultTab = "matriculas" }) {
                       </td>
 
                       <td className="py-3.5 px-4 text-center">
-                        <span className="inline-block px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider bg-emerald-100 text-emerald-800 border border-emerald-200">
+                        <span className="inline-block px-2.5 py-1 rounded-full text-xs font-bold uppercase tracking-wider bg-emerald-100 text-emerald-800 border border-emerald-200">
                           {pago.estado}
                         </span>
                       </td>
@@ -965,7 +976,7 @@ export default function MatriculasPagosPage({ defaultTab = "matriculas" }) {
                     <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
                       Estudiante *
                     </label>
-                    <p className="text-[11px] text-slate-500">Busca por nombre, DNI o correo.</p>
+                    <p className="text-xs text-slate-500">Busca por nombre, DNI o correo.</p>
                   </div>
                   <button
                     type="button"
@@ -975,7 +986,7 @@ export default function MatriculasPagosPage({ defaultTab = "matriculas" }) {
                       setStudentSearch("");
                       setFormMatricula({ ...formMatricula, estudiante: "", dni: "", correo: "", celular: "" });
                     }}
-                    className="text-[11px] font-semibold text-[#1E3A8A] hover:underline cursor-pointer"
+                    className="text-xs font-semibold text-[#1E3A8A] hover:underline cursor-pointer"
                   >
                     Registrar nuevo
                   </button>
@@ -1004,10 +1015,10 @@ export default function MatriculasPagosPage({ defaultTab = "matriculas" }) {
                           className={`w-full text-left px-3 py-2 rounded-lg border text-xs transition-colors cursor-pointer ${selectedStudentId === student.id ? "border-blue-400 bg-blue-50" : "border-slate-200 bg-white hover:border-blue-300"}`}
                         >
                           <span className="font-semibold text-slate-800">{student.nombres} {student.apellidos}</span>
-                          <span className="block text-[11px] text-slate-500">DNI: {student.dni} · {student.correo}</span>
+                          <span className="block text-xs text-slate-500">DNI: {student.dni} · {student.correo}</span>
                         </button>
                       ))}
-                      {!matchingStudents.length && <p className="text-[11px] text-slate-400 py-2">No se encontró un estudiante. Usa “Registrar nuevo”.</p>}
+                      {!matchingStudents.length && <p className="text-xs text-slate-400 py-2">No se encontró un estudiante. Usa “Registrar nuevo”.</p>}
                     </div>
                   </>
                 ) : (
@@ -1033,7 +1044,7 @@ export default function MatriculasPagosPage({ defaultTab = "matriculas" }) {
                 )}
 
                 {selectedStudentId && (
-                  <div className="flex items-center justify-between rounded-lg bg-emerald-50 border border-emerald-200 px-3 py-2 text-[11px] text-emerald-800">
+                  <div className="flex items-center justify-between rounded-lg bg-emerald-50 border border-emerald-200 px-3 py-2 text-xs text-emerald-800">
                     <span>Estudiante seleccionado: <strong>{formMatricula.estudiante}</strong></span>
                     <button type="button" onClick={resetStudentSelection} className="font-semibold hover:underline cursor-pointer">Cambiar</button>
                   </div>
@@ -1128,7 +1139,7 @@ export default function MatriculasPagosPage({ defaultTab = "matriculas" }) {
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 bg-slate-50 p-3.5 rounded-xl border border-slate-200">
                 <div>
-                  <label className="block text-[11px] font-bold text-slate-600 uppercase mb-1">
+                  <label className="block text-xs font-bold text-slate-600 uppercase mb-1">
                     Costo Total del Ciclo
                   </label>
                   <div className="relative">
@@ -1143,7 +1154,7 @@ export default function MatriculasPagosPage({ defaultTab = "matriculas" }) {
                 </div>
 
                 <div>
-                  <label className="block text-[11px] font-bold text-slate-600 uppercase mb-1">
+                  <label className="block text-xs font-bold text-slate-600 uppercase mb-1">
                     Abono Inicial en Matrícula
                   </label>
                   <div className="relative">
@@ -1331,7 +1342,7 @@ export default function MatriculasPagosPage({ defaultTab = "matriculas" }) {
           <div className="bg-white rounded-2xl shadow-2xl border border-slate-200 w-full max-w-2xl overflow-hidden animate-scale-up my-8">
             <div className="bg-[#1E3A8A] text-white p-6 flex items-center justify-between">
               <div>
-                <span className="text-[10px] font-mono tracking-widest text-amber-300 font-bold uppercase">
+                <span className="text-xs font-mono tracking-widest text-amber-300 font-bold uppercase">
                   Academia Pre - Expediente Digital
                 </span>
                 <h3 className="text-xl font-bold mt-0.5">Constancia y Ficha de Matrícula</h3>
@@ -1349,23 +1360,23 @@ export default function MatriculasPagosPage({ defaultTab = "matriculas" }) {
               {/* Datos del Alumno */}
               <div className="bg-slate-50 p-4 rounded-xl border border-slate-200 grid grid-cols-2 md:grid-cols-3 gap-3 text-xs">
                 <div>
-                  <span className="text-slate-400 block text-[10px] uppercase font-bold">Estudiante</span>
+                  <span className="text-slate-400 block text-xs uppercase font-bold">Estudiante</span>
                   <span className="font-bold text-slate-800">{fichaMatricula.estudiante}</span>
                 </div>
                 <div>
-                  <span className="text-slate-400 block text-[10px] uppercase font-bold">DNI</span>
+                  <span className="text-slate-400 block text-xs uppercase font-bold">DNI</span>
                   <span className="font-semibold text-slate-700">{fichaMatricula.dni}</span>
                 </div>
                 <div>
-                  <span className="text-slate-400 block text-[10px] uppercase font-bold">Celular</span>
+                  <span className="text-slate-400 block text-xs uppercase font-bold">Celular</span>
                   <span className="text-slate-700">{fichaMatricula.celular}</span>
                 </div>
                 <div className="col-span-2">
-                  <span className="text-slate-400 block text-[10px] uppercase font-bold">Programa</span>
+                  <span className="text-slate-400 block text-xs uppercase font-bold">Programa</span>
                   <span className="font-semibold text-[#1E3A8A]">{fichaMatricula.programa}</span>
                 </div>
                 <div>
-                  <span className="text-slate-400 block text-[10px] uppercase font-bold">Turno</span>
+                  <span className="text-slate-400 block text-xs uppercase font-bold">Turno</span>
                   <span className="text-slate-700">{fichaMatricula.turno}</span>
                 </div>
               </div>
@@ -1377,19 +1388,19 @@ export default function MatriculasPagosPage({ defaultTab = "matriculas" }) {
                 </h4>
                 <div className="grid grid-cols-3 gap-3">
                   <div className="p-3 rounded-xl bg-slate-100 border border-slate-200 text-center">
-                    <span className="text-[10px] font-bold text-slate-500 uppercase block">Costo Total</span>
+                    <span className="text-xs font-bold text-slate-500 uppercase block">Costo Total</span>
                     <span className="text-base font-extrabold text-slate-800">
                       S/. {fichaMatricula.montoTotal.toFixed(2)}
                     </span>
                   </div>
                   <div className="p-3 rounded-xl bg-emerald-50 border border-emerald-200 text-center">
-                    <span className="text-[10px] font-bold text-emerald-700 uppercase block">Total Abonado</span>
+                    <span className="text-xs font-bold text-emerald-700 uppercase block">Total Abonado</span>
                     <span className="text-base font-extrabold text-emerald-700">
                       S/. {fichaMatricula.montoPagado.toFixed(2)}
                     </span>
                   </div>
                   <div className="p-3 rounded-xl bg-amber-50 border border-amber-200 text-center">
-                    <span className="text-[10px] font-bold text-amber-700 uppercase block">Saldo Pendiente</span>
+                    <span className="text-xs font-bold text-amber-700 uppercase block">Saldo Pendiente</span>
                     <span className="text-base font-extrabold text-amber-700">
                       S/. {fichaMatricula.saldoPendiente.toFixed(2)}
                     </span>
@@ -1404,7 +1415,7 @@ export default function MatriculasPagosPage({ defaultTab = "matriculas" }) {
                 </h4>
                 <div className="border border-slate-200 rounded-xl overflow-hidden">
                   <table className="w-full text-left text-xs">
-                    <thead className="bg-slate-50 text-[10px] font-bold text-slate-500 uppercase border-b border-slate-200">
+                    <thead className="bg-slate-50 text-xs font-bold text-slate-500 uppercase border-b border-slate-200">
                       <tr>
                         <th className="p-2.5">Comprobante</th>
                         <th className="p-2.5">Concepto</th>
@@ -1419,7 +1430,7 @@ export default function MatriculasPagosPage({ defaultTab = "matriculas" }) {
                           <tr key={p.id}>
                             <td className="p-2.5 font-mono text-slate-700">{p.comprobante}</td>
                             <td className="p-2.5 text-slate-800">{p.concepto}</td>
-                            <td className="p-2.5 text-slate-500 text-[11px]">{p.fecha}</td>
+                            <td className="p-2.5 text-slate-500 text-xs">{p.fecha}</td>
                             <td className="p-2.5 text-right font-bold text-emerald-600">
                               S/. {Number(p.monto).toFixed(2)}
                             </td>
@@ -1483,7 +1494,7 @@ export default function MatriculasPagosPage({ defaultTab = "matriculas" }) {
               <div className="w-12 h-12 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mx-auto mb-2">
                 <Check className="w-6 h-6" />
               </div>
-              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block">
+              <span className="text-xs font-bold text-slate-500 uppercase tracking-widest block">
                 Comprobante Electrónico
               </span>
               <h3 className="text-xl font-extrabold text-slate-800">{reciboPago.comprobante}</h3>

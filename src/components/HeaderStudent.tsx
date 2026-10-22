@@ -8,7 +8,7 @@ export default function HeaderStudent({ studentName }) {
       <div className="relative z-10">
         <div className="inline-flex items-center space-x-2 px-3 py-1 rounded-full bg-blue-500/20 text-blue-200 border border-blue-400/30 text-xs font-semibold mb-3">
           <Sparkles className="w-3.5 h-3.5 text-amber-300" />
-          <span>Panel del Estudiante • SCRM-30</span>
+          <span>Panel del Estudiante</span>
         </div>
         <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight">
           ¡Hola, {studentName}! 🚀

@@ -16,7 +16,7 @@ import DocumentPreviewModal from "../../components/admin/DocumentPreview";
 import Notification from "../../components/admin/Notification";
 
 export default function ControlAsistenciasPage() {
-    const { incidents, updateIncidentStatus } = useTeacherIncidents();
+    const { incidents, updateIncidentStatus, loading, error } = useTeacherIncidents();
     const [filterType, setFilterType] = useState("TODOS");
     const [selectedFile, setSelectedFile] = useState(null);
     const [notification, setNotification] = useState(null);
@@ -26,9 +26,13 @@ export default function ControlAsistenciasPage() {
         setTimeout(() => setNotification(null), 3500);
     };
 
-    const handleAction = (id, status) => {
-        updateIncidentStatus(id, status);
-        showNotification(`Justificación marcada como: ${status}`);
+    const handleAction = async (id, status) => {
+        try {
+            await updateIncidentStatus(id, status);
+            showNotification(`Justificación marcada como: ${status}`);
+        } catch (err) {
+            showNotification(`No se pudo actualizar la incidencia en InsForge: ${err.message}`);
+        }
     };
 
     const pendingCount = incidents.filter(i => i.estado === "Pendiente").length;
@@ -44,6 +48,8 @@ export default function ControlAsistenciasPage() {
             {notification && (
                 <Notification message={notification} onClose={() => setNotification(null)} />
             )}
+            {loading && <p className="text-sm text-slate-500">Consultando incidencias en InsForge...</p>}
+            {error && <p role="alert" className="rounded-lg border border-red-300 bg-red-50 p-3 text-sm text-red-700">{error}</p>}
 
             {/* BANNER SUPERIOR */}
             <div className="bg-white/60 dark:bg-white/5 backdrop-blur-2xl p-6 rounded-2xl border border-slate-200 dark:border-white/10 shadow-xs">
@@ -81,39 +87,39 @@ export default function ControlAsistenciasPage() {
                 {/* TARJETAS DE MÉTRICAS */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mt-6 pt-6 border-t border-slate-100 dark:border-white/10">
                     <div className="bg-white/60 dark:bg-white/5 backdrop-blur-2xl p-4 rounded-xl border border-slate-200/80 dark:border-white/10">
-                        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Docentes Conectados</span>
+                        <span className="text-xs font-bold text-slate-400 uppercase tracking-wider block">Docentes Conectados</span>
                         <div className="flex items-center justify-between mt-2">
                             <span className="text-xl font-extrabold text-slate-800 dark:text-white">28 / 30 activos</span>
                             <Users className="w-5 h-5 text-blue-600 dark:text-blue-400" />
                         </div>
-                        <span className="text-[11px] text-emerald-600 dark:text-emerald-400 font-medium mt-1 block">93.3% puntualidad general</span>
+                        <span className="text-xs text-emerald-600 dark:text-emerald-400 font-medium mt-1 block">93.3% puntualidad general</span>
                     </div>
 
                     <div className="bg-white/60 dark:bg-white/5 backdrop-blur-2xl p-4 rounded-xl border border-slate-200/80 dark:border-white/10">
-                        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Tardanzas Registradas</span>
+                        <span className="text-xs font-bold text-slate-400 uppercase tracking-wider block">Tardanzas Registradas</span>
                         <div className="flex items-center justify-between mt-2">
                             <span className="text-xl font-extrabold text-slate-800 dark:text-white">{incidents.filter(i => i.tipo.includes("Tardanza")).length} incidencias</span>
                             <Clock className="w-5 h-5 text-amber-500" />
                         </div>
-                        <span className="text-[11px] text-slate-500 dark:text-slate-400 mt-1 block">Promedio retraso: 12.5 min</span>
+                        <span className="text-xs text-slate-500 dark:text-slate-400 mt-1 block">Promedio retraso: 12.5 min</span>
                     </div>
 
                     <div className="bg-white/60 dark:bg-white/5 backdrop-blur-2xl p-4 rounded-xl border border-slate-200/80 dark:border-white/10">
-                        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Aulas en Funcionamiento</span>
+                        <span className="text-xs font-bold text-slate-400 uppercase tracking-wider block">Aulas en Funcionamiento</span>
                         <div className="flex items-center justify-between mt-2">
                             <span className="text-xl font-extrabold text-slate-800 dark:text-white">12 / 12 salas</span>
                             <ShieldCheck className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
                         </div>
-                        <span className="text-[11px] text-emerald-600 dark:text-emerald-400 font-medium mt-1 block">Zoom & Meet sincronizados</span>
+                        <span className="text-xs text-emerald-600 dark:text-emerald-400 font-medium mt-1 block">Zoom & Meet sincronizados</span>
                     </div>
 
                     <div className="bg-amber-50/70 dark:bg-amber-900/20 backdrop-blur-2xl p-4 rounded-xl border border-amber-200 dark:border-amber-500/30">
-                        <span className="text-[10px] font-bold text-amber-700 dark:text-amber-500 uppercase tracking-wider block">Casos por Validar</span>
+                        <span className="text-xs font-bold text-amber-700 dark:text-amber-500 uppercase tracking-wider block">Casos por Validar</span>
                         <div className="flex items-center justify-between mt-2">
                             <span className="text-xl font-extrabold text-amber-900 dark:text-amber-400">{pendingCount} pendientes</span>
                             <AlertTriangle className="w-5 h-5 text-amber-600 dark:text-amber-400 animate-pulse" />
                         </div>
-                        <span className="text-[11px] text-amber-700 dark:text-amber-500 mt-1 block">Requiere revisión administrativa</span>
+                        <span className="text-xs text-amber-700 dark:text-amber-500 mt-1 block">Requiere revisión administrativa</span>
                     </div>
                 </div>
             </div>
@@ -169,13 +175,13 @@ export default function ControlAsistenciasPage() {
                                 <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                                     <div className="space-y-2 flex-1">
                                         <div className="flex flex-wrap items-center gap-2">
-                                            <span className={`px-2.5 py-0.5 rounded-full text-[11px] font-bold border ${inc.tipo.includes("Tardanza")
+                                            <span className={`px-2.5 py-0.5 rounded-full text-xs font-bold border ${inc.tipo.includes("Tardanza")
                                                     ? "bg-amber-100 dark:bg-amber-900/30 text-amber-800 dark:text-amber-400 border-amber-200 dark:border-amber-500/30"
                                                     : "bg-rose-100 dark:bg-rose-900/30 text-rose-800 dark:text-rose-400 border-rose-200 dark:border-rose-500/30"
                                                 }`}>
                                                 {inc.tipo}
                                             </span>
-                                            <span className="px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-blue-100 dark:bg-blue-900/30 text-[#1E3A8A] dark:text-blue-400 border border-blue-200 dark:border-blue-500/30">
+                                            <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-blue-100 dark:bg-blue-900/30 text-[#1E3A8A] dark:text-blue-400 border border-blue-200 dark:border-blue-500/30">
                                                 Docente Titular
                                             </span>
                                             <span className="text-xs font-bold text-slate-900 dark:text-white">{inc.docente}</span>
@@ -189,13 +195,13 @@ export default function ControlAsistenciasPage() {
 
                                         <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pt-2 text-xs">
                                             <div className="p-3 bg-slate-50 dark:bg-white/5 backdrop-blur-2xl rounded-xl border border-slate-200 dark:border-white/10">
-                                                <span className="text-[10px] uppercase font-bold text-slate-400 dark:text-slate-500 block mb-0.5">Materia y horario asignado:</span>
+                                                <span className="text-xs uppercase font-bold text-slate-400 dark:text-slate-500 block mb-0.5">Materia y horario asignado:</span>
                                                 <strong className="text-slate-800 dark:text-white block">{inc.materia}</strong>
                                                 <span className="text-slate-600 dark:text-slate-400">{inc.horario}</span>
                                             </div>
 
                                             <div className="p-3 bg-blue-50/40 dark:bg-blue-900/20 backdrop-blur-2xl rounded-xl border border-blue-100 dark:border-blue-500/30">
-                                                <span className="text-[10px] uppercase font-bold text-blue-600 dark:text-blue-400 block mb-0.5">Motivo del Docente:</span>
+                                                <span className="text-xs uppercase font-bold text-blue-600 dark:text-blue-400 block mb-0.5">Motivo del Docente:</span>
                                                 <p className="text-slate-700 dark:text-slate-300 italic leading-relaxed">"{inc.motivo}"</p>
                                             </div>
                                         </div>
@@ -207,7 +213,7 @@ export default function ControlAsistenciasPage() {
                                             >
                                                 <FileText className="w-3.5 h-3.5 text-rose-600 dark:text-rose-400" />
                                                 <span>{inc.archivoNombre}</span>
-                                                <span className="text-[10px] text-blue-600 dark:text-blue-400 font-bold ml-1">(Ver Documento)</span>
+                                                <span className="text-xs text-blue-600 dark:text-blue-400 font-bold ml-1">(Ver Documento)</span>
                                             </button>
                                         </div>
                                     </div>

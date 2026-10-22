@@ -10,17 +10,20 @@ import {
   Clock
 } from "lucide-react";
 import ThemeToggle from "./ThemeToggle";
+import { signOutFromApp } from "../services/session";
 
 export default function StudentLayout() {
   const navigate = useNavigate();
   const studentName = localStorage.getItem("userName") || "Juan Carlos Flores";
   const studentEmail = localStorage.getItem("userEmail") || "j.flores@academia.edu.pe";
 
-  const handleLogout = () => {
-    localStorage.removeItem("userRole");
-    localStorage.removeItem("userName");
-    localStorage.removeItem("userEmail");
-    navigate("/login");
+  const handleLogout = async () => {
+    try {
+      await signOutFromApp();
+      navigate("/login");
+    } catch (error) {
+      window.alert(error.message);
+    }
   };
 
   return (
@@ -38,7 +41,7 @@ export default function StudentLayout() {
                 <span className="font-extrabold text-base text-slate-800 dark:text-white tracking-tight">
                   Academia Pre
                 </span>
-                <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 dark:bg-emerald-900/40 text-emerald-800 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800">
+                <span className="px-2 py-0.5 rounded-full text-xs font-bold bg-emerald-100 dark:bg-emerald-900/40 text-emerald-800 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800">
                   Campus Virtual
                 </span>
               </div>
@@ -55,7 +58,7 @@ export default function StudentLayout() {
             <div className="flex items-center space-x-2 sm:space-x-3 text-right">
               <div className="hidden sm:block">
                 <div className="text-xs font-bold text-slate-800 dark:text-white">{studentName}</div>
-                <div className="text-[11px] text-slate-500 dark:text-slate-400">{studentEmail}</div>
+                <div className="text-xs text-slate-500 dark:text-slate-400">{studentEmail}</div>
               </div>
               <div className="w-9 h-9 rounded-full bg-emerald-600 text-white flex items-center justify-center font-bold text-sm shadow-xs border-2 border-emerald-200 dark:border-emerald-800">
                 JC
@@ -83,7 +86,7 @@ export default function StudentLayout() {
 
       {/* FOOTER */}
       <footer className="bg-white dark:bg-white/5 dark:backdrop-blur-2xl border-t border-slate-200 dark:border-white/10 py-4 text-center text-xs text-slate-500 dark:text-slate-400 transition-colors duration-500">
-        <p>© 2026 Plataforma Educativa Preuniversitaria — Requerimiento SCRM-30</p>
+        <p>© 2026 Plataforma Educativa Preuniversitaria. Todos los derechos reservados.</p>
       </footer>
     </div>
   );
