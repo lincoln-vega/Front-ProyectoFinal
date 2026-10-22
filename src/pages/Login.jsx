@@ -47,7 +47,7 @@ export default function Login() {
       
       localStorage.setItem("userRole", role);
       localStorage.setItem("userName", name || foundUser.correo);
-      localStorage.setItem("userEmail", foundUser.correo || authData.user.email);
+      localStorage.setItem("userEmail", foundUser.correo || trimmedEmail);
       localStorage.setItem("userId", foundUser.id || "1");
       localStorage.setItem("user", JSON.stringify(foundUser));
       localStorage.setItem("usuarioLogueado", JSON.stringify(foundUser));
