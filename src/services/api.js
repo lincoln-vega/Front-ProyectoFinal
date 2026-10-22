@@ -1,4 +1,5 @@
 import { insforge } from "../lib/insforge";
+export { courseService } from "./cursosServices";
 import { courseService } from "./cursosServices";
 
 const SYSTEM_ROLES = ["Admin", "Docente", "Estudiante"];

@@ -87,6 +87,7 @@ export default function AdminUsersPage() {
     const isEditing = Boolean(editingUserId);
     try {
       await saveUser(formData, editingUserId);
+      showNotification(isEditing ? "Usuario actualizado correctamente." : "Perfil guardado en InsForge. Crea también su cuenta en InsForge Auth para que pueda iniciar sesión.");
       showNotification(isEditing ? "Usuario actualizado correctamente." : "Usuario registrado correctamente.");
       closeModal();
     } catch (err) {
@@ -127,6 +128,7 @@ export default function AdminUsersPage() {
               </h2>
             </div>
             <p className="text-xs text-slate-500 mt-1">
+              Administración de matrículas, docentes y personal académico conectada a InsForge.
               Administración general de estudiantes, docentes y personal académico.
             </p>
           </div>
