@@ -63,15 +63,13 @@ export default function DocenteDashboardPage() {
           setTotalEstudiantes(studentCount);
         }
 
-        // 3. Buscar información adicional de nómina/especialidad en localStorage si existe
-        const stored = localStorage.getItem("docentesData");
-        if (stored && !cancelled) {
+                // 3. Consultar datos de perfil desde InsForge
+        if (userEmail && !cancelled) {
           try {
-            const docentes = JSON.parse(stored);
-            const mine = docentes.find((d) => d.nombre === userName);
-            if (mine) setDocenteData(mine);
-          } catch {
-            // Ignorar error de parsing local
+            const profile = await userService.getUserByEmail(userEmail);
+            if (profile) setDocenteData(profile);
+          } catch (profileErr) {
+            console.warn("[DocenteDashboard] No se pudo obtener perfil detallado:", profileErr);
           }
         }
       } catch (err) {

@@ -12,7 +12,7 @@ import {
 } from "lucide-react";
 import { userService } from "../../services/api";
 
-const TEACHER_PROFILE_KEY = "academia_teacher_profiles";
+// Persistencia directa en InsForge (users.salario)
 
 const splitFullName = (fullName) => {
   const parts = fullName.trim().split(/\s+/);
@@ -45,7 +45,6 @@ export default function DocentesPage() {
       try {
         setLoading(true);
         setError("");
-        const savedProfiles = JSON.parse(localStorage.getItem(TEACHER_PROFILE_KEY) || "{}");
         const allUsers = await userService.getUsers();
 
         if (cancelled) return;
@@ -61,16 +60,14 @@ export default function DocentesPage() {
           nombre: `${user.nombres || ""} ${user.apellidos || ""}`.trim() || user.correo || "Docente",
           documento: user.dni || "N/A",
           especialidad: user.carreraObjetivo || user.areaAcademica || "Sin especialidad asignada",
-          salario: Number(savedProfiles[user.id]?.salario || 0),
-          incidencias: savedProfiles[user.id]?.incidencias || [],
+          salario: Number(user.salario || 0),
+          incidencias: [],
           estado: user.estado || "Activo"
         }));
 
         setUsers(allUsers || []);
         setDocentes(initialData);
-        localStorage.setItem(TEACHER_PROFILE_KEY, JSON.stringify(
-          Object.fromEntries(initialData.map(({ id, userId, salario, incidencias }) => [userId || id, { salario, incidencias }]))
-        ));
+        // Sincronizado con InsForge
       } catch (err) {
         if (!cancelled) {
           console.error("Error al cargar docentes desde InsForge:", err);
@@ -87,15 +84,7 @@ export default function DocentesPage() {
     return () => { cancelled = true; };
   }, []);
 
-  const saveToStorage = (data) => {
-    setDocentes(data);
-    localStorage.setItem(TEACHER_PROFILE_KEY, JSON.stringify(
-      Object.fromEntries(data.map((docente) => [docente.userId || docente.id, {
-        salario: docente.salario,
-        incidencias: docente.incidencias
-      }]))
-    ));
-  };
+  const saveToStorage = (data) => { setDocentes(data); };
 
   const handleOpenModal = (docente = null) => {
     if (docente) {
@@ -136,6 +125,7 @@ export default function DocentesPage() {
             apellidos: name.apellidos,
             dni: documento,
             carreraObjetivo: especialidad,
+            salario: Number(salario) || 0,
             estado: currentDocente.estado
           });
           setUsers((current) => current.map((item) => item.id === savedUser.id ? savedUser : item));
@@ -170,6 +160,7 @@ export default function DocentesPage() {
         correo: `${newUserId.toLowerCase()}@academia.edu.pe`,
         celular: "",
         carreraObjetivo: especialidad,
+        salario: Number(salario) || 0,
         rol: "docente",
         estado: "Activo"
       };

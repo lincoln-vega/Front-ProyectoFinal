@@ -1,56 +1,34 @@
+import { saveAttendanceRecord } from '../../services/asistencia';
 import React from "react";
 import { Video, ExternalLink } from "lucide-react";
 
 export default function MeetModalPage({ course, onClose }) {
   if (!course) return null;
 
-  const handleOpenMeet = () => {
+  const handleOpenMeet = async () => {
     const now = new Date();
-    
-    // 1. Formato de fecha desglosado
-    const day = String(now.getDate()).padStart(2, '0');
-    const month = String(now.getMonth() + 1).padStart(2, '0');
-    const year = now.getFullYear();
-    
-    // 2. Formato de hora en 24 horas desglosado
     const hours = String(now.getHours()).padStart(2, '0');
     const minutes = String(now.getMinutes()).padStart(2, '0');
-    const seconds = String(now.getSeconds()).padStart(2, '0');
 
-    // Obtener el usuario actual
-    const usuarioActual = localStorage.getItem("userName") || "Juan Carlos Flores";
+    const usuarioActual = localStorage.getItem("userName") || "Estudiante";
+    const userId = localStorage.getItem("userId") || "USR-005";
 
-    // 3. Crear el objeto con la estructura exacta que necesitas
-    const nuevoRegistroAsistencia = {
-      usuario: usuarioActual,
-      curso: course.materia,
-      docente: course.docente,
-      fecha: {
-        dia: day,
-        mes: month,
-        anio: year,
-        formatoCompleto: `${day}/${month}/${year}`
-      },
-      tiempo: {
-        horas: hours,
-        minutos: minutes,
-        segundos: seconds,
-        formatoCompleto: `${hours}:${minutes}:${seconds}`
-      },
-      timestamp: now.getTime()
-    };
+    try {
+      await saveAttendanceRecord({
+        cursoId: course.id || course.cursoId || "CRS-001",
+        curso: course.materia || course.nombre || "Clase Virtual",
+        docente: course.docente || "Docente a cargo",
+        docenteId: course.docenteId || "USR-002",
+        estudianteId: userId,
+        estudiante: usuarioActual,
+        horaRegistro: `${hours}:${minutes}`
+      });
+      console.log("[InsForge] Asistencia registrada exitosamente en backend para:", usuarioActual);
+    } catch (err) {
+      console.error("[InsForge] Error al registrar asistencia:", err);
+    }
 
-    console.log("[ACCESO MEET] Registrando asistencia:", nuevoRegistroAsistencia);
-
-    // 4. Guardar en localStorage
-    const asistenciasGuardadas = JSON.parse(localStorage.getItem("db_studentAttendance_extra") || "[]");
-    asistenciasGuardadas.unshift(nuevoRegistroAsistencia);
-    localStorage.setItem("db_studentAttendance_extra", JSON.stringify(asistenciasGuardadas));
-
-    // 5. Cerrar modal
     onClose();
-
-    // 6. Abrir Google Meet en una pestaña nueva
     window.open(course.meetUrl, "_blank", "noopener,noreferrer");
   };
 

@@ -40,9 +40,9 @@ export default function HorariosView() {
   const [error, setError] = useState("");
 
   // Obtener las credenciales exactamente igual que DocenteCursosPage
-  const userId = localStorage.getItem('userId') || 'USR-002';
-  const userName = localStorage.getItem('userName') || 'Prof. Carmen Rosa Herrera';
-  const userEmail = localStorage.getItem('userEmail') || 'carmen.herrera@universidad.edu';
+  const userId = localStorage.getItem('userId') || '';
+  const userName = localStorage.getItem('userName') || 'Docente';
+  const userEmail = localStorage.getItem('userEmail') || '';
 
   useEffect(() => {
     let cancelled = false;

@@ -99,16 +99,63 @@ export async function getStoredAttendances() {
 }
 
 export async function saveAttendanceRecord(record) {
-  const { error } = await insforge.functions.invoke("marcar-asistencia", {
-    body: {
-      sesion_id: record.sesion_id || "ATT-SES-001",
-      estudianteId: record.estudianteId || record.id || "USR-005",
-      estudiante: record.estudiante || record.nombre || "Estudiante",
-      horaRegistro: record.horaRegistro || record.hora || new Date().toTimeString().slice(0, 5)
+  try {
+    const { data, error } = await insforge.functions.invoke("marcar-asistencia", {
+      body: {
+        sesion_id: record.sesion_id || record.sesionId || "ATT-SES-001",
+        estudianteId: record.estudianteId || record.id || "USR-005",
+        estudiante: record.estudiante || record.nombre || "Estudiante",
+        horaRegistro: record.horaRegistro || record.hora || new Date().toTimeString().slice(0, 5)
+      }
+    });
+    if (!error) return data || record;
+  } catch (err) {
+    console.warn("[InsForge] Fallback a tabla attendance_sessions:", err);
+  }
+
+  const cursoId = record.cursoId || record.curso_id || "CRS-001";
+  const sessionDate = new Date().toISOString().split("T")[0];
+  const alumnoData = {
+    id: record.estudianteId || record.id || "USR-005",
+    nombre: record.estudiante || record.nombre || "Estudiante",
+    hora: record.horaRegistro || new Date().toTimeString().slice(0, 5)
+  };
+
+  const { data: activeSessions } = await insforge.database
+    .from("attendance_sessions")
+    .select(ATTENDANCE_COLUMNS)
+    .eq("cursoId", cursoId)
+    .order("created_at", { ascending: false })
+    .limit(1);
+
+  if (activeSessions && activeSessions.length > 0) {
+    const currentSession = activeSessions[0];
+    const puntuales = Array.isArray(currentSession.asistentesPuntuales) ? [...currentSession.asistentesPuntuales] : [];
+    if (!puntuales.some((p) => p.id === alumnoData.id)) {
+      puntuales.push(alumnoData);
+      await insforge.database
+        .from("attendance_sessions")
+        .update({ asistentesPuntuales: puntuales })
+        .eq("id", currentSession.id);
     }
-  });
-  throwIfError(error, "marcar asistencia con InsForge");
-  return record;
+    return currentSession;
+  } else {
+    const nuevaSesion = {
+      id: `ATT-${cursoId}-${Date.now().toString().slice(-6)}`,
+      cursoId,
+      asignatura: record.curso || record.asignatura || "Clase Virtual",
+      docenteId: record.docenteId || "USR-002",
+      docente: record.docente || "Docente a cargo",
+      fecha: sessionDate,
+      horaApertura: new Date().toTimeString().slice(0, 5),
+      modalidad: "Virtual",
+      asistentesPuntuales: [alumnoData],
+      tardanzas: [],
+      ausentes: []
+    };
+    await insforge.database.from("attendance_sessions").insert([nuevaSesion]);
+    return nuevaSesion;
+  }
 }
 
 export async function getTeacherAttendances(docenteId, fecha) {

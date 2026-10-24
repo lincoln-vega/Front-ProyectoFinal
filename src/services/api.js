@@ -18,7 +18,8 @@ const USER_COLUMNS = [
   "cursosAsignados",
   "cursosInscritos",
   "created_at",
-  "ciclovirtual"
+  "ciclovirtual",
+  "salario"
 ].join(", ");
 
 const normalizeUser = (user) => {
@@ -26,6 +27,7 @@ const normalizeUser = (user) => {
   const ciclo = user.cicloVirtual || user.ciclovirtual || "Semestral";
   return {
     ...user,
+    salario: Number(user.salario || 0),
     cicloVirtual: ciclo,
     ciclovirtual: ciclo,
     carreraObjetivo: user.carreraObjetivo || user.areaAcademica || "General",
@@ -112,23 +114,9 @@ export const userService = {
 };
 
 export const roleService = {
-  getRoles: () => {
-    const saved = localStorage.getItem("app_roles");
-    if (!saved) return SYSTEM_ROLES;
-    try {
-      const roles = JSON.parse(saved)
-        .map((role) => String(role).trim())
-        .filter((role) => SYSTEM_ROLES.includes(role));
-      return roles.length ? roles : SYSTEM_ROLES;
-    } catch {
-      return SYSTEM_ROLES;
-    }
-  },
-  saveRoles: (roles) => localStorage.setItem("app_roles", JSON.stringify(roles)),
-  resetRoles: () => {
-    localStorage.setItem("app_roles", JSON.stringify(SYSTEM_ROLES));
-    return SYSTEM_ROLES;
-  }
+  getRoles: () => SYSTEM_ROLES,
+  saveRoles: (roles) => roles,
+  resetRoles: () => SYSTEM_ROLES
 };
 
 export const incidentService = {
