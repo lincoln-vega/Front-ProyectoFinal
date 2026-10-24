@@ -655,7 +655,7 @@ export default function MatriculasPagosPage({ defaultTab = "matriculas" }) {
               className="inline-flex items-center space-x-2 px-4 py-2 bg-[#1E3A8A] hover:bg-blue-800 text-white rounded-xl text-xs font-semibold shadow-xs transition-colors cursor-pointer"
             >
               <Plus className="w-4 h-4 text-amber-300" />
-              <span>+ Nueva Matrícula</span>
+              <span>Nueva Matrícula</span>
             </button>
           </div>
         </div>

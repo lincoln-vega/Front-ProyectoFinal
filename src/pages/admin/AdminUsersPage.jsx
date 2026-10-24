@@ -80,7 +80,7 @@ export default function AdminUsersPage() {
   const handleSubmitForm = async (event) => {
     event.preventDefault();
     if (!formData.apellidos || !formData.nombres || !formData.dni) {
-      window.alert("Por favor complete los campos obligatorios (Nombres, Apellidos, DNI).");
+      showNotification("Por favor complete los campos obligatorios (Nombres, Apellidos, DNI).");
       return;
     }
 

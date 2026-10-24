@@ -25,9 +25,10 @@ const USER_COLUMNS = [
 const normalizeUser = (user) => {
   if (!user) return user;
   const ciclo = user.cicloVirtual || user.ciclovirtual || "Semestral";
+  const isTeacher = ["docente", "profesor", "profesora"].includes(String(user.rol || "").toLowerCase());
   return {
     ...user,
-    salario: Number(user.salario || 0),
+    salario: Number(user.salario) > 0 ? Number(user.salario) : (isTeacher ? 3200 : 0),
     cicloVirtual: ciclo,
     ciclovirtual: ciclo,
     carreraObjetivo: user.carreraObjetivo || user.areaAcademica || "General",
@@ -67,9 +68,9 @@ export const userService = {
     return data?.[0] ? normalizeUser(data[0]) : null;
   },
 
-  async saveUsers(users) {
-    const safeUsers = users.map(({ password, created_at, ...user }) => {
-      const ciclo = user.cicloVirtual || user.ciclovirtual || "Semestral";
+    async saveUsers(users) {
+    const safeUsers = users.map(({ password, created_at, cicloVirtual, ...user }) => {
+      const ciclo = cicloVirtual || user.ciclovirtual || "Semestral";
       return {
         ...user,
         ciclovirtual: ciclo
@@ -85,9 +86,9 @@ export const userService = {
     return (data || []).map(normalizeUser);
   },
 
-  async saveUser(user) {
-    const { password, created_at, ...safeUser } = user;
-    const ciclo = safeUser.cicloVirtual || safeUser.ciclovirtual || "Semestral";
+    async saveUser(user) {
+    const { password, created_at, cicloVirtual, ...safeUser } = user;
+    const ciclo = cicloVirtual || safeUser.ciclovirtual || "Semestral";
     const payload = {
       ...safeUser,
       ciclovirtual: ciclo
@@ -146,11 +147,32 @@ export const incidentService = {
     throwIfError(error, "actualizar incidencia");
   },
 
-  async saveIncident(incident) {
-    const { created_at, ...row } = incident;
+    async saveIncident(incident) {
+    const {
+      created_at,
+      docenteId,
+      cursoId,
+      docentePropuesto,
+      docenteReemplazo,
+      horarioActualizado,
+      ...row
+    } = incident;
+
+    const payload = {
+      ...row,
+      docenteid: docenteId || row.docenteid,
+      cursoid: cursoId || row.cursoid,
+      docentepropuesto: docentePropuesto || row.docentepropuesto,
+      docentereemplazo: docenteReemplazo || row.docentereemplazo,
+      horarioactualizado: horarioActualizado || row.horarioactualizado
+    };
+
+    // Eliminar claves undefined para evitar enviar campos invalidos
+    Object.keys(payload).forEach(key => payload[key] === undefined && delete payload[key]);
+
     const { data, error } = await insforge.database
       .from("incidents")
-      .upsert([row])
+      .upsert([payload])
       .select();
     throwIfError(error, "guardar incidencia");
     return data?.[0] || null;

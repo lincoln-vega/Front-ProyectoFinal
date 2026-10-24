@@ -161,7 +161,7 @@ export default function StudentHorariosPage() {
     if (course.meetUrl) {
       window.open(course.meetUrl, "_blank", "noopener,noreferrer");
     } else {
-      window.alert(`No hay sala configurada para la materia "${course.asignatura}".`);
+      setError(`No hay enlace de sala virtual configurado para la materia "${course.asignatura}".`); setTimeout(() => setError(""), 4000);
     }
   };
 

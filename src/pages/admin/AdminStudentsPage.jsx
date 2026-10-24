@@ -48,7 +48,7 @@ export default function AdminStudentsPage() {
   const handleSubmit = async (event) => {
     event.preventDefault();
     if (!formData.apellidos || !formData.nombres || !formData.dni) {
-      window.alert("Completa nombres, apellidos y DNI.");
+      showNotification("Completa nombres, apellidos y DNI.");
       return;
     }
 

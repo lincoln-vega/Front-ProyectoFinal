@@ -30,6 +30,7 @@ export default function DocentesPage() {
   const [currentDocente, setCurrentDocente] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [feedback, setFeedback] = useState({ message: "", type: "" });
   
   // Form states
   const [nombre, setNombre] = useState("");
@@ -185,12 +186,9 @@ export default function DocentesPage() {
 
       saveToStorage(updatedDocentes);
       handleCloseModal();
-      if (!currentDocente) {
-        window.alert("Perfil del docente guardado en InsForge. Crea también su cuenta en InsForge Auth para que pueda iniciar sesión.");
-      }
+      setFeedback({ message: "Docente y nómina guardados correctamente en InsForge.", type: "success" }); setTimeout(() => setFeedback({ message: "", type: "" }), 4000);
     } catch (error) {
-      console.error("Error al guardar docente:", error);
-      window.alert(`No se pudo guardar el docente: ${error.message}`);
+      console.error("Error al guardar docente:", error); setError(error.message || "No se pudo guardar el docente.");
     }
   };
 
@@ -205,8 +203,7 @@ export default function DocentesPage() {
         }
         saveToStorage(updated);
       } catch (error) {
-        console.error("Error al eliminar docente:", error);
-        window.alert(`No se pudo eliminar el docente: ${error.message}`);
+        console.error("Error al eliminar docente:", error); setError(error.message || "No se pudo eliminar el docente.");
       }
     }
   };
@@ -218,6 +215,18 @@ export default function DocentesPage() {
 
   return (
     <div className="space-y-6">
+      {feedback.message && (
+        <div className="p-4 rounded-xl border border-emerald-500/20 bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 text-sm font-medium animate-fade-in flex items-center justify-between">
+          <span>{feedback.message}</span>
+          <button onClick={() => setFeedback({ message: "", type: "" })} className="text-emerald-700 dark:text-emerald-400 hover:opacity-80">✕</button>
+        </div>
+      )}
+      {error && (
+        <div className="p-4 rounded-xl border border-rose-500/20 bg-rose-500/10 text-rose-700 dark:text-rose-400 text-sm font-medium animate-fade-in flex items-center justify-between">
+          <span>{error}</span>
+          <button onClick={() => setError("")} className="text-rose-700 dark:text-rose-400 hover:opacity-80">✕</button>
+        </div>
+      )}
       {/* HEADER */}
       <div className="bg-white/60 dark:bg-white/5 backdrop-blur-2xl p-5 rounded-xl border border-slate-200 dark:border-white/10 shadow-2xs">
         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
