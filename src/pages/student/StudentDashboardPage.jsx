@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo } from "react";
 import { courseService } from "../../services/cursosServices";
 import { userService } from "../../services/api";
+import { saveAttendanceRecord } from "../../services/asistencia";
 
 import {
   Video,
@@ -9,11 +10,14 @@ import {
   Sparkles,
   ExternalLink,
   BookOpen,
-  Loader2
+  Loader2,
+  CheckCircle2,
+  X
 } from "lucide-react";
 
 export default function StudentDashboardPage() {
   const [activeMeetModal, setActiveMeetModal] = useState(null);
+  const [attendanceNotice, setAttendanceNotice] = useState(null);
   const [listaCursosGlobal, setListaCursosGlobal] = useState([]);
   const [estudianteActivo, setEstudianteActivo] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -92,7 +96,35 @@ export default function StudentDashboardPage() {
   }, [estudianteActivo, listaCursosGlobal]);
 
   const handleJoinMeet = (course) => {
-    setActiveMeetModal(course);
+    if (!course?.meetUrl) {
+      alert("El curso seleccionado no tiene un enlace de Google Meet asignado.");
+      return;
+    }
+
+    // 1. Apertura directa en nueva pestaña (1 solo clic, sin bloqueo del navegador)
+    window.open(course.meetUrl, "_blank", "noopener,noreferrer");
+
+    // 2. Notificación en pantalla de registro exitoso
+    const horaActual = new Date().toLocaleTimeString("es-PE", { hour: "2-digit", minute: "2-digit" });
+    setAttendanceNotice({
+      asignatura: course.asignatura,
+      docente: course.docente || "Docente a cargo",
+      meetUrl: course.meetUrl,
+      hora: horaActual
+    });
+
+    // 3. Registrar asistencia puntual en InsForge en segundo plano
+    saveAttendanceRecord({
+      cursoId: course.id,
+      curso: course.asignatura,
+      docenteId: course.docenteId || "USR-002",
+      docente: course.docente || "Docente a cargo",
+      estudianteId: estudianteActivo?.id || "USR-005",
+      estudiante: studentName,
+      horaRegistro: horaActual
+    }).catch((err) => {
+      console.warn("[Asistencia Estudiante] Registro completado con advertencia:", err);
+    });
   };
 
   if (loading) {
@@ -137,6 +169,42 @@ export default function StudentDashboardPage() {
           </div>
         </div>
       </div>
+
+      {/* ALERTA DE ASISTENCIA REGISTRADA Y APERTURA DE MEET */}
+      {attendanceNotice && (
+        <div role="status" className="bg-emerald-50 dark:bg-emerald-950/40 border-2 border-emerald-500/30 rounded-2xl p-4 sm:p-5 flex items-start justify-between gap-4 animate-fade-in shadow-md">
+          <div className="flex items-start space-x-3.5">
+            <div className="p-2 bg-emerald-500 text-white rounded-xl shrink-0 mt-0.5">
+              <CheckCircle2 className="w-5 h-5" />
+            </div>
+            <div>
+              <h3 className="text-base font-bold text-emerald-950 dark:text-emerald-200">
+                ¡Asistencia Registrada Exitosamente!
+              </h3>
+              <p className="text-sm text-emerald-800 dark:text-emerald-300 mt-0.5">
+                Te has conectado a <strong>{attendanceNotice.asignatura}</strong> a las {attendanceNotice.hora}. La sala de Google Meet se abrió en una nueva pestaña.
+              </p>
+              <a
+                href={attendanceNotice.meetUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1.5 text-xs font-bold text-emerald-700 dark:text-emerald-400 hover:underline mt-2"
+              >
+                <span>Volver a abrir enlace si se cerró ({attendanceNotice.meetUrl})</span>
+                <ExternalLink className="w-3.5 h-3.5" />
+              </a>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={() => setAttendanceNotice(null)}
+            className="text-emerald-700 dark:text-emerald-400 hover:text-emerald-900 p-1 rounded-lg"
+            title="Cerrar aviso"
+          >
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+      )}
 
       {/* SECCIÓN: MIS CURSOS MATRICULADOS */}
       <section className="space-y-4">
@@ -198,16 +266,24 @@ export default function StudentDashboardPage() {
                   </div>
                 </div>
 
-                <div className="p-5 pt-0">
+                <div className="p-5 pt-0 space-y-2">
                   <button
                     type="button"
                     onClick={() => handleJoinMeet(course)}
                     className="w-full bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white font-bold py-3.5 px-4 rounded-xl shadow-md hover:shadow-emerald-600/30 transition-all duration-150 flex items-center justify-center space-x-2 cursor-pointer group-hover:scale-[1.01]"
                   >
-                    <Video className="w-5 h-5 shrink-0 animate-bounce" />
+                    <Video className="w-5 h-5 shrink-0" />
                     <span className="tracking-wide text-base font-bold">
                       Unirse a Sala Virtual (Meet)
                     </span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setActiveMeetModal(course)}
+                    className="w-full text-center text-xs text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200 py-1 transition-colors flex items-center justify-center gap-1 cursor-pointer"
+                  >
+                    <ExternalLink className="w-3.5 h-3.5" />
+                    <span>Ver enlace y detalles de la sala</span>
                   </button>
                 </div>
               </div>

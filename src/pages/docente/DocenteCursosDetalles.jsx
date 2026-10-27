@@ -132,8 +132,8 @@ export default function DocenteCursosDetalles({ cursoId, onVolver }) {
             <p className="mt-1 text-xs text-slate-500">Código: {curso.id} · Carrera: {curso.carrera || "No especificada"}</p>
           </div>
           <div className="flex flex-wrap gap-2">
-            <button type="button" disabled={Boolean(activeSession || action || !validMeetUrl(curso.meetUrl))} onClick={handleEntry} className="inline-flex items-center gap-2 rounded-xl bg-emerald-600 px-4 py-2.5 text-xs font-bold text-white disabled:cursor-not-allowed disabled:opacity-50">
-              {action === "entry" ? <Loader2 className="h-4 w-4 animate-spin" /> : <LogIn className="h-4 w-4" />} Registrar entrada
+            <button type="button" disabled={Boolean(activeSession || action || !validMeetUrl(curso.meetUrl))} onClick={handleEntry} className="inline-flex items-center gap-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 px-4 py-2.5 text-xs font-bold text-white shadow-md transition-all disabled:cursor-not-allowed disabled:opacity-50">
+              {action === "entry" ? <Loader2 className="h-4 w-4 animate-spin" /> : <LogIn className="h-4 w-4" />} Iniciar Clase en Google Meet
             </button>
             {activeSession && <button type="button" disabled={Boolean(action)} onClick={handleExit} className="inline-flex items-center gap-2 rounded-xl bg-rose-600 px-4 py-2.5 text-xs font-bold text-white disabled:opacity-50">
               {action === "exit" ? <Loader2 className="h-4 w-4 animate-spin" /> : <LogOut className="h-4 w-4" />} Registrar salida

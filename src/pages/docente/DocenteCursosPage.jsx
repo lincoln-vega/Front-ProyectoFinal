@@ -1,4 +1,4 @@
-﻿import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { BookOpen, Loader2, Video } from "lucide-react";
 import CursoDetalleView from "./DocenteCursosDetalles";
 import { courseService } from "../../services/cursosServices";
@@ -91,7 +91,7 @@ export default function DocenteCursosPage() {
               </div>
               <div className="mt-5 flex items-center justify-between border-t border-slate-200 pt-4 text-xs dark:border-slate-800">
                 <span className="text-slate-500">{Array.isArray(curso.dias) ? curso.dias.join(", ") : curso.dias} · {curso.horaInicio} - {curso.horaFin}</span>
-                <span className="inline-flex items-center gap-1 rounded-xl bg-emerald-600 px-3 py-2 font-bold text-white"><Video className="h-4 w-4" /> Ver asistencia</span>
+                <span className="inline-flex items-center gap-1 rounded-xl bg-emerald-600 px-3.5 py-2 font-bold text-white shadow-sm group-hover:bg-emerald-700 transition-colors"><Video className="h-4 w-4" /> Iniciar Clase / Asistencia</span>
               </div>
             </button>
           ))}

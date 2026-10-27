@@ -167,12 +167,20 @@
       "asignatura": "Álgebra y Funciones",
       "area": "Ciencias Exactas",
       "carrera": "Ingeniería de Sistemas",
-      "docenteId": "USR-002",
-      "docente": "Prof. Carmen Rosa Herrera",
+      "docenteId": "USR-003",
+      "docente": "Prof. Miguel Ángel Paredes",
+      "dias": [
+        "Lunes",
+        "Miércoles"
+      ],
+      "horaInicio": "08:00",
+      "horaFin": "10:00",
+      "meetUrl": "https://meet.google.com/rqe-czhu-ubx",
+      "repositorio": "drive.google.com/algebra101",
+      "estado": "Activo",
+      "ciclovirtual": "Semestral",
       "horario": "Lunes y Miércoles 08:00 - 10:00 AM",
-      "meetUrl": "https://meet.google.com/abc-defg-hij",
-      "repositorio": "drive.google.com/mat101",
-      "estado": "Activo"
+      "reemplazoActivo": true
     },
     {
       "id": "CRS-002",
@@ -180,11 +188,17 @@
       "area": "Ciencias Exactas",
       "carrera": "Ingeniería de Sistemas",
       "docenteId": "USR-003",
-      "docente": "Prof. Miguel Ángel Paredes",
-      "horario": "Martes y Jueves 08:00 - 10:00 AM",
-      "meetUrl": "https://meet.google.com/klm-nopq-rst",
-      "repositorio": "campus.pre.pe/fisica",
-      "estado": "Activo"
+      "docente": "Miguel Ángel Paredes Ruiz",
+      "dias": [
+        "Martes",
+        "Jueves"
+      ],
+      "horaInicio": "08:00",
+      "horaFin": "10:00",
+      "meetUrl": "https://meet.google.com/bdt-nycg-cfu",
+      "repositorio": "drive.google.com/fisica101",
+      "estado": "Activo",
+      "ciclovirtual": "Semestral"
     },
     {
       "id": "CRS-003",
@@ -192,11 +206,104 @@
       "area": "Ciencias Médicas",
       "carrera": "Medicina Humana",
       "docenteId": "USR-004",
-      "docente": "Dra. Elena Sofía Torres",
-      "horario": "Lunes y Viernes 03:00 - 05:00 PM",
-      "meetUrl": "https://meet.google.com/uvw-xyza-bcd",
-      "repositorio": "campus.pre.pe/bio",
-      "estado": "Activo"
+      "docente": "Elena Sofía Torres Meléndez",
+      "dias": [
+        "Lunes",
+        "Viernes"
+      ],
+      "horaInicio": "15:00",
+      "horaFin": "17:00",
+      "meetUrl": "https://meet.google.com/kuu-qrhg-adx",
+      "repositorio": "drive.google.com/biologia101",
+      "estado": "Activo",
+      "ciclovirtual": "Semestral"
+    },
+    {
+      "id": "CRS-004",
+      "asignatura": "Python para Ingenieros",
+      "area": "Programación",
+      "carrera": "Ingeniería de Sistemas",
+      "docenteId": "USR-008",
+      "docente": "Jesús Héctor Torres Sánchez",
+      "dias": [
+        "Lunes",
+        "Miércoles"
+      ],
+      "horaInicio": "10:00",
+      "horaFin": "12:00",
+      "meetUrl": "https://meet.google.com/kxp-fzwp-yci",
+      "repositorio": "drive.google.com/python101",
+      "estado": "Activo",
+      "ciclovirtual": "Semestral"
+    },
+    {
+      "id": "CRS-005",
+      "asignatura": "Matemática II (Cálculo)",
+      "area": "Ciencias Exactas",
+      "carrera": "Ingeniería de Sistemas",
+      "docenteId": "USR-009",
+      "docente": "Juan Gabriel Pérez Ramos",
+      "dias": [
+        "Martes",
+        "Jueves"
+      ],
+      "horaInicio": "10:00",
+      "horaFin": "12:00",
+      "meetUrl": "https://meet.google.com/qqw-byud-qyq",
+      "repositorio": "drive.google.com/mat201",
+      "estado": "Activo",
+      "ciclovirtual": "Semestral"
+    },
+    {
+      "id": "CRS-006",
+      "asignatura": "Aritmética Preuniversitaria",
+      "area": "Ciencias Exactas",
+      "carrera": "Ingeniería de Sistemas",
+      "docenteId": "USR-002",
+      "docente": "Carmen Rosa Herrera Villanueva",
+      "dias": [
+        "Viernes"
+      ],
+      "horaInicio": "10:00",
+      "horaFin": "13:00",
+      "meetUrl": "https://meet.google.com/uxm-jcvt-bmh",
+      "repositorio": "drive.google.com/aritmetica101",
+      "estado": "Activo",
+      "ciclovirtual": "Semestral"
+    },
+    {
+      "id": "CRS-007",
+      "asignatura": "Historia del Perú",
+      "area": "Humanidades y Letras",
+      "carrera": "Derecho",
+      "docenteId": "USR-004",
+      "docente": "Elena Sofía Torres Meléndez",
+      "dias": [
+        "Viernes"
+      ],
+      "horaInicio": "08:00",
+      "horaFin": "11:00",
+      "meetUrl": "https://meet.google.com/vii-hfrm-oqm",
+      "repositorio": "drive.google.com/historia-peru",
+      "estado": "Activo",
+      "ciclovirtual": "Semestral"
+    },
+    {
+      "id": "CRS-008",
+      "asignatura": "Historia Universal",
+      "area": "Humanidades y Letras",
+      "carrera": "Derecho",
+      "docenteId": "USR-003",
+      "docente": "Miguel Ángel Paredes Ruiz",
+      "dias": [
+        "Sábado"
+      ],
+      "horaInicio": "09:00",
+      "horaFin": "12:00",
+      "meetUrl": "https://meet.google.com/dzb-swzj-ois",
+      "repositorio": "drive.google.com/historia-universal",
+      "estado": "Activo",
+      "ciclovirtual": "Semestral"
     }
   ],
   "studentCourses": [
@@ -206,7 +313,7 @@
       "docente": "Prof. Carmen Rosa Herrera",
       "horario": "Lunes y Miércoles 08:00 - 10:00 AM",
       "temaActual": "Ecuaciones Cuadráticas y Polinomios",
-      "meetUrl": "https://meet.google.com/abc-defg-hij",
+      "meetUrl": "https://meet.google.com/rqe-czhu-ubx",
       "badge": "En curso"
     },
     {
@@ -215,7 +322,7 @@
       "docente": "Prof. Miguel Ángel Paredes",
       "horario": "Martes y Jueves 08:00 - 10:00 AM",
       "temaActual": "Cinemática y Dinámica Lineal",
-      "meetUrl": "https://meet.google.com/klm-nopq-rst",
+      "meetUrl": "https://meet.google.com/bdt-nycg-cfu",
       "badge": "En curso"
     },
     {
@@ -224,7 +331,7 @@
       "docente": "Dra. Elena Sofía Torres",
       "horario": "Lunes y Viernes 03:00 - 05:00 PM",
       "temaActual": "Anatomía del Sistema Nervioso",
-      "meetUrl": "https://meet.google.com/uvw-xyza-bcd",
+      "meetUrl": "https://meet.google.com/kuu-qrhg-adx",
       "badge": "En curso"
     }
   ],
