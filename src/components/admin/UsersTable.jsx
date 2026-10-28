@@ -84,13 +84,13 @@ export default function UsersTable({ users, totalUsers, activeUsers, inactiveUse
                     </span>
                   </td>
                   <td className="py-2.5 px-3.5 whitespace-nowrap text-center">
-                    <div className="flex items-center justify-center space-x-1.5">
+                    <div className="flex items-center justify-center space-x-2">
                       <button
                         type="button"
                         onClick={() => onEdit(user)}
                         title="Editar usuario"
                         aria-label={`Editar usuario ${user.nombres} ${user.apellidos}`}
-                        className="p-1 text-slate-500 dark:text-slate-400 hover:text-blue-700 dark:hover:text-blue-300 hover:bg-blue-100 dark:hover:bg-blue-900/40 rounded transition-colors cursor-pointer"
+                        className="p-1.5 text-blue-700 dark:text-blue-300 bg-blue-50 dark:bg-blue-950/40 hover:bg-blue-100 dark:hover:bg-blue-900/60 border border-blue-200 dark:border-blue-800/60 rounded-lg transition-all cursor-pointer shadow-2xs hover:scale-105 active:scale-95"
                       >
                         <Edit2 className="w-3.5 h-3.5" />
                       </button>
@@ -99,7 +99,7 @@ export default function UsersTable({ users, totalUsers, activeUsers, inactiveUse
                         onClick={() => onDelete(user)}
                         title="Eliminar usuario"
                         aria-label={`Eliminar usuario ${user.nombres} ${user.apellidos}`}
-                        className="p-1 text-slate-500 dark:text-slate-400 hover:text-red-600 dark:hover:text-red-300 hover:bg-red-100 dark:hover:bg-red-900/40 rounded transition-colors cursor-pointer"
+                        className="p-1.5 text-rose-700 dark:text-rose-300 bg-rose-50 dark:bg-rose-950/40 hover:bg-rose-100 dark:hover:bg-rose-900/60 border border-rose-200 dark:border-rose-800/60 rounded-lg transition-all cursor-pointer shadow-2xs hover:scale-105 active:scale-95"
                       >
                         <Trash2 className="w-3.5 h-3.5" />
                       </button>

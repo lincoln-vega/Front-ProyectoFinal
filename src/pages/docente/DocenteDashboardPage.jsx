@@ -285,9 +285,10 @@ export default function DocenteDashboardPage() {
                   </button>
                   <Link
                     to="/docente/cursos"
-                    className="w-full text-center text-[11px] font-semibold text-slate-600 hover:text-indigo-600 dark:text-slate-400 dark:hover:text-indigo-300 py-1 transition-colors"
+                    className="w-full text-center text-xs font-bold py-2 px-3 rounded-xl border border-slate-200 dark:border-white/10 bg-slate-100/70 dark:bg-white/5 hover:bg-indigo-50 dark:hover:bg-indigo-950/40 text-slate-700 dark:text-slate-200 hover:text-indigo-600 dark:hover:text-indigo-400 hover:border-indigo-300 dark:hover:border-indigo-700 transition-all flex items-center justify-center gap-1.5 shadow-2xs"
                   >
-                    Gestionar Asistencia e Historial
+                    <BookOpen className="w-3.5 h-3.5 text-slate-400" />
+                    <span>Gestionar Asistencia e Historial</span>
                   </Link>
                 </div>
               </div>
