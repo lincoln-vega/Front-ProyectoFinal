@@ -97,10 +97,21 @@ export default function StudentLayout() {
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-[#0a0a0e] text-slate-900 dark:text-slate-100 flex flex-col font-sans transition-colors duration-500 overflow-x-hidden">
       
-      {/* 1. BARRA VERTICAL LATERAL (SLIM SIDEBAR DESKTOP) */}
-      <aside className="hidden md:flex flex-col fixed left-0 top-16 bottom-0 w-20 bg-[#0A1128] dark:bg-[#060814] border-r border-slate-800/80 z-30 text-white shadow-xl transition-all">
+      {/* 1. BARRA VERTICAL LATERAL (SLIM SIDEBAR DESKTOP) - ALTURA TOTAL 100% */}
+      <aside className="hidden md:flex flex-col fixed left-0 top-0 bottom-0 h-screen w-20 bg-[#0A1128] dark:bg-[#060814] border-r border-slate-800/80 z-40 text-white shadow-xl overflow-y-auto overflow-x-hidden transition-all">
+        {/* Brand Icon Superior en Sidebar */}
+        <Link
+          to="/estudiante/panel"
+          className="h-16 flex items-center justify-center border-b border-white/10 hover:bg-white/5 transition-colors group cursor-pointer shrink-0"
+          title="Ir a Mis Cursos"
+        >
+          <div className="w-10 h-10 rounded-xl bg-blue-600 flex items-center justify-center text-white shadow-md group-hover:scale-105 transition-transform">
+            <School className="w-5 h-5 text-amber-300" />
+          </div>
+        </Link>
+
         {/* Enlaces Principales de Navegación Vertical */}
-        <nav className="flex-1 py-4 flex flex-col items-center space-y-2">
+        <nav className="flex-1 py-3 flex flex-col items-center space-y-2 shrink-0">
           {/* Cursos */}
           <NavLink
             to="/estudiante/panel"
@@ -184,7 +195,7 @@ export default function StudentLayout() {
         </nav>
 
         {/* Botón Salir Inferior */}
-        <div className="p-3 border-t border-white/10 flex flex-col items-center">
+        <div className="p-3 border-t border-white/10 flex flex-col items-center shrink-0">
           <button
             type="button"
             onClick={handleLogout}
@@ -198,7 +209,7 @@ export default function StudentLayout() {
       </aside>
 
       {/* 2. HEADER SUPERIOR MODERNO (DESKTOP + MOBILE) */}
-      <header className="bg-white dark:bg-slate-900/90 dark:backdrop-blur-xl border-b border-slate-200 dark:border-white/10 sticky top-0 z-40 shadow-xs transition-colors">
+      <header className="bg-white dark:bg-slate-900/90 dark:backdrop-blur-xl border-b border-slate-200 dark:border-white/10 sticky top-0 z-30 shadow-xs md:pl-20 transition-colors">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-3">
           
           {/* Logo y Nombre de Marca */}
@@ -207,8 +218,8 @@ export default function StudentLayout() {
             className="flex items-center space-x-2.5 sm:space-x-3 shrink-0 hover:opacity-90 transition-opacity cursor-pointer group"
             title="Ir al inicio del campus estudiantil"
           >
-            <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-[#1E3A8A] dark:bg-blue-600 flex items-center justify-center text-white shadow-xs group-hover:scale-105 transition-transform">
-              <School className="w-5 h-5 sm:w-6 sm:h-6 text-amber-300" />
+            <div className="md:hidden w-9 h-9 rounded-xl bg-[#1E3A8A] dark:bg-blue-600 flex items-center justify-center text-white shadow-xs">
+              <School className="w-5 h-5 text-amber-300" />
             </div>
             <div>
               <div className="flex items-center space-x-1.5 sm:space-x-2">
