@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { Outlet, NavLink, useNavigate, useLocation } from "react-router-dom";
+import { Outlet, NavLink, Link, useNavigate, useLocation } from "react-router-dom";
 import { BookOpen, Calendar, LogOut, School, Briefcase, Menu, X, ChevronRight } from "lucide-react";
 import ThemeToggle from "./ThemeToggle";
 import { signOutFromApp } from "../services/session";
@@ -31,70 +31,77 @@ export default function DocenteLayout() {
       {/* SIDEBAR PARA ESCRITORIO */}
       <aside className="hidden md:flex md:w-64 bg-[#1E3A8A] dark:bg-white/5 dark:backdrop-blur-2xl dark:border-r dark:border-white/10 flex-col justify-between text-white shadow-xl z-20 shrink-0">
         <div>
-          <div className="h-16 px-6 flex items-center space-x-3 border-b border-blue-800/80 bg-blue-950/40">
-            <div className="p-2 bg-white/10 rounded-lg backdrop-blur-xs">
+          {/* Logo Corporativo con enlace al Panel de Inicio */}
+          <Link
+            to="/docente/panel"
+            className="h-16 px-6 flex items-center space-x-3 border-b border-blue-800/80 bg-blue-950/40 hover:bg-blue-900/60 transition-colors cursor-pointer group"
+            title="Ir al inicio del panel docente"
+          >
+            <div className="p-2 bg-white/10 rounded-lg backdrop-blur-xs group-hover:scale-105 transition-transform">
               <School className="w-6 h-6 text-white" />
             </div>
             <div>
               <span className="font-extrabold text-base tracking-wide uppercase block leading-tight">Academia Pre</span>
-              <span className="text-xs text-amber-300 tracking-wider font-medium uppercase">Portal Docente</span>
+              <span className="text-xs text-amber-300 tracking-wider font-bold uppercase">Portal Docente</span>
             </div>
-          </div>
-          <nav className="p-4 space-y-1">
+          </Link>
+
+          <nav className="p-4 space-y-1.5">
             <NavLink
               to="/docente/panel"
               className={({ isActive }) =>
-                `flex items-center space-x-3 px-3 py-2.5 rounded-xl text-sm font-semibold transition-all cursor-pointer ${
+                `flex items-center space-x-3 px-3.5 py-2.5 rounded-xl text-sm font-semibold transition-all cursor-pointer ${
                   isActive
                     ? "bg-blue-800 dark:bg-white/15 text-white shadow-xs border-l-4 border-amber-400 font-bold"
                     : "text-blue-100 dark:text-slate-300 hover:bg-blue-800/50 dark:hover:bg-white/5 hover:text-white"
                 }`
               }
             >
-              <Briefcase className="w-4 h-4 text-amber-300 shrink-0" />
+              <Briefcase className="w-4.5 h-4.5 text-amber-300 shrink-0" />
               <span>Mi Panel</span>
             </NavLink>
             <NavLink
               to="/docente/cursos"
               className={({ isActive }) =>
-                `flex items-center space-x-3 px-3 py-2.5 rounded-xl text-sm font-semibold transition-all cursor-pointer ${
+                `flex items-center space-x-3 px-3.5 py-2.5 rounded-xl text-sm font-semibold transition-all cursor-pointer ${
                   isActive
                     ? "bg-blue-800 dark:bg-white/15 text-white shadow-xs border-l-4 border-amber-400 font-bold"
                     : "text-blue-100 dark:text-slate-300 hover:bg-blue-800/50 dark:hover:bg-white/5 hover:text-white"
                 }`
               }
             >
-              <BookOpen className="w-4 h-4 text-amber-300 shrink-0" />
+              <BookOpen className="w-4.5 h-4.5 text-amber-300 shrink-0" />
               <span>Mis Cursos</span>
             </NavLink>
             <NavLink
               to="/docente/horarios"
               className={({ isActive }) =>
-                `flex items-center space-x-3 px-3 py-2.5 rounded-xl text-sm font-semibold transition-all cursor-pointer ${
+                `flex items-center space-x-3 px-3.5 py-2.5 rounded-xl text-sm font-semibold transition-all cursor-pointer ${
                   isActive
                     ? "bg-blue-800 dark:bg-white/15 text-white shadow-xs border-l-4 border-amber-400 font-bold"
                     : "text-blue-100 dark:text-slate-300 hover:bg-blue-800/50 dark:hover:bg-white/5 hover:text-white"
                 }`
               }
             >
-              <Calendar className="w-4 h-4 text-amber-300 shrink-0" />
+              <Calendar className="w-4.5 h-4.5 text-amber-300 shrink-0" />
               <span>Horarios</span>
             </NavLink>
           </nav>
         </div>
+
         <div className="p-4 border-t border-blue-800/80 bg-blue-950/30">
           <div className="flex items-center space-x-3 mb-3 px-1">
             <div className="w-9 h-9 rounded-full bg-blue-700 flex items-center justify-center font-bold text-sm border-2 border-blue-400 text-white shrink-0">
               {userName.charAt(0)}
             </div>
             <div className="overflow-hidden min-w-0">
-              <div className="text-sm font-semibold truncate leading-snug">{userName}</div>
+              <div className="text-sm font-bold truncate leading-snug">{userName}</div>
               <div className="text-xs text-blue-300 truncate">{userEmail}</div>
             </div>
           </div>
           <button
             onClick={handleLogout}
-            className="w-full flex items-center justify-center space-x-2 px-3 py-2 text-xs font-semibold rounded-lg bg-red-600/20 text-red-200 hover:bg-red-600 hover:text-white border border-red-500/30 transition-all cursor-pointer shadow-xs active:scale-[0.98]"
+            className="w-full flex items-center justify-center space-x-2 px-3.5 py-2.5 text-xs font-bold rounded-xl bg-red-600/20 text-red-200 hover:bg-red-600 hover:text-white border border-red-500/30 transition-all cursor-pointer shadow-xs active:scale-[0.98]"
           >
             <LogOut className="w-3.5 h-3.5" />
             <span>Cerrar Sesión</span>
@@ -102,20 +109,25 @@ export default function DocenteLayout() {
         </div>
       </aside>
 
-      {/* HEADER MÓVIL ÚNICO (SIN DUPLICIDAD NI DESBORDES) */}
+      {/* HEADER MÓVIL ÚNICO (CON LOGO CLICABLE Y CONTRASTE MEJORADO EN THEMETOGGLE) */}
       <header className="md:hidden bg-[#1E3A8A] dark:bg-[#0a0a0e]/90 dark:backdrop-blur-2xl border-b border-blue-900/60 dark:border-white/10 text-white px-4 py-3 sticky top-0 z-40 flex items-center justify-between shadow-md">
-        <div className="flex items-center space-x-2.5 min-w-0">
-          <div className="p-1.5 bg-white/10 rounded-lg shrink-0">
+        <Link
+          to="/docente/panel"
+          className="flex items-center space-x-2.5 min-w-0 hover:opacity-90 transition-opacity cursor-pointer group"
+          title="Ir al inicio del panel docente"
+        >
+          <div className="p-1.5 bg-white/10 rounded-lg shrink-0 group-hover:scale-105 transition-transform">
             <School className="w-5 h-5 text-amber-300" />
           </div>
           <div className="min-w-0">
-            <span className="font-extrabold text-sm tracking-tight truncate block leading-tight">Academia Pre</span>
-            <span className="text-[10px] text-amber-300 font-bold uppercase tracking-wider block">Docente</span>
+            <span className="font-extrabold text-sm sm:text-base tracking-tight truncate block leading-tight">Academia Pre</span>
+            <span className="text-[11px] text-amber-300 font-bold uppercase tracking-wider block">Docente</span>
           </div>
-        </div>
+        </Link>
 
         <div className="flex items-center space-x-2 shrink-0">
-          <ThemeToggle />
+          {/* ThemeToggle con variante para fondos oscuros (icono ámbar luminoso) */}
+          <ThemeToggle variant="on-dark" />
           
           <div className="w-7 h-7 rounded-full bg-blue-700 text-white flex items-center justify-center font-bold text-xs border border-blue-400/50">
             {userName.charAt(0)}

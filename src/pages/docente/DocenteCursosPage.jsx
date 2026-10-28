@@ -126,43 +126,43 @@ export default function DocenteCursosPage() {
             >
               <div>
                 <div className="flex items-center justify-between mb-3">
-                  <span className="rounded-md bg-indigo-500/10 dark:bg-indigo-950/60 px-2.5 py-1 text-[10px] font-extrabold uppercase tracking-wide text-indigo-700 dark:text-indigo-300 border border-indigo-200/50 dark:border-indigo-800/40">
+                  <span className="rounded-md bg-indigo-500/10 dark:bg-indigo-950/60 px-2.5 py-1 text-xs font-extrabold uppercase tracking-wide text-indigo-700 dark:text-indigo-300 border border-indigo-200/50 dark:border-indigo-800/40">
                     {curso.area || "General"}
                   </span>
-                  <span className="text-xs font-semibold text-emerald-600 dark:text-emerald-400 flex items-center gap-1.5">
+                  <span className="text-xs font-bold text-emerald-600 dark:text-emerald-400 flex items-center gap-1.5">
                     <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
                     Activo
                   </span>
                 </div>
 
-                <h3 className="text-lg font-extrabold text-slate-900 dark:text-white group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors leading-snug">
+                <h3 className="text-xl font-extrabold text-slate-900 dark:text-white group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors leading-snug">
                   {curso.asignatura}
                 </h3>
                 
-                <p className="mt-2 text-xs text-slate-500 dark:text-slate-400 font-medium">
-                  Docente: <strong className="text-slate-700 dark:text-slate-200">{curso.docente}</strong>
+                <p className="mt-2 text-sm text-slate-600 dark:text-slate-300 font-medium">
+                  Docente: <strong className="text-slate-900 dark:text-white font-bold">{curso.docente}</strong>
                 </p>
 
-                <div className="mt-3 flex items-center gap-1.5 text-xs text-slate-600 dark:text-slate-300 bg-slate-50 dark:bg-white/5 p-2.5 rounded-xl border border-slate-100 dark:border-white/5">
-                  <Clock className="w-3.5 h-3.5 text-indigo-500 shrink-0" />
-                  <span className="font-mono text-[11px] truncate">
+                <div className="mt-3.5 flex items-center gap-2 text-sm text-slate-700 dark:text-slate-300 bg-slate-50 dark:bg-white/5 p-2.5 rounded-xl border border-slate-100 dark:border-white/5">
+                  <Clock className="w-4 h-4 text-indigo-500 shrink-0" />
+                  <span className="font-mono text-xs font-semibold truncate">
                     {Array.isArray(curso.dias) ? curso.dias.join(", ") : curso.dias} · {curso.horaInicio} - {curso.horaFin}
                   </span>
                 </div>
               </div>
 
               {/* Botones de Acción Claramente Diferenciados */}
-              <div className="mt-5 pt-4 border-t border-slate-100 dark:border-white/10 flex flex-col gap-2">
+              <div className="mt-5 pt-4 border-t border-slate-100 dark:border-white/10 flex flex-col gap-2.5">
                 <button
                   type="button"
                   onClick={() => handleStartMeet(curso)}
                   disabled={startingCourseId === curso.id}
-                  className="w-full bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white font-bold py-2.5 px-3 rounded-xl shadow-md text-xs flex items-center justify-center gap-2 cursor-pointer transition-all hover:scale-[1.01] active:scale-[0.99]"
+                  className="w-full bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white font-bold py-2.5 px-3 rounded-xl shadow-md text-sm flex items-center justify-center gap-2 cursor-pointer transition-all hover:scale-[1.01] active:scale-[0.99]"
                 >
                   {startingCourseId === curso.id ? (
                     <Loader2 className="w-4 h-4 animate-spin" />
                   ) : (
-                    <Video className="w-4 h-4" />
+                    <Video className="w-4.5 h-4.5" />
                   )}
                   <span>Iniciar Clase en Google Meet</span>
                 </button>
@@ -170,11 +170,11 @@ export default function DocenteCursosPage() {
                 <button
                   type="button"
                   onClick={() => setCursoSeleccionado(curso)}
-                  className="w-full py-2 px-3 rounded-xl border border-slate-200 dark:border-white/10 bg-slate-100/70 dark:bg-white/5 hover:bg-indigo-50 dark:hover:bg-indigo-950/40 text-slate-700 dark:text-slate-200 hover:text-indigo-600 dark:hover:text-indigo-400 hover:border-indigo-300 dark:hover:border-indigo-700 text-xs font-bold flex items-center justify-center gap-1.5 transition-all shadow-2xs cursor-pointer"
+                  className="w-full py-2.5 px-3 rounded-xl border border-slate-200 dark:border-white/10 bg-slate-100/70 dark:bg-white/5 hover:bg-indigo-50 dark:hover:bg-indigo-950/40 text-slate-700 dark:text-slate-200 hover:text-indigo-600 dark:hover:text-indigo-400 hover:border-indigo-300 dark:hover:border-indigo-700 text-sm font-bold flex items-center justify-center gap-2 transition-all shadow-2xs cursor-pointer"
                 >
-                  <BookOpen className="w-3.5 h-3.5 text-slate-400 group-hover:text-indigo-500" />
+                  <BookOpen className="w-4 h-4 text-slate-400 group-hover:text-indigo-500" />
                   <span>Ver Asistencia e Historial</span>
-                  <ChevronRight className="w-3.5 h-3.5 ml-auto text-slate-400" />
+                  <ChevronRight className="w-4 h-4 ml-auto text-slate-400" />
                 </button>
               </div>
             </div>

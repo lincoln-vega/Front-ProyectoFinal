@@ -223,17 +223,17 @@ export default function DocenteDashboardPage() {
       <section className="space-y-4">
         <div className="flex items-center justify-between border-b border-slate-200 dark:border-white/10 pb-3">
           <div>
-            <h3 className="text-lg font-bold text-slate-900 dark:text-white flex items-center gap-2">
+            <h3 className="text-xl font-extrabold text-slate-900 dark:text-white flex items-center gap-2">
               <Video className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />
               <span>Mis Clases Asignadas • Iniciar Sala Virtual</span>
             </h3>
-            <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+            <p className="text-sm text-slate-500 dark:text-slate-400 mt-0.5">
               Haz clic en Iniciar Clase para abrir tu sala de Meet y comenzar el registro de asistencia.
             </p>
           </div>
           <Link
             to="/docente/cursos"
-            className="text-xs font-bold text-indigo-600 dark:text-indigo-400 hover:underline inline-flex items-center gap-1"
+            className="text-xs sm:text-sm font-bold text-indigo-600 dark:text-indigo-400 hover:underline inline-flex items-center gap-1"
           >
             <span>Ver todos los cursos</span>
             <ExternalLink className="w-3.5 h-3.5" />
@@ -245,49 +245,49 @@ export default function DocenteDashboardPage() {
             No tienes cursos activos asignados actualmente.
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
             {cursosAsignados.map((course) => (
               <div
                 key={course.id}
                 className="bg-white/70 dark:bg-slate-900/80 backdrop-blur-md rounded-2xl border border-slate-200 dark:border-white/10 p-5 flex flex-col justify-between shadow-xs hover:shadow-md transition-all"
               >
                 <div>
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-md bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-300 border border-indigo-100 dark:border-indigo-900/40">
+                  <div className="flex items-center justify-between mb-2.5">
+                    <span className="text-xs uppercase font-extrabold tracking-wider px-2.5 py-0.5 rounded-md bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-300 border border-indigo-100 dark:border-indigo-900/40">
                       {course.area || "General"}
                     </span>
-                    <span className="text-xs font-semibold text-emerald-600 dark:text-emerald-400 flex items-center gap-1">
+                    <span className="text-xs font-bold text-emerald-600 dark:text-emerald-400 flex items-center gap-1.5">
                       <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
                       Activo
                     </span>
                   </div>
-                  <h4 className="text-base font-bold text-slate-900 dark:text-white leading-snug">
+                  <h4 className="text-lg font-extrabold text-slate-900 dark:text-white leading-snug">
                     {course.asignatura}
                   </h4>
-                  <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+                  <p className="text-sm text-slate-600 dark:text-slate-300 mt-1">
                     Horario: {Array.isArray(course.dias) ? course.dias.join(", ") : course.dias} ({course.horaInicio} - {course.horaFin})
                   </p>
                 </div>
 
-                <div className="mt-4 pt-3 border-t border-slate-100 dark:border-white/5 flex flex-col gap-2">
+                <div className="mt-5 pt-3.5 border-t border-slate-100 dark:border-white/5 flex flex-col gap-2.5">
                   <button
                     type="button"
                     onClick={() => handleStartClass(course)}
                     disabled={startingCourseId === course.id}
-                    className="w-full bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white font-bold py-2.5 px-3 rounded-xl shadow-sm text-xs flex items-center justify-center gap-2 cursor-pointer transition-all disabled:opacity-50"
+                    className="w-full bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white font-bold py-2.5 px-3 rounded-xl shadow-sm text-sm flex items-center justify-center gap-2 cursor-pointer transition-all disabled:opacity-50"
                   >
                     {startingCourseId === course.id ? (
                       <Loader2 className="w-4 h-4 animate-spin" />
                     ) : (
-                      <Video className="w-4 h-4" />
+                      <Video className="w-4.5 h-4.5" />
                     )}
                     <span>Iniciar Clase en Google Meet</span>
                   </button>
                   <Link
                     to="/docente/cursos"
-                    className="w-full text-center text-xs font-bold py-2 px-3 rounded-xl border border-slate-200 dark:border-white/10 bg-slate-100/70 dark:bg-white/5 hover:bg-indigo-50 dark:hover:bg-indigo-950/40 text-slate-700 dark:text-slate-200 hover:text-indigo-600 dark:hover:text-indigo-400 hover:border-indigo-300 dark:hover:border-indigo-700 transition-all flex items-center justify-center gap-1.5 shadow-2xs"
+                    className="w-full text-center text-sm font-bold py-2.5 px-3 rounded-xl border border-slate-200 dark:border-white/10 bg-slate-100/70 dark:bg-white/5 hover:bg-indigo-50 dark:hover:bg-indigo-950/40 text-slate-700 dark:text-slate-200 hover:text-indigo-600 dark:hover:text-indigo-400 hover:border-indigo-300 dark:hover:border-indigo-700 transition-all flex items-center justify-center gap-2 shadow-2xs"
                   >
-                    <BookOpen className="w-3.5 h-3.5 text-slate-400" />
+                    <BookOpen className="w-4 h-4 text-slate-400" />
                     <span>Gestionar Asistencia e Historial</span>
                   </Link>
                 </div>

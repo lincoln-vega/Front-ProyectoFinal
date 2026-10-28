@@ -280,7 +280,7 @@ export default function StudentDashboardPage() {
                   <button
                     type="button"
                     onClick={() => setActiveMeetModal(course)}
-                    className="w-full py-2 px-3 rounded-xl border border-slate-200 dark:border-white/10 bg-slate-100/70 dark:bg-white/5 hover:bg-slate-200/70 dark:hover:bg-white/10 text-xs font-bold text-slate-700 dark:text-slate-200 flex items-center justify-center gap-1.5 transition-all shadow-2xs cursor-pointer hover:border-slate-300 dark:hover:border-white/20 active:scale-[0.99]"
+                    className="w-full py-2.5 px-3 rounded-xl border border-slate-200 dark:border-white/10 bg-slate-100/70 dark:bg-white/5 hover:bg-slate-200/70 dark:hover:bg-white/10 text-sm font-bold text-slate-700 dark:text-slate-200 flex items-center justify-center gap-2 transition-all shadow-2xs cursor-pointer hover:border-slate-300 dark:hover:border-white/20 active:scale-[0.99]"
                   >
                     <ExternalLink className="w-3.5 h-3.5 text-slate-400" />
                     <span>Ver enlace y detalles de la sala</span>
