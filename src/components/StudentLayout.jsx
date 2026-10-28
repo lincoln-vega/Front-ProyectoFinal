@@ -98,18 +98,7 @@ export default function StudentLayout() {
     <div className="min-h-screen bg-slate-50 dark:bg-[#0a0a0e] text-slate-900 dark:text-slate-100 flex flex-col font-sans transition-colors duration-500 overflow-x-hidden">
       
       {/* 1. BARRA VERTICAL LATERAL (SLIM SIDEBAR DESKTOP) */}
-      <aside className="hidden md:flex flex-col fixed left-0 top-0 bottom-0 w-20 bg-[#0A1128] dark:bg-[#060814] border-r border-slate-800/80 z-40 text-white shadow-xl transition-all">
-        {/* Brand Icon Superior */}
-        <Link
-          to="/estudiante/panel"
-          className="h-16 flex flex-col items-center justify-center border-b border-white/10 hover:bg-white/5 transition-colors group cursor-pointer"
-          title="Ir a Mis Cursos"
-        >
-          <div className="w-10 h-10 rounded-xl bg-blue-600 flex items-center justify-center text-white shadow-md group-hover:scale-105 transition-transform">
-            <School className="w-5 h-5 text-amber-300" />
-          </div>
-        </Link>
-
+      <aside className="hidden md:flex flex-col fixed left-0 top-16 bottom-0 w-20 bg-[#0A1128] dark:bg-[#060814] border-r border-slate-800/80 z-30 text-white shadow-xl transition-all">
         {/* Enlaces Principales de Navegación Vertical */}
         <nav className="flex-1 py-4 flex flex-col items-center space-y-2">
           {/* Cursos */}
@@ -209,7 +198,7 @@ export default function StudentLayout() {
       </aside>
 
       {/* 2. HEADER SUPERIOR MODERNO (DESKTOP + MOBILE) */}
-      <header className="bg-white dark:bg-slate-900/90 dark:backdrop-blur-xl border-b border-slate-200 dark:border-white/10 sticky top-0 z-30 shadow-xs md:pl-20 transition-colors">
+      <header className="bg-white dark:bg-slate-900/90 dark:backdrop-blur-xl border-b border-slate-200 dark:border-white/10 sticky top-0 z-40 shadow-xs transition-colors">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-3">
           
           {/* Logo y Nombre de Marca */}
@@ -235,43 +224,6 @@ export default function StudentLayout() {
               </p>
             </div>
           </Link>
-
-          {/* Menú de Navegación Superior Rápido (Tablet/Desktop) */}
-          <nav className="hidden lg:flex items-center space-x-1.5">
-            <NavLink
-              to="/estudiante/panel"
-              className={({ isActive }) => `flex items-center space-x-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
-                isActive
-                  ? "bg-slate-100 dark:bg-white/10 text-blue-700 dark:text-blue-400"
-                  : "text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-white/5"
-              }`}
-            >
-              <BookOpen className="w-3.5 h-3.5" />
-              <span>Mis Cursos</span>
-            </NavLink>
-            <NavLink
-              to="/estudiante/horarios"
-              className={({ isActive }) => `flex items-center space-x-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
-                isActive
-                  ? "bg-slate-100 dark:bg-white/10 text-blue-700 dark:text-blue-400"
-                  : "text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-white/5"
-              }`}
-            >
-              <Calendar className="w-3.5 h-3.5" />
-              <span>Mi Horario</span>
-            </NavLink>
-            <NavLink
-              to="/estudiante/pagos"
-              className={({ isActive }) => `flex items-center space-x-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
-                isActive
-                  ? "bg-slate-100 dark:bg-white/10 text-blue-700 dark:text-blue-400"
-                  : "text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-white/5"
-              }`}
-            >
-              <CreditCard className="w-3.5 h-3.5" />
-              <span>Mis Pagos</span>
-            </NavLink>
-          </nav>
 
           {/* Controles de la Derecha: Campana, Modo Oscuro, Avatar Estudiante */}
           <div className="flex items-center space-x-2 sm:space-x-3 shrink-0">
