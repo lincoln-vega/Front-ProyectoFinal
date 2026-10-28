@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   ListTodo,
   Clock,
@@ -12,63 +12,29 @@ import {
   Sparkles,
   BookOpen
 } from "lucide-react";
+import { academicActivitiesService } from "../../services/academicActivitiesService";
 
 export default function WeeklyActivitiesWidget({ activeCourses = [], onJoinMeet }) {
   const [filter, setFilter] = useState("pendientes");
   const [selectedTask, setSelectedTask] = useState(null);
+  const [activities, setActivities] = useState(() => academicActivitiesService.getTasks());
 
-  // Lista estructurada de actividades pedagógicas para el estudiante
-  const activities = [
-    {
-      id: "TSK-001",
-      tipo: "Tarea Calificada",
-      titulo: "Práctica N° 4: Funciones Cuadráticas y Polinomios",
-      curso: "Álgebra y Funciones",
-      cursoId: "CRS-001",
-      estado: "Por entregar",
-      fechaLimite: "Mañana, 11:59 PM",
-      puntos: "20 pts",
-      descripcion: "Desarrollar los 10 ejercicios pares de la separata teórica N° 4 en formato PDF manuscrito o digital.",
-      docente: "Prof. Carmen Rosa Herrera"
-    },
-    {
-      id: "TSK-002",
-      tipo: "Guía de Ejercicios",
-      titulo: "Taller N° 3: Cinemática y Leyes de Newton",
-      curso: "Física Fundamental",
-      cursoId: "CRS-002",
-      estado: "Por entregar",
-      fechaLimite: "Viernes, 11:59 PM",
-      puntos: "20 pts",
-      descripcion: "Completar la resolución de los problemas de dinámica lineal con sus diagramas de cuerpo libre.",
-      docente: "Prof. Miguel Ángel Paredes"
-    },
-    {
-      id: "TSK-003",
-      tipo: "Simulacro Tipo Admisión",
-      titulo: "Simulacro General de Ciencias y Humanidades",
-      curso: "Academia Pre (General)",
-      cursoId: "SIM-01",
-      estado: "Por entregar",
-      fechaLimite: "Domingo, 02:00 PM",
-      puntos: "100 preguntas",
-      descripcion: "Evaluación cronometrada de 3 horas simulando el examen de admisión real.",
-      docente: "Coordinación Académica"
-    },
-    {
-      id: "TSK-004",
-      tipo: "Cuestionario Virtual",
-      titulo: "Autoevaluación: Genética y Sistema Nervioso",
-      curso: "Biología y Anatomía",
-      cursoId: "CRS-003",
-      estado: "Entregado",
-      fechaLimite: "Entregado ayer",
-      nota: "18.5 / 20",
-      puntos: "20 pts",
-      descripcion: "Cuestionario de 20 preguntas con retroalimentación inmediata.",
-      docente: "Dra. Elena Sofía Torres"
-    }
-  ];
+  // Sincronizar tareas al cargar o cuando cambie la ventana/pestaña
+  useEffect(() => {
+    const refreshTasks = () => {
+      setActivities(academicActivitiesService.getTasks());
+    };
+    refreshTasks();
+    window.addEventListener("storage", refreshTasks);
+    return () => window.removeEventListener("storage", refreshTasks);
+  }, []);
+
+  const handleDeliverTask = (taskId) => {
+    const updated = academicActivitiesService.toggleTaskStatus(taskId);
+    setActivities(updated);
+    setSelectedTask(null);
+    alert("¡Tarea entregada exitosamente! Tu docente ha sido notificado.");
+  };
 
   const filteredActivities = activities.filter((act) => {
     if (filter === "pendientes") return act.estado === "Por entregar";
@@ -284,13 +250,11 @@ export default function WeeklyActivitiesWidget({ activeCourses = [], onJoinMeet 
               {selectedTask.estado === "Por entregar" && (
                 <button
                   type="button"
-                  onClick={() => {
-                    alert("Función de entrega de archivo habilitada en la Fase de Gestión de Tareas de la V2.0");
-                    setSelectedTask(null);
-                  }}
-                  className="w-full py-2.5 px-4 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs shadow-md cursor-pointer transition-all"
+                  onClick={() => handleDeliverTask(selectedTask.id)}
+                  className="w-full py-2.5 px-4 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs shadow-md cursor-pointer transition-all flex items-center justify-center gap-1.5"
                 >
-                  Subir Entrega (PDF)
+                  <CheckCircle2 className="w-4 h-4" />
+                  <span>Subir Entrega (PDF)</span>
                 </button>
               )}
             </div>

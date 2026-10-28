@@ -1,9 +1,10 @@
 import React, { useEffect, useState, useMemo } from "react";
-import { BookOpen, Users, AlertCircle, Loader2, ArrowRightLeft, Video, ExternalLink, Calendar, CheckCircle2, X } from "lucide-react";
+import { BookOpen, Users, AlertCircle, Loader2, ArrowRightLeft, Video, ExternalLink, Calendar, CheckCircle2, X, FileText, Bell, Sparkles } from "lucide-react";
 import { Link } from "react-router-dom";
 import { courseService } from "../../services/cursosServices";
 import { userService } from "../../services/api";
 import { registerMeetEntry } from "../../services/asistencia";
+import { academicActivitiesService } from "../../services/academicActivitiesService";
 import SolicitudPermutaModal from "../../components/docente/SolicitudPermutaModal";
 
 // Función de normalización para asegurar la coincidencia exacta del docente
@@ -183,38 +184,49 @@ export default function DocenteDashboardPage() {
         </button>
       </div>
 
-      {/* TARJETAS MÉTRICAS */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+      {/* TARJETAS MÉTRICAS V2.0 */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {/* Tarjeta de Cursos Asignados (Dinámico) */}
-        <div className="bg-white/60 dark:bg-white/5 backdrop-blur-2xl p-5 rounded-xl border border-slate-200 dark:border-white/10 shadow-xs flex items-center space-x-4">
-          <div className="p-3 bg-blue-100 dark:bg-blue-900/30 rounded-lg text-blue-600 dark:text-blue-400">
-            <BookOpen className="w-6 h-6"/>
+        <div className="bg-white/60 dark:bg-white/5 backdrop-blur-2xl p-5 rounded-2xl border border-slate-200 dark:border-white/10 shadow-xs flex items-center space-x-3.5">
+          <div className="p-3 bg-blue-100 dark:bg-blue-900/30 rounded-xl text-blue-600 dark:text-blue-400">
+            <BookOpen className="w-5 h-5"/>
           </div>
           <div>
-            <p className="text-sm font-semibold text-slate-500 dark:text-slate-400">Cursos Asignados</p>
-            <p className="text-2xl font-bold text-slate-800 dark:text-white">{cursosAsignados.length}</p>
+            <p className="text-xs font-semibold text-slate-500 dark:text-slate-400">Cursos Asignados</p>
+            <p className="text-xl font-extrabold text-slate-800 dark:text-white">{cursosAsignados.length}</p>
           </div>
         </div>
 
         {/* Tarjeta de Total Estudiantes Matriculados (Dinámico) */}
-        <div className="bg-white/60 dark:bg-white/5 backdrop-blur-2xl p-5 rounded-xl border border-slate-200 dark:border-white/10 shadow-xs flex items-center space-x-4">
-          <div className="p-3 bg-emerald-100 dark:bg-emerald-900/30 rounded-lg text-emerald-600 dark:text-emerald-400">
-            <Users className="w-6 h-6"/>
+        <div className="bg-white/60 dark:bg-white/5 backdrop-blur-2xl p-5 rounded-2xl border border-slate-200 dark:border-white/10 shadow-xs flex items-center space-x-3.5">
+          <div className="p-3 bg-emerald-100 dark:bg-emerald-900/30 rounded-xl text-emerald-600 dark:text-emerald-400">
+            <Users className="w-5 h-5"/>
           </div>
           <div>
-            <p className="text-sm font-semibold text-slate-500 dark:text-slate-400">Total Estudiantes</p>
-            <p className="text-2xl font-bold text-slate-800 dark:text-white">{totalEstudiantes}</p>
+            <p className="text-xs font-semibold text-slate-500 dark:text-slate-400">Alumnos a Cargo</p>
+            <p className="text-xl font-extrabold text-slate-800 dark:text-white">{totalEstudiantes}</p>
           </div>
         </div>
 
-        {/* Tarjeta de Incidencias */}
-        <div className="bg-white/60 dark:bg-white/5 backdrop-blur-2xl p-5 rounded-xl border border-slate-200 dark:border-white/10 shadow-xs flex items-center space-x-4">
-          <div className="p-3 bg-amber-100 dark:bg-amber-900/30 rounded-lg text-amber-600 dark:text-amber-400">
-            <AlertCircle className="w-6 h-6"/>
+        {/* Tarjeta de Tareas Asignadas */}
+        <div className="bg-white/60 dark:bg-white/5 backdrop-blur-2xl p-5 rounded-2xl border border-slate-200 dark:border-white/10 shadow-xs flex items-center space-x-3.5">
+          <div className="p-3 bg-indigo-100 dark:bg-indigo-900/30 rounded-xl text-indigo-600 dark:text-indigo-400">
+            <FileText className="w-5 h-5"/>
           </div>
           <div>
-            <p className="text-sm font-semibold text-slate-500 dark:text-slate-400">Incidencias</p>
-            <p className="text-2xl font-bold text-slate-800 dark:text-white">0</p>
+            <p className="text-xs font-semibold text-slate-500 dark:text-slate-400">Tareas Activas</p>
+            <p className="text-xl font-extrabold text-slate-800 dark:text-white">{academicActivitiesService.getTasks().length}</p>
+          </div>
+        </div>
+
+        {/* Tarjeta de Anuncios */}
+        <div className="bg-white/60 dark:bg-white/5 backdrop-blur-2xl p-5 rounded-2xl border border-slate-200 dark:border-white/10 shadow-xs flex items-center space-x-3.5">
+          <div className="p-3 bg-amber-100 dark:bg-amber-900/30 rounded-xl text-amber-600 dark:text-amber-400">
+            <Bell className="w-5 h-5"/>
+          </div>
+          <div>
+            <p className="text-xs font-semibold text-slate-500 dark:text-slate-400">Anuncios en Muro</p>
+            <p className="text-xl font-extrabold text-slate-800 dark:text-white">{academicActivitiesService.getAnnouncements().length}</p>
           </div>
         </div>
       </div>
@@ -285,10 +297,10 @@ export default function DocenteDashboardPage() {
                   </button>
                   <Link
                     to="/docente/cursos"
-                    className="w-full text-center text-sm font-bold py-2.5 px-3 rounded-xl border border-slate-200 dark:border-white/10 bg-slate-100/70 dark:bg-white/5 hover:bg-indigo-50 dark:hover:bg-indigo-950/40 text-slate-700 dark:text-slate-200 hover:text-indigo-600 dark:hover:text-indigo-400 hover:border-indigo-300 dark:hover:border-indigo-700 transition-all flex items-center justify-center gap-2 shadow-2xs"
+                    className="w-full text-center text-xs font-bold py-2.5 px-3 rounded-xl border border-slate-200 dark:border-white/10 bg-slate-100/70 dark:bg-white/5 hover:bg-indigo-50 dark:hover:bg-indigo-950/40 text-slate-700 dark:text-slate-200 hover:text-indigo-600 dark:hover:text-indigo-400 hover:border-indigo-300 dark:hover:border-indigo-700 transition-all flex items-center justify-center gap-2 shadow-2xs"
                   >
                     <BookOpen className="w-4 h-4 text-slate-400" />
-                    <span>Gestionar Asistencia e Historial</span>
+                    <span>Gestionar Tareas, Alumnos y Asistencia</span>
                   </Link>
                 </div>
               </div>
