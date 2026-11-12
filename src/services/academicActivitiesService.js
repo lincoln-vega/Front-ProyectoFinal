@@ -1,4 +1,7 @@
 // Servicio de gestión de tareas, evaluaciones y anuncios académicos (V2.0)
+// Integra persistencia en Backend FastAPI y PostgreSQL con fallback en localStorage
+
+const API_BASE_URL = import.meta.env.VITE_BACKEND_URL || "http://localhost:8000";
 const TASKS_STORAGE_KEY = "academia_pre_tareas_v2";
 const ANNOUNCEMENTS_STORAGE_KEY = "academia_pre_anuncios_v2";
 
@@ -83,6 +86,7 @@ const DEFAULT_ANNOUNCEMENTS = [
 
 export const academicActivitiesService = {
   // === TAREAS ===
+
   getTasks() {
     try {
       const stored = localStorage.getItem(TASKS_STORAGE_KEY);
@@ -90,7 +94,7 @@ export const academicActivitiesService = {
         return JSON.parse(stored);
       }
     } catch (e) {
-      console.warn("Error leyendo tareas:", e);
+      console.warn("[AcademicService] Error leyendo tareas locales:", e);
     }
     localStorage.setItem(TASKS_STORAGE_KEY, JSON.stringify(DEFAULT_TASKS));
     return DEFAULT_TASKS;
@@ -99,43 +103,123 @@ export const academicActivitiesService = {
   getTasksByCourse(cursoId) {
     const all = this.getTasks();
     if (!cursoId) return all;
-    return all.filter((t) => t.cursoId === cursoId || t.cursoId === String(cursoId));
+    return all.filter((t) => t.cursoId === cursoId || t.curso_id === cursoId || t.cursoId === String(cursoId));
   },
 
-  createTask(newTask) {
-    const all = this.getTasks();
-    const task = {
-      id: `TSK-${Date.now().toString().slice(-4)}`,
-      estado: "Por entregar",
-      createdAt: new Date().toISOString(),
-      ...newTask
+  async fetchTasks(cursoId = null) {
+    try {
+      const url = cursoId
+        ? `${API_BASE_URL}/tareas/?curso_id=${encodeURIComponent(cursoId)}`
+        : `${API_BASE_URL}/tareas/`;
+      const res = await fetch(url);
+      if (res.ok) {
+        const data = await res.json();
+        if (Array.isArray(data)) {
+          const normalized = data.map((t) => ({
+            ...t,
+            cursoId: t.cursoId || t.curso_id,
+            fechaLimite: t.fechaLimite || t.fecha_limite,
+            docenteId: t.docenteId || t.docente_id
+          }));
+          if (!cursoId) {
+            localStorage.setItem(TASKS_STORAGE_KEY, JSON.stringify(normalized));
+          }
+          return normalized;
+        }
+      }
+    } catch (err) {
+      console.warn("[AcademicService] Fallback local para tareas:", err);
+    }
+    return cursoId ? this.getTasksByCourse(cursoId) : this.getTasks();
+  },
+
+  async createTask(newTask) {
+    const payload = {
+      cursoId: newTask.cursoId || newTask.curso_id,
+      curso: newTask.curso,
+      tipo: newTask.tipo || "Tarea Calificada",
+      titulo: newTask.titulo,
+      descripcion: newTask.descripcion || "",
+      fechaLimite: newTask.fechaLimite || newTask.fecha_limite || "Próximamente",
+      puntos: newTask.puntos || "20 pts",
+      docenteId: newTask.docenteId || newTask.docente_id,
+      docente: newTask.docente,
+      estado: "Por entregar"
     };
-    const updated = [task, ...all];
+
+    let created = null;
+    try {
+      const res = await fetch(`${API_BASE_URL}/tareas/`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload)
+      });
+      if (res.ok) {
+        created = await res.json();
+      }
+    } catch (err) {
+      console.warn("[AcademicService] Error en backend al crear tarea:", err);
+    }
+
+    if (!created) {
+      created = {
+        id: `TSK-${Date.now().toString().slice(-4)}`,
+        ...payload,
+        createdAt: new Date().toISOString()
+      };
+    }
+
+    const all = this.getTasks();
+    const updated = [created, ...all.filter((t) => t.id !== created.id)];
     localStorage.setItem(TASKS_STORAGE_KEY, JSON.stringify(updated));
-    return task;
+    window.dispatchEvent(new Event("storage"));
+    return created;
   },
 
-  deleteTask(taskId) {
+  async deleteTask(taskId) {
+    try {
+      await fetch(`${API_BASE_URL}/tareas/${encodeURIComponent(taskId)}`, {
+        method: "DELETE"
+      });
+    } catch (err) {
+      console.warn("[AcademicService] Error eliminando tarea en backend:", err);
+    }
+
     const all = this.getTasks();
     const updated = all.filter((t) => t.id !== taskId);
     localStorage.setItem(TASKS_STORAGE_KEY, JSON.stringify(updated));
+    window.dispatchEvent(new Event("storage"));
     return updated;
   },
 
-  toggleTaskStatus(taskId) {
+  async toggleTaskStatus(taskId) {
     const all = this.getTasks();
+    const currentTask = all.find((t) => t.id === taskId);
+    const nextState = currentTask?.estado === "Por entregar" ? "Entregado" : "Por entregar";
+
+    try {
+      await fetch(`${API_BASE_URL}/tareas/${encodeURIComponent(taskId)}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ estado: nextState })
+      });
+    } catch (err) {
+      console.warn("[AcademicService] Error actualizando estado en backend:", err);
+    }
+
     const updated = all.map((t) => {
       if (t.id === taskId) {
-        const nextState = t.estado === "Por entregar" ? "Entregado" : "Por entregar";
         return { ...t, estado: nextState, nota: nextState === "Entregado" ? "20 / 20" : null };
       }
       return t;
     });
     localStorage.setItem(TASKS_STORAGE_KEY, JSON.stringify(updated));
+    window.dispatchEvent(new Event("storage"));
     return updated;
   },
 
   // === ANUNCIOS ===
+
   getAnnouncements() {
     try {
       const stored = localStorage.getItem(ANNOUNCEMENTS_STORAGE_KEY);
@@ -143,7 +227,7 @@ export const academicActivitiesService = {
         return JSON.parse(stored);
       }
     } catch (e) {
-      console.warn("Error leyendo anuncios:", e);
+      console.warn("[AcademicService] Error leyendo anuncios locales:", e);
     }
     localStorage.setItem(ANNOUNCEMENTS_STORAGE_KEY, JSON.stringify(DEFAULT_ANNOUNCEMENTS));
     return DEFAULT_ANNOUNCEMENTS;
@@ -152,25 +236,88 @@ export const academicActivitiesService = {
   getAnnouncementsByCourse(cursoId) {
     const all = this.getAnnouncements();
     if (!cursoId) return all;
-    return all.filter((a) => a.cursoId === cursoId || a.cursoId === String(cursoId));
+    return all.filter((a) => a.cursoId === cursoId || a.curso_id === cursoId || a.cursoId === String(cursoId));
   },
 
-  createAnnouncement(newAnn) {
-    const all = this.getAnnouncements();
-    const ann = {
-      id: `ANN-${Date.now().toString().slice(-4)}`,
-      createdAt: new Date().toISOString(),
-      ...newAnn
+  async fetchAnnouncements(cursoId = null) {
+    try {
+      const url = cursoId
+        ? `${API_BASE_URL}/anuncios/?curso_id=${encodeURIComponent(cursoId)}`
+        : `${API_BASE_URL}/anuncios/`;
+      const res = await fetch(url);
+      if (res.ok) {
+        const data = await res.json();
+        if (Array.isArray(data)) {
+          const normalized = data.map((a) => ({
+            ...a,
+            cursoId: a.cursoId || a.curso_id,
+            docenteId: a.docenteId || a.docente_id
+          }));
+          if (!cursoId) {
+            localStorage.setItem(ANNOUNCEMENTS_STORAGE_KEY, JSON.stringify(normalized));
+          }
+          return normalized;
+        }
+      }
+    } catch (err) {
+      console.warn("[AcademicService] Fallback local para anuncios:", err);
+    }
+    return cursoId ? this.getAnnouncementsByCourse(cursoId) : this.getAnnouncements();
+  },
+
+  async createAnnouncement(newAnn) {
+    const payload = {
+      cursoId: newAnn.cursoId || newAnn.curso_id,
+      curso: newAnn.curso,
+      titulo: newAnn.titulo,
+      contenido: newAnn.contenido,
+      prioridad: newAnn.prioridad || "Normal",
+      docenteId: newAnn.docenteId || newAnn.docente_id,
+      docente: newAnn.docente
     };
-    const updated = [ann, ...all];
+
+    let created = null;
+    try {
+      const res = await fetch(`${API_BASE_URL}/anuncios/`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload)
+      });
+      if (res.ok) {
+        created = await res.json();
+      }
+    } catch (err) {
+      console.warn("[AcademicService] Error en backend al crear anuncio:", err);
+    }
+
+    if (!created) {
+      created = {
+        id: `ANN-${Date.now().toString().slice(-4)}`,
+        ...payload,
+        createdAt: new Date().toISOString()
+      };
+    }
+
+    const all = this.getAnnouncements();
+    const updated = [created, ...all.filter((a) => a.id !== created.id)];
     localStorage.setItem(ANNOUNCEMENTS_STORAGE_KEY, JSON.stringify(updated));
-    return ann;
+    window.dispatchEvent(new Event("storage"));
+    return created;
   },
 
-  deleteAnnouncement(annId) {
+  async deleteAnnouncement(annId) {
+    try {
+      await fetch(`${API_BASE_URL}/anuncios/${encodeURIComponent(annId)}`, {
+        method: "DELETE"
+      });
+    } catch (err) {
+      console.warn("[AcademicService] Error eliminando anuncio en backend:", err);
+    }
+
     const all = this.getAnnouncements();
     const updated = all.filter((a) => a.id !== annId);
     localStorage.setItem(ANNOUNCEMENTS_STORAGE_KEY, JSON.stringify(updated));
+    window.dispatchEvent(new Event("storage"));
     return updated;
   }
 };

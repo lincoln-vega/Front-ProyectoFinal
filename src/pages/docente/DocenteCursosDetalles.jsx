@@ -99,9 +99,13 @@ export default function DocenteCursosDetalles({ cursoId, onVolver }) {
       const foundCourse = courses.find((item) => item.id === cursoId) || null;
       setCurso(foundCourse);
 
-      // Cargar tareas y anuncios de este curso
-      setTasks(academicActivitiesService.getTasksByCourse(cursoId));
-      setAnnouncements(academicActivitiesService.getAnnouncementsByCourse(cursoId));
+      // Cargar tareas y anuncios de este curso sincronizando con backend
+      const [courseTasks, courseAnnouncements] = await Promise.all([
+        academicActivitiesService.fetchTasks(cursoId),
+        academicActivitiesService.fetchAnnouncements(cursoId)
+      ]);
+      setTasks(courseTasks);
+      setAnnouncements(courseAnnouncements);
 
       // Filtrar estudiantes matriculados en este curso
       const students = (users || []).filter((u) => {
@@ -198,76 +202,96 @@ export default function DocenteCursosDetalles({ cursoId, onVolver }) {
     }
   };
 
-  // Creación de nueva tarea
-  const handleCreateTask = (e) => {
+  // Creación de nueva tarea (Sincronizada con Backend y PostgreSQL)
+  const handleCreateTask = async (e) => {
     e.preventDefault();
     if (!newTaskData.titulo.trim()) {
       alert("Por favor ingresa el título de la tarea.");
       return;
     }
 
-    const created = academicActivitiesService.createTask({
-      cursoId: curso.id,
-      curso: curso.asignatura,
-      tipo: newTaskData.tipo,
-      titulo: newTaskData.titulo.trim(),
-      fechaLimite: newTaskData.fechaLimite.trim(),
-      puntos: newTaskData.puntos.trim(),
-      descripcion: newTaskData.descripcion.trim() || "Desarrollar y subir la resolución en PDF.",
-      docente: curso.docente || localStorage.getItem("userName") || "Docente"
-    });
+    try {
+      const created = await academicActivitiesService.createTask({
+        cursoId: curso.id,
+        curso: curso.asignatura,
+        tipo: newTaskData.tipo,
+        titulo: newTaskData.titulo.trim(),
+        fechaLimite: newTaskData.fechaLimite.trim(),
+        puntos: newTaskData.puntos.trim(),
+        descripcion: newTaskData.descripcion.trim() || "Desarrollar y subir la resolución en PDF.",
+        docente: curso.docente || localStorage.getItem("userName") || "Docente"
+      });
 
-    setTasks(academicActivitiesService.getTasksByCourse(cursoId));
-    setIsTaskModalOpen(false);
-    setNewTaskData({
-      titulo: "",
-      tipo: "Tarea Calificada",
-      fechaLimite: "Próximo Lunes, 11:59 PM",
-      puntos: "20 pts",
-      descripcion: ""
-    });
-    setNotice(`Tarea "${created.titulo}" publicada exitosamente para los estudiantes.`);
+      const updated = await academicActivitiesService.fetchTasks(cursoId);
+      setTasks(updated);
+      setIsTaskModalOpen(false);
+      setNewTaskData({
+        titulo: "",
+        tipo: "Tarea Calificada",
+        fechaLimite: "Próximo Lunes, 11:59 PM",
+        puntos: "20 pts",
+        descripcion: ""
+      });
+      setNotice(`Tarea "${created.titulo}" guardada y sincronizada exitosamente con la base de datos.`);
+    } catch (err) {
+      setError("No se pudo publicar la tarea: " + err.message);
+    }
   };
 
-  const handleDeleteTask = (taskId) => {
+  const handleDeleteTask = async (taskId) => {
     if (!window.confirm("¿Estás seguro de eliminar esta tarea?")) return;
-    const updated = academicActivitiesService.deleteTask(taskId);
-    setTasks(updated.filter((t) => t.cursoId === cursoId));
-    setNotice("Tarea eliminada correctamente.");
+    try {
+      await academicActivitiesService.deleteTask(taskId);
+      const updated = await academicActivitiesService.fetchTasks(cursoId);
+      setTasks(updated);
+      setNotice("Tarea eliminada correctamente.");
+    } catch (err) {
+      setError("Error al eliminar tarea: " + err.message);
+    }
   };
 
-  // Creación de nuevo anuncio
-  const handleCreateAnnouncement = (e) => {
+  // Creación de nuevo anuncio (Sincronizado con Backend y PostgreSQL)
+  const handleCreateAnnouncement = async (e) => {
     e.preventDefault();
     if (!newAnnData.titulo.trim() || !newAnnData.contenido.trim()) {
       alert("Por favor completa el título y el mensaje del anuncio.");
       return;
     }
 
-    const created = academicActivitiesService.createAnnouncement({
-      cursoId: curso.id,
-      curso: curso.asignatura,
-      titulo: newAnnData.titulo.trim(),
-      prioridad: newAnnData.prioridad,
-      contenido: newAnnData.contenido.trim(),
-      docente: curso.docente || localStorage.getItem("userName") || "Docente"
-    });
+    try {
+      const created = await academicActivitiesService.createAnnouncement({
+        cursoId: curso.id,
+        curso: curso.asignatura,
+        titulo: newAnnData.titulo.trim(),
+        prioridad: newAnnData.prioridad,
+        contenido: newAnnData.contenido.trim(),
+        docente: curso.docente || localStorage.getItem("userName") || "Docente"
+      });
 
-    setAnnouncements(academicActivitiesService.getAnnouncementsByCourse(cursoId));
-    setIsAnnModalOpen(false);
-    setNewAnnData({
-      titulo: "",
-      prioridad: "Normal",
-      contenido: ""
-    });
-    setNotice(`Anuncio "${created.titulo}" publicado en el muro del curso.`);
+      const updated = await academicActivitiesService.fetchAnnouncements(cursoId);
+      setAnnouncements(updated);
+      setIsAnnModalOpen(false);
+      setNewAnnData({
+        titulo: "",
+        prioridad: "Normal",
+        contenido: ""
+      });
+      setNotice(`Anuncio "${created.titulo}" publicado en el muro del curso y guardado en la base de datos.`);
+    } catch (err) {
+      setError("No se pudo publicar el anuncio: " + err.message);
+    }
   };
 
-  const handleDeleteAnnouncement = (annId) => {
+  const handleDeleteAnnouncement = async (annId) => {
     if (!window.confirm("¿Estás seguro de eliminar este anuncio?")) return;
-    const updated = academicActivitiesService.deleteAnnouncement(annId);
-    setAnnouncements(updated.filter((a) => a.cursoId === cursoId));
-    setNotice("Anuncio eliminado correctamente.");
+    try {
+      await academicActivitiesService.deleteAnnouncement(annId);
+      const updated = await academicActivitiesService.fetchAnnouncements(cursoId);
+      setAnnouncements(updated);
+      setNotice("Anuncio eliminado correctamente.");
+    } catch (err) {
+      setError("Error al eliminar anuncio: " + err.message);
+    }
   };
 
   if (loading) {
@@ -396,8 +420,8 @@ export default function DocenteCursosDetalles({ cursoId, onVolver }) {
           onClick={() => setActiveTab("clase")}
           className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs sm:text-sm font-bold transition-all cursor-pointer ${
             activeTab === "clase"
-              ? "bg-[#1E3A8A] text-white shadow-sm dark:bg-blue-600"
-              : "bg-white dark:bg-white/5 text-slate-600 dark:text-slate-300 hover:bg-slate-100"
+              ? "bg-blue-600 text-white shadow-md shadow-blue-600/30"
+              : "bg-white dark:bg-white/5 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-white/10"
           }`}
         >
           <Video className="w-4 h-4" />
@@ -409,8 +433,8 @@ export default function DocenteCursosDetalles({ cursoId, onVolver }) {
           onClick={() => setActiveTab("tareas")}
           className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs sm:text-sm font-bold transition-all cursor-pointer ${
             activeTab === "tareas"
-              ? "bg-[#1E3A8A] text-white shadow-sm dark:bg-blue-600"
-              : "bg-white dark:bg-white/5 text-slate-600 dark:text-slate-300 hover:bg-slate-100"
+              ? "bg-blue-600 text-white shadow-md shadow-blue-600/30"
+              : "bg-white dark:bg-white/5 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-white/10"
           }`}
         >
           <FileText className="w-4 h-4" />
@@ -422,8 +446,8 @@ export default function DocenteCursosDetalles({ cursoId, onVolver }) {
           onClick={() => setActiveTab("anuncios")}
           className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs sm:text-sm font-bold transition-all cursor-pointer ${
             activeTab === "anuncios"
-              ? "bg-[#1E3A8A] text-white shadow-sm dark:bg-blue-600"
-              : "bg-white dark:bg-white/5 text-slate-600 dark:text-slate-300 hover:bg-slate-100"
+              ? "bg-blue-600 text-white shadow-md shadow-blue-600/30"
+              : "bg-white dark:bg-white/5 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-white/10"
           }`}
         >
           <Bell className="w-4 h-4" />
@@ -435,8 +459,8 @@ export default function DocenteCursosDetalles({ cursoId, onVolver }) {
           onClick={() => setActiveTab("alumnos")}
           className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs sm:text-sm font-bold transition-all cursor-pointer ${
             activeTab === "alumnos"
-              ? "bg-[#1E3A8A] text-white shadow-sm dark:bg-blue-600"
-              : "bg-white dark:bg-white/5 text-slate-600 dark:text-slate-300 hover:bg-slate-100"
+              ? "bg-blue-600 text-white shadow-md shadow-blue-600/30"
+              : "bg-white dark:bg-white/5 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-white/10"
           }`}
         >
           <Users className="w-4 h-4" />

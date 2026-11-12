@@ -21,16 +21,23 @@ export default function WeeklyActivitiesWidget({ activeCourses = [], onJoinMeet 
 
   // Sincronizar tareas al cargar o cuando cambie la ventana/pestaña
   useEffect(() => {
+    let isMounted = true;
+    academicActivitiesService.fetchTasks().then((tasks) => {
+      if (isMounted && tasks) setActivities(tasks);
+    });
+
     const refreshTasks = () => {
       setActivities(academicActivitiesService.getTasks());
     };
-    refreshTasks();
     window.addEventListener("storage", refreshTasks);
-    return () => window.removeEventListener("storage", refreshTasks);
+    return () => {
+      isMounted = false;
+      window.removeEventListener("storage", refreshTasks);
+    };
   }, []);
 
-  const handleDeliverTask = (taskId) => {
-    const updated = academicActivitiesService.toggleTaskStatus(taskId);
+  const handleDeliverTask = async (taskId) => {
+    const updated = await academicActivitiesService.toggleTaskStatus(taskId);
     setActivities(updated);
     setSelectedTask(null);
     alert("¡Tarea entregada exitosamente! Tu docente ha sido notificado.");

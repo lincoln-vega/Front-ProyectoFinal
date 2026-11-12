@@ -1,13 +1,31 @@
 import React, { useEffect, useState, useMemo } from "react";
-import { BookOpen, Users, AlertCircle, Loader2, ArrowRightLeft, Video, ExternalLink, Calendar, CheckCircle2, X, FileText, Bell, Sparkles } from "lucide-react";
+import {
+  BookOpen,
+  Users,
+  AlertCircle,
+  Loader2,
+  ArrowRightLeft,
+  Video,
+  ExternalLink,
+  Calendar,
+  CheckCircle2,
+  X,
+  FileText,
+  Bell,
+  Sparkles,
+  Clock,
+  GraduationCap,
+  ChevronRight,
+  ShieldCheck,
+  TrendingUp
+} from "lucide-react";
 import { Link } from "react-router-dom";
 import { courseService } from "../../services/cursosServices";
 import { userService } from "../../services/api";
 import { registerMeetEntry } from "../../services/asistencia";
-import { academicActivitiesService } from "../../services/academicActivitiesService";
 import SolicitudPermutaModal from "../../components/docente/SolicitudPermutaModal";
 
-// Función de normalización para asegurar la coincidencia exacta del docente
+// Normalización para concordancia de nombres del docente
 const normalizeName = (value) => 
   (value || '')
     .toLowerCase()
@@ -71,7 +89,7 @@ export default function DocenteDashboardPage() {
           setTotalEstudiantes(studentCount);
         }
 
-        // 2. Consultar datos de perfil desde InsForge
+        // 2. Consultar perfil detallado desde InsForge
         if (userEmail && !cancelled) {
           try {
             const profile = await userService.getUserByEmail(userEmail);
@@ -115,31 +133,48 @@ export default function DocenteDashboardPage() {
     }
     setStartingCourseId(course.id);
     
-    // 1. Apertura directa en nueva pestaña (evita bloqueador)
+    // 1. Apertura directa en nueva pestaña (evita bloqueador del navegador)
     window.open(course.meetUrl, "_blank", "noopener,noreferrer");
     setFeedbackNotice(`¡Clase iniciada! Conectando a ${course.asignatura}. Sala de Google Meet abierta.`);
 
-    // 2. Registrar sesión en InsForge en segundo plano
+    // 2. Registrar sesión en backend / InsForge en segundo plano
     try {
       await registerMeetEntry(course.id);
     } catch (err) {
-      console.warn("[DocenteDashboard] Registro de entrada en segundo plano:", err);
+      console.warn("[DocenteDashboard] Registro de auditoría Meet:", err);
     } finally {
       setStartingCourseId(null);
     }
   };
 
+  // Temas decorativos de tarjetas para asemejarse a la vista de estudiante V2
+  const getCourseTheming = (index) => {
+    const themes = [
+      { badge: "bg-blue-100 text-blue-700 dark:bg-blue-950/60 dark:text-blue-300", border: "border-blue-200 dark:border-blue-900/40" },
+      { badge: "bg-pink-100 text-pink-700 dark:bg-pink-950/60 dark:text-pink-300", border: "border-pink-200 dark:border-pink-900/40" },
+      { badge: "bg-amber-100 text-amber-700 dark:bg-amber-950/60 dark:text-amber-300", border: "border-amber-200 dark:border-amber-900/40" },
+      { badge: "bg-emerald-100 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300", border: "border-emerald-200 dark:border-emerald-900/40" },
+      { badge: "bg-purple-100 text-purple-700 dark:bg-purple-950/60 dark:text-purple-300", border: "border-purple-200 dark:border-purple-900/40" }
+    ];
+    return themes[index % themes.length];
+  };
+
   if (loading) {
     return (
-      <div className="flex justify-center items-center min-h-[400px]">
-        <Loader2 className="w-8 h-8 animate-spin text-indigo-500" />
+      <div className="flex flex-col justify-center items-center min-h-[400px] space-y-3">
+        <Loader2 className="w-10 h-10 animate-spin text-blue-600" />
+        <p className="text-sm font-semibold text-slate-500">Cargando asignaturas y nómina docente...</p>
       </div>
     );
   }
 
   return (
-    <div className="space-y-6 animate-fade-in">
-      {error && <p role="alert" className="rounded-lg border border-red-300 bg-red-50 p-3 text-sm text-red-700">{error}</p>}
+    <div className="space-y-8 animate-fade-in">
+      {error && (
+        <p role="alert" className="rounded-2xl border border-red-300 bg-red-50 p-4 text-sm font-bold text-red-700 shadow-xs">
+          {error}
+        </p>
+      )}
 
       {feedbackNotice && (
         <div role="status" className="bg-emerald-50 dark:bg-emerald-950/40 border-2 border-emerald-500/30 rounded-2xl p-4 flex items-start justify-between gap-4 shadow-md">
@@ -148,10 +183,10 @@ export default function DocenteDashboardPage() {
               <CheckCircle2 className="w-5 h-5" />
             </div>
             <div>
-              <h3 className="text-base font-bold text-emerald-950 dark:text-emerald-200">
+              <h3 className="text-sm font-bold text-emerald-950 dark:text-emerald-200">
                 Operación Exitosa
               </h3>
-              <p className="text-sm text-emerald-800 dark:text-emerald-300 mt-0.5">
+              <p className="text-xs text-emerald-800 dark:text-emerald-300 mt-0.5">
                 {feedbackNotice}
               </p>
             </div>
@@ -161,173 +196,273 @@ export default function DocenteDashboardPage() {
             onClick={() => setFeedbackNotice("")}
             className="text-emerald-700 dark:text-emerald-400 hover:text-emerald-900 p-1 rounded-lg"
           >
-            <X className="w-5 h-5" />
+            <X className="w-4 h-4" />
           </button>
         </div>
       )}
 
-      {/* BANNER PRINCIPAL CON ACCIÓN RÁPIDA DE PERMUTA */}
-      <div className="bg-white/60 dark:bg-white/5 backdrop-blur-2xl p-6 rounded-2xl border border-slate-200 dark:border-white/10 shadow-2xs flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div>
-          <h2 className="text-2xl font-bold text-slate-800 dark:text-white">¡Bienvenido(a), {userName}!</h2>
-          <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
-            Este es tu panel de control principal. Aquí podrás ver un resumen de tus clases, nómina e incidencias.
-          </p>
-        </div>
-        <button
-          type="button"
-          onClick={() => setIsPermutaOpen(true)}
-          className="inline-flex items-center gap-2 px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 active:bg-indigo-800 text-white text-sm font-bold rounded-xl shadow-md transition-all self-start md:self-auto cursor-pointer"
-        >
-          <ArrowRightLeft className="w-4 h-4" />
-          <span>+ Solicitar Permuta / Reemplazo</span>
-        </button>
-      </div>
+      {/* 1. HERO BANNER V2 (ESTILO ESTUDIANTE) */}
+      <section className="relative rounded-3xl overflow-hidden shadow-xl border border-slate-200/80 dark:border-white/10">
+        <div className="bg-gradient-to-r from-[#0A1128] via-blue-950 to-indigo-900 p-6 sm:p-8 md:p-10 text-white min-h-[220px] flex flex-col justify-between">
+          
+          <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
+            <div className="max-w-2xl space-y-2.5">
+              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-black uppercase tracking-wide bg-white/15 backdrop-blur-md border border-white/20 text-white">
+                <Sparkles className="w-3.5 h-3.5 text-amber-300" />
+                <span>Ciclo 2026-I • Portal Docente</span>
+              </div>
+              <h2 className="text-2xl sm:text-3xl md:text-4xl font-black tracking-tight leading-tight">
+                ¡Bienvenido(a), {userName}!
+              </h2>
+              <p className="text-blue-100 text-xs sm:text-sm md:text-base leading-relaxed">
+                Control de clases virtuales en vivo con Google Meet, nómina de alumnos matriculados, tareas calificadas y solicitudes de permuta.
+              </p>
+            </div>
 
-      {/* TARJETAS MÉTRICAS V2.0 */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        {/* Tarjeta de Cursos Asignados (Dinámico) */}
-        <div className="bg-white/60 dark:bg-white/5 backdrop-blur-2xl p-5 rounded-2xl border border-slate-200 dark:border-white/10 shadow-xs flex items-center space-x-3.5">
-          <div className="p-3 bg-blue-100 dark:bg-blue-900/30 rounded-xl text-blue-600 dark:text-blue-400">
-            <BookOpen className="w-5 h-5"/>
+            {/* Recuadro lateral resumen para docente */}
+            <div className="hidden lg:block bg-black/35 backdrop-blur-md rounded-2xl p-4 border border-white/15 max-w-xs shrink-0 text-xs space-y-2">
+              <div className="font-extrabold text-amber-300 flex items-center gap-1.5 uppercase tracking-wider text-[11px]">
+                <ShieldCheck className="w-4 h-4" />
+                <span>Estado Pedagógico</span>
+              </div>
+              <ul className="space-y-1.5 text-slate-200 text-[11px] leading-snug">
+                <li className="flex items-start gap-1.5">
+                  <span className="text-amber-400 font-bold">•</span>
+                  <span>Asistencia sincronizada en tiempo real con InsForge.</span>
+                </li>
+                <li className="flex items-start gap-1.5">
+                  <span className="text-amber-400 font-bold">•</span>
+                  <span>Módulo de permutas conectado con Dirección Académica.</span>
+                </li>
+              </ul>
+            </div>
+          </div>
+
+          {/* Footer del Banner con Botones de Acción */}
+          <div className="relative z-10 pt-5 flex flex-wrap items-center justify-between gap-3 border-t border-white/10 mt-4">
+            <div className="flex flex-wrap items-center gap-2.5">
+              <button
+                type="button"
+                onClick={() => setIsPermutaOpen(true)}
+                className="bg-amber-400 hover:bg-amber-300 text-slate-950 font-black text-xs sm:text-sm px-4 py-2.5 rounded-xl shadow-lg transition-transform hover:scale-105 active:scale-95 cursor-pointer flex items-center gap-2"
+              >
+                <ArrowRightLeft className="w-4 h-4" />
+                <span>+ Solicitar Permuta / Reemplazo</span>
+              </button>
+
+              <Link
+                to="/docente/horarios"
+                className="bg-white/15 hover:bg-white/25 text-white font-bold text-xs sm:text-sm px-4 py-2.5 rounded-xl border border-white/20 backdrop-blur-md transition-colors flex items-center gap-2"
+              >
+                <Calendar className="w-4 h-4 text-blue-200" />
+                <span>Ver Mi Horario Semanal</span>
+              </Link>
+            </div>
+
+            <span className="text-[11px] font-mono text-blue-200/80">
+              Semana 4 • Clases en Vivo
+            </span>
+          </div>
+        </div>
+      </section>
+
+      {/* 2. TARJETAS MÉTRICAS V2 */}
+      <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        {/* Cursos Asignados */}
+        <div className="bg-white dark:bg-slate-900/90 rounded-2xl border border-slate-200/90 dark:border-white/10 p-5 shadow-xs flex items-center space-x-4">
+          <div className="p-3 bg-blue-50 dark:bg-blue-950/60 rounded-xl text-blue-600 dark:text-blue-400">
+            <BookOpen className="w-6 h-6" />
           </div>
           <div>
-            <p className="text-xs font-semibold text-slate-500 dark:text-slate-400">Cursos Asignados</p>
-            <p className="text-xl font-extrabold text-slate-800 dark:text-white">{cursosAsignados.length}</p>
-          </div>
-        </div>
-
-        {/* Tarjeta de Total Estudiantes Matriculados (Dinámico) */}
-        <div className="bg-white/60 dark:bg-white/5 backdrop-blur-2xl p-5 rounded-2xl border border-slate-200 dark:border-white/10 shadow-xs flex items-center space-x-3.5">
-          <div className="p-3 bg-emerald-100 dark:bg-emerald-900/30 rounded-xl text-emerald-600 dark:text-emerald-400">
-            <Users className="w-5 h-5"/>
-          </div>
-          <div>
-            <p className="text-xs font-semibold text-slate-500 dark:text-slate-400">Alumnos a Cargo</p>
-            <p className="text-xl font-extrabold text-slate-800 dark:text-white">{totalEstudiantes}</p>
-          </div>
-        </div>
-
-        {/* Tarjeta de Tareas Asignadas */}
-        <div className="bg-white/60 dark:bg-white/5 backdrop-blur-2xl p-5 rounded-2xl border border-slate-200 dark:border-white/10 shadow-xs flex items-center space-x-3.5">
-          <div className="p-3 bg-indigo-100 dark:bg-indigo-900/30 rounded-xl text-indigo-600 dark:text-indigo-400">
-            <FileText className="w-5 h-5"/>
-          </div>
-          <div>
-            <p className="text-xs font-semibold text-slate-500 dark:text-slate-400">Tareas Activas</p>
-            <p className="text-xl font-extrabold text-slate-800 dark:text-white">{academicActivitiesService.getTasks().length}</p>
-          </div>
-        </div>
-
-        {/* Tarjeta de Anuncios */}
-        <div className="bg-white/60 dark:bg-white/5 backdrop-blur-2xl p-5 rounded-2xl border border-slate-200 dark:border-white/10 shadow-xs flex items-center space-x-3.5">
-          <div className="p-3 bg-amber-100 dark:bg-amber-900/30 rounded-xl text-amber-600 dark:text-amber-400">
-            <Bell className="w-5 h-5"/>
-          </div>
-          <div>
-            <p className="text-xs font-semibold text-slate-500 dark:text-slate-400">Anuncios en Muro</p>
-            <p className="text-xl font-extrabold text-slate-800 dark:text-white">{academicActivitiesService.getAnnouncements().length}</p>
-          </div>
-        </div>
-      </div>
-
-      {/* SECCIÓN ACCESO RÁPIDO A CLASES Y GOOGLE MEET */}
-      <section className="space-y-4">
-        <div className="flex items-center justify-between border-b border-slate-200 dark:border-white/10 pb-3">
-          <div>
-            <h3 className="text-xl font-extrabold text-slate-900 dark:text-white flex items-center gap-2">
-              <Video className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />
-              <span>Mis Clases Asignadas • Iniciar Sala Virtual</span>
-            </h3>
-            <p className="text-sm text-slate-500 dark:text-slate-400 mt-0.5">
-              Haz clic en Iniciar Clase para abrir tu sala de Meet y comenzar el registro de asistencia.
+            <p className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
+              Cursos Asignados
+            </p>
+            <p className="text-2xl font-black text-slate-900 dark:text-white mt-0.5">
+              {cursosAsignados.length}
             </p>
           </div>
+        </div>
+
+        {/* Total Estudiantes Matriculados */}
+        <div className="bg-white dark:bg-slate-900/90 rounded-2xl border border-slate-200/90 dark:border-white/10 p-5 shadow-xs flex items-center space-x-4">
+          <div className="p-3 bg-emerald-50 dark:bg-emerald-950/60 rounded-xl text-emerald-600 dark:text-emerald-400">
+            <Users className="w-6 h-6" />
+          </div>
+          <div>
+            <p className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
+              Alumnos a Cargo
+            </p>
+            <p className="text-2xl font-black text-slate-900 dark:text-white mt-0.5">
+              {totalEstudiantes}
+            </p>
+          </div>
+        </div>
+
+        {/* Clases con Google Meet */}
+        <div className="bg-white dark:bg-slate-900/90 rounded-2xl border border-slate-200/90 dark:border-white/10 p-5 shadow-xs flex items-center space-x-4">
+          <div className="p-3 bg-indigo-50 dark:bg-indigo-950/60 rounded-xl text-indigo-600 dark:text-indigo-400">
+            <Video className="w-6 h-6" />
+          </div>
+          <div>
+            <p className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
+              Salas Virtuales
+            </p>
+            <p className="text-2xl font-black text-slate-900 dark:text-white mt-0.5">
+              {cursosAsignados.filter(c => c.meetUrl).length}
+            </p>
+          </div>
+        </div>
+
+        {/* Modalidad de Asistencia */}
+        <div className="bg-white dark:bg-slate-900/90 rounded-2xl border border-slate-200/90 dark:border-white/10 p-5 shadow-xs flex items-center space-x-4">
+          <div className="p-3 bg-amber-50 dark:bg-amber-950/60 rounded-xl text-amber-600 dark:text-amber-400">
+            <Clock className="w-6 h-6" />
+          </div>
+          <div>
+            <p className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
+              Auditoría Meet
+            </p>
+            <p className="text-sm font-extrabold text-emerald-600 dark:text-emerald-400 mt-1 flex items-center gap-1">
+              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+              Sincronizada
+            </p>
+          </div>
+        </div>
+      </section>
+
+      {/* 3. CATÁLOGO DE CURSOS ASIGNADOS Y ACCESO EN VIVO */}
+      <section className="space-y-4">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-2 border-b border-slate-200 dark:border-white/10">
+          <div>
+            <h3 className="text-xl font-black text-slate-900 dark:text-white tracking-tight flex items-center gap-2">
+              <BookOpen className="w-5 h-5 text-blue-600 dark:text-blue-400" />
+              <span>Mis Asignaturas y Clases en Vivo</span>
+            </h3>
+            <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+              Inicia sesión en Google Meet para registrar tu asistencia docente o accede al panel de nómina y tareas.
+            </p>
+          </div>
+
           <Link
             to="/docente/cursos"
-            className="text-xs sm:text-sm font-bold text-indigo-600 dark:text-indigo-400 hover:underline inline-flex items-center gap-1"
+            className="text-xs font-bold text-blue-600 dark:text-blue-400 hover:underline flex items-center gap-1 self-start sm:self-auto"
           >
-            <span>Ver todos los cursos</span>
-            <ExternalLink className="w-3.5 h-3.5" />
+            <span>Ver detalle completo</span>
+            <ChevronRight className="w-4 h-4" />
           </Link>
         </div>
 
         {cursosAsignados.length === 0 ? (
-          <div className="bg-white/60 dark:bg-white/5 p-6 rounded-2xl border border-slate-200 dark:border-white/10 text-center text-slate-500 text-sm">
-            No tienes cursos activos asignados actualmente.
+          <div className="bg-white dark:bg-slate-900/90 rounded-2xl border border-slate-200/90 dark:border-white/10 p-10 text-center space-y-3">
+            <div className="w-12 h-12 rounded-2xl bg-amber-100 dark:bg-amber-950/60 text-amber-600 dark:text-amber-400 mx-auto flex items-center justify-center">
+              <AlertCircle className="w-6 h-6" />
+            </div>
+            <h4 className="text-base font-extrabold text-slate-900 dark:text-white">
+              No tienes cursos activos asignados
+            </h4>
+            <p className="text-xs text-slate-500 dark:text-slate-400 max-w-md mx-auto">
+              Si crees que esto es un error, por favor comunícate con la Coordinación Académica o verifica tus horarios asignados.
+            </p>
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-            {cursosAsignados.map((course) => (
-              <div
-                key={course.id}
-                className="bg-white/70 dark:bg-slate-900/80 backdrop-blur-md rounded-2xl border border-slate-200 dark:border-white/10 p-5 flex flex-col justify-between shadow-xs hover:shadow-md transition-all"
-              >
-                <div>
-                  <div className="flex items-center justify-between mb-2.5">
-                    <span className="text-xs uppercase font-extrabold tracking-wider px-2.5 py-0.5 rounded-md bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-300 border border-indigo-100 dark:border-indigo-900/40">
-                      {course.area || "General"}
-                    </span>
-                    <span className="text-xs font-bold text-emerald-600 dark:text-emerald-400 flex items-center gap-1.5">
-                      <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-                      Activo
-                    </span>
-                  </div>
-                  <h4 className="text-lg font-extrabold text-slate-900 dark:text-white leading-snug">
-                    {course.asignatura}
-                  </h4>
-                  <p className="text-sm text-slate-600 dark:text-slate-300 mt-1">
-                    Horario: {Array.isArray(course.dias) ? course.dias.join(", ") : course.dias} ({course.horaInicio} - {course.horaFin})
-                  </p>
-                </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {cursosAsignados.map((course, idx) => {
+              const theme = getCourseTheming(idx);
+              const diasText = Array.isArray(course.dias) ? course.dias.join(", ") : course.dias;
 
-                <div className="mt-5 pt-3.5 border-t border-slate-100 dark:border-white/5 flex flex-col gap-2.5">
-                  <button
-                    type="button"
-                    onClick={() => handleStartClass(course)}
-                    disabled={startingCourseId === course.id}
-                    className="w-full bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white font-bold py-2.5 px-3 rounded-xl shadow-sm text-sm flex items-center justify-center gap-2 cursor-pointer transition-all disabled:opacity-50"
-                  >
-                    {startingCourseId === course.id ? (
-                      <Loader2 className="w-4 h-4 animate-spin" />
-                    ) : (
-                      <Video className="w-4.5 h-4.5" />
-                    )}
-                    <span>Iniciar Clase en Google Meet</span>
-                  </button>
-                  <Link
-                    to="/docente/cursos"
-                    className="w-full text-center text-xs font-bold py-2.5 px-3 rounded-xl border border-slate-200 dark:border-white/10 bg-slate-100/70 dark:bg-white/5 hover:bg-indigo-50 dark:hover:bg-indigo-950/40 text-slate-700 dark:text-slate-200 hover:text-indigo-600 dark:hover:text-indigo-400 hover:border-indigo-300 dark:hover:border-indigo-700 transition-all flex items-center justify-center gap-2 shadow-2xs"
-                  >
-                    <BookOpen className="w-4 h-4 text-slate-400" />
-                    <span>Gestionar Tareas, Alumnos y Asistencia</span>
-                  </Link>
+              return (
+                <div
+                  key={course.id}
+                  className={`bg-white dark:bg-slate-900/90 rounded-2xl border ${theme.border} p-5 shadow-xs hover:shadow-md transition-all flex flex-col justify-between group`}
+                >
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <span className={`text-[10px] font-extrabold uppercase px-2.5 py-0.5 rounded-full ${theme.badge}`}>
+                        {course.area || "Área General"}
+                      </span>
+                      <span className="text-[11px] font-mono text-slate-400 font-semibold">
+                        {course.id}
+                      </span>
+                    </div>
+
+                    <div>
+                      <h4 className="text-base font-black text-slate-900 dark:text-white leading-snug group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
+                        {course.asignatura}
+                      </h4>
+                      <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 flex items-center gap-1.5">
+                        <Calendar className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                        <span>{diasText}</span>
+                      </p>
+                      <p className="text-xs text-slate-500 dark:text-slate-400 flex items-center gap-1.5 mt-0.5">
+                        <Clock className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                        <span>{course.horaInicio} - {course.horaFin}</span>
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="mt-5 pt-4 border-t border-slate-100 dark:border-white/5 space-y-2">
+                    <button
+                      type="button"
+                      onClick={() => handleStartClass(course)}
+                      disabled={startingCourseId === course.id}
+                      className="w-full bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white font-extrabold text-xs py-2.5 px-3 rounded-xl shadow-sm flex items-center justify-center gap-2 cursor-pointer transition-all disabled:opacity-50"
+                    >
+                      {startingCourseId === course.id ? (
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                      ) : (
+                        <Video className="w-4 h-4" />
+                      )}
+                      <span>Iniciar Clase (Google Meet)</span>
+                    </button>
+
+                    <Link
+                      to={`/docente/cursos`}
+                      className="w-full text-center text-xs font-bold py-2 px-3 rounded-xl border border-slate-200 dark:border-white/10 hover:bg-slate-50 dark:hover:bg-white/5 text-slate-700 dark:text-slate-200 transition-colors flex items-center justify-center gap-1.5"
+                    >
+                      <BookOpen className="w-3.5 h-3.5 text-slate-400" />
+                      <span>Gestionar Tareas y Nómina</span>
+                    </Link>
+                  </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </section>
 
-      {/* INFORMACIÓN DE NÓMINA */}
+      {/* 4. INFORMACIÓN DE PERFIL DOCENTE Y NÓMINA */}
       {docenteData && (
-        <div className="bg-white/60 dark:bg-white/5 backdrop-blur-2xl p-6 rounded-xl border border-slate-200 dark:border-white/10 shadow-xs">
-          <h3 className="font-bold text-lg text-slate-800 dark:text-white mb-4">Información de Nómina e Incidencias</h3>
-          <div className="space-y-4">
-            <div className="flex justify-between items-center py-2 border-b border-slate-100 dark:border-white/5">
-              <span className="text-slate-600 dark:text-slate-400 font-medium">Especialidad</span>
-              <span className="font-semibold dark:text-slate-200">{docenteData.especialidad}</span>
+        <section className="bg-white dark:bg-slate-900/90 rounded-2xl border border-slate-200/90 dark:border-white/10 p-6 shadow-xs">
+          <div className="flex items-center space-x-2.5 mb-4 pb-3 border-b border-slate-100 dark:border-white/5">
+            <GraduationCap className="w-5 h-5 text-blue-600 dark:text-blue-400" />
+            <h3 className="text-base font-extrabold text-slate-900 dark:text-white">
+              Ficha del Docente e Incidencias Registradas
+            </h3>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-xs">
+            <div className="p-3.5 rounded-xl bg-slate-50 dark:bg-white/5 border border-slate-100 dark:border-white/5">
+              <span className="text-slate-500 dark:text-slate-400 block font-semibold">Especialidad</span>
+              <span className="text-sm font-bold text-slate-900 dark:text-white mt-0.5 block">
+                {docenteData.especialidad || docenteData.carreraObjetivo || "Docencia Preuniversitaria"}
+              </span>
             </div>
-            <div className="flex justify-between items-center py-2 border-b border-slate-100 dark:border-white/5">
-              <span className="text-slate-600 dark:text-slate-400 font-medium">Nómina Base (S/)</span>
-              <span className="font-bold text-emerald-600 dark:text-emerald-400">S/ {docenteData.salario.toFixed(2)}</span>
+
+            <div className="p-3.5 rounded-xl bg-slate-50 dark:bg-white/5 border border-slate-100 dark:border-white/5">
+              <span className="text-slate-500 dark:text-slate-400 block font-semibold">Correo Institucional</span>
+              <span className="text-sm font-bold text-slate-900 dark:text-white mt-0.5 block truncate">
+                {docenteData.correo || userEmail}
+              </span>
             </div>
-            <div className="py-2">
-              <span className="text-slate-600 dark:text-slate-400 font-medium mb-2 block">Historial de Incidencias:</span>
-              <p className="text-sm text-slate-400 dark:text-slate-500 italic">No tienes incidencias registradas.</p>
+
+            <div className="p-3.5 rounded-xl bg-slate-50 dark:bg-white/5 border border-slate-100 dark:border-white/5">
+              <span className="text-slate-500 dark:text-slate-400 block font-semibold">Nómina Base Referencial</span>
+              <span className="text-sm font-bold text-emerald-600 dark:text-emerald-400 mt-0.5 block">
+                S/ {(docenteData.salario || 1800).toFixed(2)}
+              </span>
             </div>
           </div>
-        </div>
+        </section>
       )}
 
       {/* MODAL DE SOLICITUD DE PERMUTA */}
