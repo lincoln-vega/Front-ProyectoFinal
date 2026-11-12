@@ -54,10 +54,11 @@ export default function AdminStudentsPage() {
 
     try {
       await saveUser({ ...formData, rol: STUDENT_ROLE }, editingUserId);
-      showNotification(editingUserId ? "Estudiante actualizado." : "Perfil guardado. Crea también su cuenta en InsForge Auth para que pueda iniciar sesión.");
+      showNotification(editingUserId ? "Estudiante actualizado correctamente." : "Estudiante registrado y validado correctamente.");
       closeModal();
     } catch (err) {
       setError(err.message);
+      showNotification(`Error de validación: ${err.message}`);
     }
   };
 

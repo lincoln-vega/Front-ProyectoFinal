@@ -1102,9 +1102,9 @@ export default function MatriculasPagosPage({ defaultTab = "matriculas" }) {
                       type="text"
                       required
                       maxLength={8}
-                      placeholder="DNI / Documento"
+                      placeholder="DNI / Documento (8 dígitos)"
                       value={formMatricula.dni}
-                      onChange={(e) => setFormMatricula({ ...formMatricula, dni: e.target.value })}
+                      onChange={(e) => setFormMatricula({ ...formMatricula, dni: e.target.value.replace(/\D/g, '').slice(0, 8) })}
                       className="w-full px-3 py-2 text-xs border border-slate-200 dark:border-white/10 rounded-xl bg-white dark:bg-slate-800 text-slate-800 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:border-[#1E3A8A]"
                     />
                   </div>
@@ -1138,9 +1138,10 @@ export default function MatriculasPagosPage({ defaultTab = "matriculas" }) {
                   </label>
                   <input
                     type="tel"
-                    placeholder="987654321"
+                    maxLength={9}
+                    placeholder="987654321 (9 dígitos)"
                     value={formMatricula.celular}
-                    onChange={(e) => setFormMatricula({ ...formMatricula, celular: e.target.value })}
+                    onChange={(e) => setFormMatricula({ ...formMatricula, celular: e.target.value.replace(/\D/g, '').slice(0, 9) })}
                     className="w-full px-3 py-2 text-xs border border-slate-200 dark:border-white/10 rounded-xl bg-white dark:bg-slate-800 text-slate-800 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:border-[#1E3A8A]"
                   />
                 </div>

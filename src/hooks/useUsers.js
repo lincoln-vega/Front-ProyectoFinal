@@ -4,6 +4,7 @@ import { userService, roleService } from "../services/api";
 export const createInitialUserForm = () => ({
   apellidos: "",
   nombres: "",
+  tipoDocumento: "DNI",
   dni: "",
   fechaNacimiento: "",
   correo: "",
