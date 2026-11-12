@@ -46,7 +46,14 @@ export default function UsersTable({ users, totalUsers, activeUsers, inactiveUse
                 >
                   <td className="py-2.5 px-3.5 font-semibold text-slate-900 dark:text-slate-100 whitespace-nowrap">{user.apellidos}</td>
                   <td className="py-2.5 px-3.5 text-slate-800 dark:text-slate-200 whitespace-nowrap">{user.nombres}</td>
-                  <td className="py-2.5 px-3.5 font-mono text-slate-600 dark:text-slate-400 whitespace-nowrap">{user.dni}</td>
+                  <td className="py-2.5 px-3.5 font-mono text-slate-600 dark:text-slate-400 whitespace-nowrap">
+                    {user.tipoDocumento && user.tipoDocumento !== "DNI" && (
+                      <span className="text-[10px] px-1.5 py-0.5 rounded bg-blue-100 dark:bg-blue-900/50 text-blue-700 dark:text-blue-300 font-sans font-semibold mr-1.5">
+                        {user.tipoDocumento}
+                      </span>
+                    )}
+                    {user.dni}
+                  </td>
                   <td className="py-2.5 px-3.5 text-slate-600 dark:text-slate-400 whitespace-nowrap">{user.fechaNacimiento || "-"}</td>
                   <td className="py-2.5 px-3.5 text-slate-600 dark:text-slate-400 whitespace-nowrap font-sans">
                     <a href={`mailto:${user.correo}`} className="text-blue-700 dark:text-blue-400 hover:underline">{user.correo}</a>

@@ -87,11 +87,11 @@ export default function AdminUsersPage() {
     const isEditing = Boolean(editingUserId);
     try {
       await saveUser(formData, editingUserId);
-      showNotification(isEditing ? "Usuario actualizado correctamente." : "Perfil guardado en InsForge. Crea también su cuenta en InsForge Auth para que pueda iniciar sesión.");
-      showNotification(isEditing ? "Usuario actualizado correctamente." : "Usuario registrado correctamente.");
+      showNotification(isEditing ? "Usuario actualizado correctamente." : "Usuario registrado y validado correctamente.");
       closeModal();
     } catch (err) {
       setError(err.message);
+      showNotification(`Error de validación: ${err.message}`);
     }
   };
 

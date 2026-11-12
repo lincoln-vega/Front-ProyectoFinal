@@ -6,6 +6,7 @@ const USER_COLUMNS = [
   "id",
   "apellidos",
   "nombres",
+  "tipoDocumento",
   "dni",
   "fechaNacimiento",
   "correo",
@@ -28,6 +29,7 @@ const normalizeUser = (user) => {
   const isTeacher = ["docente", "profesor", "profesora"].includes(String(user.rol || "").toLowerCase());
   return {
     ...user,
+    tipoDocumento: user.tipoDocumento || "DNI",
     salario: Number(user.salario) > 0 ? Number(user.salario) : (isTeacher ? 3200 : 0),
     cicloVirtual: ciclo,
     ciclovirtual: ciclo,
@@ -39,7 +41,51 @@ const normalizeUser = (user) => {
 const throwIfError = (error, operation) => {
   if (error) {
     console.error(`[InsForge] ${operation}:`, error);
-    throw new Error(error.message || `No se pudo completar: ${operation}`);
+    let msg = error.message || `No se pudo completar: ${operation}`;
+    
+    // Mapeo amigable de restricciones de integridad de PostgreSQL (Capa 3)
+    if (msg.includes("check_users_dni")) {
+      msg = "Error de Base de Datos: El DNI debe contener exactamente 8 dígitos numéricos sin letras.";
+    } else if (msg.includes("check_users_celular")) {
+      msg = "Error de Base de Datos: El celular debe contener exactamente 9 dígitos numéricos e iniciar con 9.";
+    } else if (msg.includes("check_matriculas_dni")) {
+      msg = "Error de Base de Datos: El DNI de la matrícula no cumple el formato peruano de 8 dígitos.";
+    } else if (msg.includes("check_matriculas_celular")) {
+      msg = "Error de Base de Datos: El celular de la matrícula debe contener 9 dígitos e iniciar con 9.";
+    }
+    
+    throw new Error(msg);
+  }
+};
+
+/**
+ * Validador contra el Backend FastAPI (Capa 2)
+ */
+export const validateWithBackend = async ({ tipoDocumento = "DNI", dni, celular, correo }) => {
+  const backendUrl = import.meta.env.VITE_BACKEND_URL || "http://localhost:8000";
+  try {
+    const res = await fetch(`${backendUrl}/usuarios/validar`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ tipoDocumento, dni, celular, correo })
+    });
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      if (data?.detail?.errores) {
+        const firstError = Object.values(data.detail.errores)[0];
+        throw new Error(`[Backend 422] ${firstError}`);
+      } else if (typeof data?.detail === "string") {
+        throw new Error(`[Backend 422] ${data.detail}`);
+      }
+      throw new Error(`[Backend] Validación fallida con código HTTP ${res.status}`);
+    }
+  } catch (err) {
+    if (err.message && err.message.startsWith("[Backend")) {
+      throw err;
+    }
+    // Si el backend local no está corriendo en el puerto 8000 en este instante,
+    // registramos en consola y procedemos con la validación de cliente + base de datos
+    console.warn("[Backend] Servidor FastAPI no disponible en localhost:8000, validando con Capa 1 y Capa 3:", err.message);
   }
 };
 
@@ -93,6 +139,15 @@ export const userService = {
       ...safeUser,
       ciclovirtual: ciclo
     };
+
+    // Validación Capa 2 (FastAPI Backend)
+    await validateWithBackend({
+      tipoDocumento: payload.tipoDocumento || "DNI",
+      dni: payload.dni,
+      celular: payload.celular,
+      correo: payload.correo
+    });
+
     const { data, error } = await insforge.database
       .from("users")
       .upsert([payload])
