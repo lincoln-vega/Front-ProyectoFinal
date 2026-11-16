@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { X, AlertCircle, CheckCircle2, Globe } from "lucide-react";
+import { X, AlertCircle, CheckCircle2, Globe, Eye, EyeOff, Lock } from "lucide-react";
 
 const DOCUMENT_TYPES = [
   { id: "DNI", label: "DNI (Perú - 8 dígitos)", max: 8 },
@@ -31,7 +31,13 @@ function formatBackendError(rawError) {
     return "El formato del celular no cumple con las reglas de la base de datos.";
   }
   if (msg.includes("chk_users_ciclo")) {
-    return "El ciclo virtual ingresado no es válido (debe ser Semestral).";
+    return "El ciclo virtual ingresado no es válido.";
+  }
+  if (msg.includes("chk_users_fecha_nacimiento")) {
+    return "La fecha de nacimiento debe estar comprendida entre el 01/01/1926 y la fecha actual.";
+  }
+  if (msg.includes("chk_users_password")) {
+    return "La contraseña no cumple con los formatos permitidos por la base de datos.";
   }
   if (msg.includes("chk_users_nombres") || msg.includes("chk_users_apellidos")) {
     return "Nombres y apellidos solo pueden contener letras y espacios (máx. 40 caracteres).";
@@ -55,6 +61,7 @@ export default function UserFormModal({
 }) {
   const [touched, setTouched] = useState({});
   const [localError, setLocalError] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
 
   const activeError = localError || formatBackendError(serverError);
 
@@ -62,7 +69,10 @@ export default function UserFormModal({
   const dni = formData.dni ? String(formData.dni).trim() : "";
   const celular = formData.celular ? String(formData.celular).trim() : "";
 
-  // Validaciones dinámicas de Capa 1 según Tipo de Documento
+  // Fecha actual formateada a YYYY-MM-DD para el atributo max del input date
+  const todayStr = new Date().toISOString().split("T")[0];
+
+  // Validaciones dinámicas según Tipo de Documento
   let isDocValid = false;
   let docErrorMsg = "";
 
@@ -165,6 +175,18 @@ export default function UserFormModal({
     if (!isCelularValid) {
       setLocalError("El número de teléfono no es válido. Ingrese 9 dígitos para Perú o formato internacional (+ código país).");
       return;
+    }
+
+    // Validación de fecha de nacimiento (mínimo 01/01/1926 y máximo fecha actual)
+    if (formData.fechaNacimiento) {
+      const selectedDate = new Date(formData.fechaNacimiento);
+      const minDate = new Date("1926-01-01");
+      const today = new Date();
+
+      if (selectedDate < minDate || selectedDate > today) {
+        setLocalError("La fecha de nacimiento no puede ser anterior al 01/01/1926 ni superior a la fecha actual.");
+        return;
+      }
     }
 
     setLocalError("");
@@ -319,10 +341,15 @@ export default function UserFormModal({
               <input
                 type="date"
                 name="fechaNacimiento"
+                min="1926-01-01"
+                max={todayStr}
                 value={formData.fechaNacimiento || ""}
                 onChange={handleChange}
                 className="w-full px-3 py-2 border border-slate-200 dark:border-white/10 rounded-lg text-xs focus:ring-2 focus:ring-blue-500 focus:outline-hidden bg-white dark:bg-white/5 dark:text-white dark:[color-scheme:dark]"
               />
+              <p className="mt-0.5 text-[10px] text-slate-400 dark:text-slate-500">
+                Desde 01/01/1926 hasta hoy.
+              </p>
             </div>
 
             <div>
@@ -336,6 +363,35 @@ export default function UserFormModal({
                 onChange={handleChange}
                 className="w-full px-3 py-2 border border-slate-200 dark:border-white/10 rounded-lg text-xs focus:ring-2 focus:ring-blue-500 focus:outline-hidden bg-white dark:bg-white/5 dark:text-white"
               />
+            </div>
+
+            {/* Campo Contraseña con visor de puntos/texto */}
+            <div>
+              <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1 flex items-center gap-1">
+                <Lock className="w-3 h-3 text-slate-400" />
+                Contraseña
+              </label>
+              <div className="relative">
+                <input
+                  type={showPassword ? "text" : "password"}
+                  name="password"
+                  placeholder="••••••••"
+                  value={formData.password || ""}
+                  onChange={handleChange}
+                  className="w-full px-3 py-2 pr-9 border border-slate-200 dark:border-white/10 rounded-lg text-xs focus:ring-2 focus:ring-blue-500 focus:outline-hidden bg-white dark:bg-white/5 dark:text-white"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors cursor-pointer"
+                  title={showPassword ? "Ocultar contraseña" : "Ver contraseña"}
+                >
+                  {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                </button>
+              </div>
+              <p className="mt-0.5 text-[10px] text-slate-400 dark:text-slate-500">
+                Se muestra en puntos por seguridad.
+              </p>
             </div>
 
             {/* Campo Celular Nacional o Internacional */}
