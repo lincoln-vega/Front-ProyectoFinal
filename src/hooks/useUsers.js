@@ -8,6 +8,7 @@ export const createInitialUserForm = () => ({
   dni: "",
   fechaNacimiento: "",
   correo: "",
+  password: "",
   celular: "",
   areaAcademica: "",
   carreraObjetivo: "",
@@ -24,7 +25,11 @@ export default function useUsers() {
 
   useEffect(() => {
     userService.getUsers()
-      .then(setUsers)
+      .then((data) => {
+        if (data && Array.isArray(data) && data.length > 0) {
+          setUsers(data);
+        }
+      })
       .catch((err) => {
         console.error("Error al cargar usuarios:", err);
         setError(err.message);
@@ -65,7 +70,13 @@ export default function useUsers() {
     setLoading(true);
     setError("");
     try {
-      setUsers(await userService.resetUsers());
+      const freshUsers = await userService.resetUsers();
+      // Validamos que traiga datos reales antes de sobrescribir la vista y dejarla en blanco
+      if (freshUsers && Array.isArray(freshUsers) && freshUsers.length > 0) {
+        setUsers(freshUsers);
+      } else {
+        console.warn("La sincronización devolvió una lista vacía. Se conservan los registros actuales.");
+      }
     } catch (err) {
       setError(err.message);
       throw err;
