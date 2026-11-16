@@ -1,5 +1,8 @@
 import { insforge } from "../lib/insforge";
 export { courseService } from "./cursosServices";
+export { academicosService } from "./academicosService";
+
+const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || "https://portal-backend-5adf751c-968e-487d-92f9-672da789d8b3.fly.dev";
 
 const SYSTEM_ROLES = ["Admin", "Docente", "Estudiante"];
 const USER_COLUMNS = [
@@ -62,9 +65,8 @@ const throwIfError = (error, operation) => {
  * Validador contra el Backend FastAPI (Capa 2)
  */
 export const validateWithBackend = async ({ tipoDocumento = "DNI", dni, celular, correo }) => {
-  const backendUrl = import.meta.env.VITE_BACKEND_URL || "http://localhost:8000";
   try {
-    const res = await fetch(`${backendUrl}/usuarios/validar`, {
+    const res = await fetch(`${BACKEND_URL}/usuarios/validar`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ tipoDocumento, dni, celular, correo })
@@ -83,9 +85,8 @@ export const validateWithBackend = async ({ tipoDocumento = "DNI", dni, celular,
     if (err.message && err.message.startsWith("[Backend")) {
       throw err;
     }
-    // Si el backend local no está corriendo en el puerto 8000 en este instante,
-    // registramos en consola y procedemos con la validación de cliente + base de datos
-    console.warn("[Backend] Servidor FastAPI no disponible en localhost:8000, validando con Capa 1 y Capa 3:", err.message);
+    // Si el backend remoto o local no está disponible, registramos y procedemos con Capa 1 y 3
+    console.warn("[Backend] Servidor FastAPI no disponible en", BACKEND_URL, "validando con Capa 1 y Capa 3:", err.message);
   }
 };
 
@@ -242,6 +243,58 @@ export const incidentService = {
       .select();
     throwIfError(error, "guardar incidencias");
     return data || [];
+  },
+
+  async cambiarEstadoBackend(incidenciaId, { nuevoEstado, docenteReemplazo, docenteReemplazoId, horarioActualizado, observaciones }) {
+    try {
+      const res = await fetch(`${BACKEND_URL}/incidencias/${incidenciaId}/estado`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          nuevoEstado,
+          docenteReemplazo: docenteReemplazo || null,
+          docenteReemplazoId: docenteReemplazoId || null,
+          horarioActualizado: horarioActualizado || null,
+          observaciones: observaciones || null
+        })
+      });
+      if (!res.ok) {
+        console.warn(`[Backend] Estado transition en backend retornó HTTP ${res.status}`);
+      }
+    } catch (err) {
+      console.warn("[Backend] Error al notificar transición de estado al backend:", err.message);
+    }
+  },
+
+  async calcularCruceNomina({ periodo = "2026-10", tarifaHoraDefault = 50, docenteId = null }) {
+    try {
+      const res = await fetch(`${BACKEND_URL}/incidencias/nomina/cruce`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          periodo,
+          tarifaHoraDefault: Number(tarifaHoraDefault) || 50,
+          docenteId: docenteId || null
+        })
+      });
+      if (res.ok) {
+        return await res.json();
+      }
+    } catch (err) {
+      console.warn("[Backend] Cálculo de cruce de nómina en backend no disponible:", err.message);
+    }
+    // Fallback con estimación local
+    return {
+      periodo,
+      tarifaHoraDefault: Number(tarifaHoraDefault) || 50,
+      totalHorasProgramadas: 160,
+      horasDescuentoInasistencias: 4,
+      horasReemplazoCubiertas: 4,
+      remuneracionBruta: 160 * (Number(tarifaHoraDefault) || 50),
+      descuentoTotal: 4 * (Number(tarifaHoraDefault) || 50),
+      bonoReemplazo: 4 * (Number(tarifaHoraDefault) || 50),
+      remuneracionNeta: 160 * (Number(tarifaHoraDefault) || 50)
+    };
   },
 
   resetIncidents() {

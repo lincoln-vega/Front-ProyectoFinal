@@ -9,15 +9,18 @@ import {
     Users,
     ShieldCheck,
     Check,
-    X
+    X,
+    Calculator
 } from "lucide-react";
 import useTeacherIncidents from "../../hooks/useTeacherIncidents";
 import DocumentPreviewModal from "../../components/admin/DocumentPreview";
 import Notification from "../../components/admin/Notification";
 import ConfirmarReemplazoModal from "../../components/admin/ConfirmarReemplazoModal";
 import NuevaIncidenciaModal from "../../components/admin/NuevaIncidenciaModal";
+import NominaCruceModal from "../../components/admin/NominaCruceModal";
 import { exportToCSV } from "../../utils/exportUtils";
 import { courseService } from "../../services/cursosServices";
+import { incidentService } from "../../services/api";
 
 export default function ControlAsistenciasPage() {
     const { incidents, updateIncidentStatus, updateIncident, addIncident, loading, error } = useTeacherIncidents();
@@ -25,6 +28,7 @@ export default function ControlAsistenciasPage() {
     const [selectedFile, setSelectedFile] = useState(null);
     const [replacementModalIncident, setReplacementModalIncident] = useState(null);
     const [isManualModalOpen, setIsManualModalOpen] = useState(false);
+    const [isNominaModalOpen, setIsNominaModalOpen] = useState(false);
     const [notification, setNotification] = useState(null);
 
     const showNotification = (msg) => {
@@ -45,9 +49,10 @@ export default function ControlAsistenciasPage() {
     const handleAction = async (id, status) => {
         try {
             await updateIncidentStatus(id, status);
+            await incidentService.cambiarEstadoBackend(id, { nuevoEstado: status });
             showNotification(`Justificación marcada como: ${status}`);
         } catch (err) {
-            showNotification(`No se pudo actualizar la incidencia en InsForge: ${err.message}`);
+            showNotification(`No se pudo actualizar la incidencia: ${err.message}`);
         }
     };
 
@@ -88,6 +93,15 @@ export default function ControlAsistenciasPage() {
                 horarioActualizado: newSchedule,
                 observacionesResolucion: remarks,
                 fechaResolucion: new Date().toLocaleString("es-PE")
+            });
+
+            // Notificación al endpoint backend PATCH /incidencias/{id}/estado (EstadoTransitionUpdate)
+            await incidentService.cambiarEstadoBackend(incidentId, {
+                nuevoEstado: "Aprobado",
+                docenteReemplazo: substituteTeacherName,
+                docenteReemplazoId: substituteTeacherId,
+                horarioActualizado: newSchedule,
+                observaciones: remarks
             });
 
             if (courseId) {
@@ -150,6 +164,13 @@ export default function ControlAsistenciasPage() {
                     </div>
 
                     <div className="flex flex-wrap items-center gap-2">
+                        <button
+                            onClick={() => setIsNominaModalOpen(true)}
+                            className="inline-flex items-center space-x-1.5 px-3.5 py-2 border border-emerald-500/30 text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/40 hover:bg-emerald-100 rounded-xl text-xs font-semibold shadow-2xs transition-colors cursor-pointer"
+                        >
+                            <Calculator className="w-4 h-4 text-emerald-600" />
+                            <span>Calcular Cruce Nómina</span>
+                        </button>
                         <button
                             onClick={handleExportReport}
                             className="inline-flex items-center space-x-1.5 px-3.5 py-2 border border-slate-300 dark:border-white/10 text-slate-700 dark:text-white bg-white/60 dark:bg-white/5 backdrop-blur-2xl hover:bg-slate-50 dark:hover:bg-white/10 rounded-xl text-xs font-semibold shadow-2xs transition-colors cursor-pointer"
@@ -367,6 +388,12 @@ export default function ControlAsistenciasPage() {
                     onClose={() => setSelectedFile(null)}
                 />
             )}
+
+            {/* MODAL DE CRUCE DE NÓMINA (POST /incidencias/nomina/cruce) */}
+            <NominaCruceModal
+                isOpen={isNominaModalOpen}
+                onClose={() => setIsNominaModalOpen(false)}
+            />
         </div>
     );
 }

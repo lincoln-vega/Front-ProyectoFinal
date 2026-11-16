@@ -5,6 +5,8 @@ import ThemeToggle from "../components/ThemeToggle";
 import { insforge } from "../lib/insforge";
 import { userService } from "../services/api";
 
+const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || "https://portal-backend-5adf751c-968e-487d-92f9-672da789d8b3.fly.dev";
+
 export default function Login() {
   const navigate = useNavigate();
   const [email, setEmail] = useState("");
@@ -19,6 +21,24 @@ export default function Login() {
 
     try {
       const trimmedEmail = email.trim().toLowerCase();
+
+      // Intento de autenticación contra el backend FastAPI (POST /usuarios/login)
+      try {
+        const backendRes = await fetch(`${BACKEND_URL}/usuarios/login`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ correo: trimmedEmail, password })
+        });
+        if (backendRes.ok) {
+          const backendData = await backendRes.json();
+          if (backendData?.access_token || backendData?.token) {
+            localStorage.setItem("authToken", backendData.access_token || backendData.token);
+          }
+        }
+      } catch (backendErr) {
+        console.warn("[Backend] FastAPI Login endpoint omitido:", backendErr.message);
+      }
+
       const { data: authData, error: authError } = await insforge.auth.signInWithPassword({
         email: trimmedEmail,
         password

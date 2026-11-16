@@ -440,7 +440,36 @@ export default function UserFormModal({
               <input
                 type="text"
                 name="carreraObjetivo"
+                placeholder="ej. Medicina Humana, Ingeniería"
                 value={formData.carreraObjetivo || ""}
+                onChange={handleChange}
+                className="w-full px-3 py-2 border border-slate-200 dark:border-white/10 rounded-lg text-xs focus:ring-2 focus:ring-blue-500 focus:outline-hidden bg-white dark:bg-white/5 dark:text-white"
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                Universidad Objetivo
+              </label>
+              <input
+                type="text"
+                name="universidad"
+                placeholder="ej. UNMSM, UNI, PUCP"
+                value={formData.universidad || ""}
+                onChange={handleChange}
+                className="w-full px-3 py-2 border border-slate-200 dark:border-white/10 rounded-lg text-xs focus:ring-2 focus:ring-blue-500 focus:outline-hidden bg-white dark:bg-white/5 dark:text-white"
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                Área Académica
+              </label>
+              <input
+                type="text"
+                name="areaAcademica"
+                placeholder="ej. Ciencias Exactas, Ciencias Médicas"
+                value={formData.areaAcademica || ""}
                 onChange={handleChange}
                 className="w-full px-3 py-2 border border-slate-200 dark:border-white/10 rounded-lg text-xs focus:ring-2 focus:ring-blue-500 focus:outline-hidden bg-white dark:bg-white/5 dark:text-white"
               />

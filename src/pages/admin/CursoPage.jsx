@@ -16,15 +16,16 @@ import useCurse from "../../hooks/useCurse";
 import CursoRegistroModal from "../../components/admin/CursoRegistroModal";
 
 export default function CursoPage() {
-  const { courses: initialCourses, loading, error, addCourse, refreshCourses } = useCurse();
+  const { courses: initialCourses, loading, error, addCourse, updateCourse, refreshCourses } = useCurse();
   const [coursesList, setCoursesList] = useState([]);
   
   const [searchTerm, setSearchTerm] = useState("");
   const [areaFilter, setAreaFilter] = useState("Todas las Áreas Académicas");
   const [statusFilter, setStatusFilter] = useState("Todos los Estados");
 
-  // Estado para controlar el modal de registro
+  // Estado para controlar el modal de registro y edición
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [editingCourse, setEditingCourse] = useState(null);
   const [selectedCourseDetail, setSelectedCourseDetail] = useState(null);
 
   // Inicializar el estado de cursos desde el hook o datos base
@@ -35,6 +36,13 @@ export default function CursoPage() {
   // Agregar nuevo curso a la lista en tiempo real
   const handleAddCourse = async (newCourse) => {
     await addCourse(newCourse);
+  };
+
+  // Modificar curso existente
+  const handleUpdateCourse = async (updatedCourse) => {
+    if (updateCourse) {
+      await updateCourse(updatedCourse);
+    }
   };
 
   // Filtrado dinámico
@@ -79,7 +87,10 @@ export default function CursoPage() {
             </button>
             <button
               type="button"
-              onClick={() => setIsModalOpen(true)}
+              onClick={() => {
+                setEditingCourse(null);
+                setIsModalOpen(true);
+              }}
               className="inline-flex items-center space-x-2 px-4 py-2 bg-[#1E3A8A] text-white hover:bg-blue-800 rounded-lg text-xs font-semibold shadow-xs transition-colors cursor-pointer"
             >
               <Plus className="w-4 h-4 text-white" />
@@ -234,10 +245,15 @@ export default function CursoPage() {
       </div>
 
       {/* COMPONENTE MODAL MODULARIZADO */}
-            <CursoRegistroModal
+      <CursoRegistroModal
         isOpen={isModalOpen}
-        onClose={() => setIsModalOpen(false)}
+        courseToEdit={editingCourse}
+        onClose={() => {
+          setIsModalOpen(false);
+          setEditingCourse(null);
+        }}
         onAddCourse={handleAddCourse}
+        onUpdateCourse={handleUpdateCourse}
       />
 
       {/* MODAL DE DETALLES DEL CURSO */}
@@ -347,7 +363,19 @@ export default function CursoPage() {
               </div>
             </div>
 
-            <div className="p-4 bg-slate-50 dark:bg-white/5 border-t border-slate-100 dark:border-white/10 flex justify-end">
+            <div className="p-4 bg-slate-50 dark:bg-white/5 border-t border-slate-100 dark:border-white/10 flex items-center justify-between">
+              <button
+                type="button"
+                onClick={() => {
+                  setEditingCourse(selectedCourseDetail);
+                  setSelectedCourseDetail(null);
+                  setIsModalOpen(true);
+                }}
+                className="px-4 py-2 text-xs font-semibold text-white bg-[#1E3A8A] hover:bg-blue-800 rounded-xl transition-colors cursor-pointer flex items-center gap-1.5 shadow-xs"
+              >
+                <Edit2 className="w-3.5 h-3.5" />
+                <span>Editar Curso</span>
+              </button>
               <button
                 type="button"
                 onClick={() => setSelectedCourseDetail(null)}
