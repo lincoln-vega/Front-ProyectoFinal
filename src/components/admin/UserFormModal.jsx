@@ -7,16 +7,56 @@ const DOCUMENT_TYPES = [
   { id: "Pasaporte", label: "Pasaporte (6-12 caracteres)", max: 12 }
 ];
 
+// Traduce los errores técnicos de PostgreSQL / InsForge a mensajes entendibles
+function formatBackendError(rawError) {
+  if (!rawError) return "";
+  const msg = String(rawError);
+
+  if (msg.includes("users_correo_key")) {
+    return "El correo electrónico ingresado ya está registrado con otro usuario.";
+  }
+  if (msg.includes("chk_users_rol")) {
+    return "El rol seleccionado no es válido en la base de datos (debe ser Admin, Estudiante o Docente).";
+  }
+  if (msg.includes("chk_users_estado")) {
+    return "El estado seleccionado no es válido (debe ser Activo o Inactivo).";
+  }
+  if (msg.includes("chk_users_tipo_doc")) {
+    return "El tipo de documento no coincide con las reglas de la base de datos.";
+  }
+  if (msg.includes("chk_users_dni") || msg.includes("check_users_dni")) {
+    return "El formato del documento de identidad no cumple con las reglas de la base de datos.";
+  }
+  if (msg.includes("chk_users_celular") || msg.includes("check_users_celular")) {
+    return "El formato del celular no cumple con las reglas de la base de datos.";
+  }
+  if (msg.includes("chk_users_ciclo")) {
+    return "El ciclo virtual ingresado no es válido (debe ser Semestral).";
+  }
+  if (msg.includes("chk_users_nombres") || msg.includes("chk_users_apellidos")) {
+    return "Nombres y apellidos solo pueden contener letras y espacios (máx. 40 caracteres).";
+  }
+  if (msg.includes("chk_users_correo")) {
+    return "El formato del correo electrónico contiene caracteres no permitidos o supera los 40 caracteres.";
+  }
+  return msg;
+}
+
 export default function UserFormModal({
   isEditing,
   formData,
   roles = [],
+  serverError = "",
+  isSubmitting = false,
+  onClearServerError,
   onChange,
   onSubmit,
   onClose
 }) {
   const [touched, setTouched] = useState({});
   const [localError, setLocalError] = useState("");
+
+  const activeError = localError || formatBackendError(serverError);
 
   const tipoDocumento = formData.tipoDocumento || "DNI";
   const dni = formData.dni ? String(formData.dni).trim() : "";
@@ -58,15 +98,20 @@ export default function UserFormModal({
         : "El número celular nacional debe comenzar con 9"
       : "";
 
+  const clearErrors = () => {
+    if (localError) setLocalError("");
+    if (serverError && onClearServerError) onClearServerError();
+  };
+
   const handleChange = (e) => {
     const { name, value } = e.target;
+    clearErrors();
     onChange((prev) => ({ ...prev, [name]: value }));
   };
 
   const handleTipoDocumentoChange = (e) => {
     const newTipo = e.target.value;
     onChange((prev) => {
-      // Limpiar documento según nuevo tipo
       let cleaned = prev.dni || "";
       if (newTipo === "DNI") {
         cleaned = cleaned.replace(/\D/g, "").slice(0, 8);
@@ -75,10 +120,9 @@ export default function UserFormModal({
       }
       return { ...prev, tipoDocumento: newTipo, dni: cleaned };
     });
-    setLocalError("");
+    clearErrors();
   };
 
-  // Máscaras de teclado en vivo dinámicas
   const handleDocChange = (e) => {
     const raw = e.target.value;
     let cleaned = "";
@@ -88,13 +132,12 @@ export default function UserFormModal({
       cleaned = raw.replace(/[^a-zA-Z0-9]/g, "").slice(0, 12).toUpperCase();
     }
     setTouched((prev) => ({ ...prev, dni: true }));
-    setLocalError("");
+    clearErrors();
     onChange((prev) => ({ ...prev, dni: cleaned }));
   };
 
   const handleCelularChange = (e) => {
     let raw = e.target.value.trim();
-    // Permitir '+' solo en la primera posición y dígitos después
     let cleaned = "";
     if (raw.startsWith("+")) {
       cleaned = "+" + raw.slice(1).replace(/\D/g, "").slice(0, 15);
@@ -102,7 +145,7 @@ export default function UserFormModal({
       cleaned = raw.replace(/\D/g, "").slice(0, 9);
     }
     setTouched((prev) => ({ ...prev, celular: true }));
-    setLocalError("");
+    clearErrors();
     onChange((prev) => ({ ...prev, celular: cleaned }));
   };
 
@@ -129,8 +172,35 @@ export default function UserFormModal({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
-      <div className="bg-white dark:bg-slate-900 rounded-xl shadow-xl border border-slate-200 dark:border-white/10 w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+    <div className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+      {/* Alerta flotante ubicada justo arriba del modal */}
+      {activeError && (
+        <div
+          role="alert"
+          className="w-full max-w-2xl mb-3 p-3.5 bg-red-50 dark:bg-red-950/90 border border-red-300 dark:border-red-700 rounded-xl shadow-lg flex items-start justify-between gap-3 text-xs text-red-800 dark:text-red-200 animate-in fade-in slide-in-from-top-2 duration-200"
+        >
+          <div className="flex items-start gap-2.5">
+            <AlertCircle className="w-4 h-4 shrink-0 text-red-600 dark:text-red-400 mt-0.5" />
+            <div>
+              <p className="font-bold text-red-900 dark:text-red-100">
+                No se pudo completar el registro
+              </p>
+              <p className="mt-0.5 leading-relaxed">{activeError}</p>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={clearErrors}
+            className="p-1 text-red-500 hover:text-red-700 dark:text-red-400 dark:hover:text-red-200 rounded-lg hover:bg-red-100 dark:hover:bg-red-900/50 transition-colors cursor-pointer"
+            title="Cerrar alerta"
+          >
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+      )}
+
+      {/* Tarjeta principal del modal */}
+      <div className="bg-white dark:bg-slate-900 rounded-xl shadow-xl border border-slate-200 dark:border-white/10 w-full max-w-2xl max-h-[85vh] overflow-y-auto">
         <div className="flex items-center justify-between p-4 border-b border-slate-100 dark:border-white/10 bg-slate-50/50 dark:bg-white/5">
           <h3 className="text-base font-bold text-slate-800 dark:text-white">
             {isEditing ? "Editar Registro de Usuario" : "Registro de Nuevo Usuario"}
@@ -138,18 +208,11 @@ export default function UserFormModal({
           <button
             type="button"
             onClick={onClose}
-            className="p-1 text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300 rounded-lg hover:bg-slate-200/50 dark:hover:bg-white/10 transition-colors"
+            className="p-1 text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300 rounded-lg hover:bg-slate-200/50 dark:hover:bg-white/10 transition-colors cursor-pointer"
           >
             <X className="w-5 h-5" />
           </button>
         </div>
-
-        {localError && (
-          <div className="mx-5 mt-4 p-3 bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-800/50 rounded-lg flex items-center gap-2 text-xs text-red-700 dark:text-red-300">
-            <AlertCircle className="w-4 h-4 shrink-0 text-red-500" />
-            <span>{localError}</span>
-          </div>
-        )}
 
         <form onSubmit={handleFormSubmit} className="p-5 space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -379,16 +442,21 @@ export default function UserFormModal({
             <button
               type="button"
               onClick={onClose}
-              className="px-4 py-2 text-xs font-medium text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-white/10 rounded-lg transition-colors cursor-pointer"
+              disabled={isSubmitting}
+              className="px-4 py-2 text-xs font-medium text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-white/10 rounded-lg transition-colors cursor-pointer disabled:opacity-50"
             >
               Cancelar
             </button>
             <button
               type="submit"
-              disabled={!isDocValid || !isCelularValid}
+              disabled={!isDocValid || !isCelularValid || isSubmitting}
               className="px-4 py-2 text-xs font-semibold text-white bg-[#1E3A8A] dark:bg-white/10 dark:hover:bg-white/20 border border-transparent dark:border-white/10 rounded-lg transition-colors cursor-pointer shadow-xs disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              {isEditing ? "Guardar Cambios" : "Registrar Usuario"}
+              {isSubmitting
+                ? "Guardando..."
+                : isEditing
+                ? "Guardar Cambios"
+                : "Registrar Usuario"}
             </button>
           </div>
         </form>

@@ -29,29 +29,33 @@ export default function AdminUsersPage() {
   
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isRolesModalOpen, setIsRolesModalOpen] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   
   const [editingUserId, setEditingUserId] = useState(null);
   const [formData, setFormData] = useState(createInitialUserForm);
 
   const showNotification = (message) => {
     setNotification(message);
-    window.setTimeout(() => setNotification(null), 3500);
+    window.setTimeout(() => setNotification(null), 4000);
   };
 
   const closeModal = () => {
     setIsModalOpen(false);
     setEditingUserId(null);
+    setError(null);
     setFormData(createInitialUserForm());
   };
 
   const openNewUserModal = () => {
     setEditingUserId(null);
+    setError(null);
     setFormData(createInitialUserForm());
     setIsModalOpen(true);
   };
 
   const handleEdit = (user) => {
     setEditingUserId(user.id);
+    setError(null);
     setFormData({ ...user });
     setIsModalOpen(true);
   };
@@ -79,19 +83,28 @@ export default function AdminUsersPage() {
 
   const handleSubmitForm = async (event) => {
     event.preventDefault();
+    setError(null);
+
     if (!formData.apellidos || !formData.nombres || !formData.dni) {
-      showNotification("Por favor complete los campos obligatorios (Nombres, Apellidos, DNI).");
+      setError("Por favor complete los campos obligatorios (Nombres, Apellidos, Documento).");
       return;
     }
 
     const isEditing = Boolean(editingUserId);
+    setIsSubmitting(true);
     try {
       await saveUser(formData, editingUserId);
-      showNotification(isEditing ? "Usuario actualizado correctamente." : "Usuario registrado y validado correctamente.");
       closeModal();
+      showNotification(
+        isEditing
+          ? "Usuario actualizado correctamente."
+          : "Usuario registrado correctamente."
+      );
     } catch (err) {
-      setError(err.message);
-      showNotification(`Error de validación: ${err.message}`);
+      // No cerramos el modal ni limpiamos formData para conservar lo escrito
+      setError(err.message || "Ocurrió un error al guardar el usuario en la base de datos.");
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -166,7 +179,8 @@ export default function AdminUsersPage() {
           </div>
         </div>
 
-        {error && (
+        {/* Solo mostramos el error aquí si el modal está cerrado */}
+        {error && !isModalOpen && (
           <p role="alert" className="mt-4 rounded-lg border border-red-300 bg-red-50 p-3 text-sm text-red-700">
             {error}
           </p>
@@ -198,6 +212,9 @@ export default function AdminUsersPage() {
           isEditing={Boolean(editingUserId)}
           formData={formData}
           roles={roles}
+          serverError={error}
+          isSubmitting={isSubmitting}
+          onClearServerError={() => setError(null)}
           onChange={setFormData}
           onSubmit={handleSubmitForm}
           onClose={closeModal}
