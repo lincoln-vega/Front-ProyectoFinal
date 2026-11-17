@@ -12,9 +12,15 @@ Plataforma web integral para la gestión y seguimiento académico de una academi
 
 ---
 
-## 👥 Cuentas de Acceso
+## 👥 Cuentas de Acceso y Credenciales de Prueba (InsForge Auth)
 
-Las cuentas de prueba deben configurarse en **InsForge Auth** y contar con un perfil asociado en el backend. No se publican credenciales de acceso en este repositorio. Cada rol se redirige a su panel correspondiente tras autenticarse.
+Credenciales oficiales y activas sincronizadas con **InsForge Auth** y el backend desplegado en la nube (`Fly.dev`):
+
+| Rol | Correo Electrónico | Contraseña | Usuario Registrado | Panel de Redirección |
+| :--- | :--- | :--- | :--- | :--- |
+| **Administrador** | `admin@gmail.com` | `admin123` | Roberto Carlos Morales Salazar | `/admin/usuarios` |
+| **Docente** | `chavez@gmail.com` | `Chavez123` | Prof. Pedro Chavez | `/docente/panel` |
+| **Estudiante** | `esteban@gmail.com` | `Esteban123` | Esteban Torres | `/estudiante/panel` |
 
 ---
 
