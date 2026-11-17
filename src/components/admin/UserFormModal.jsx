@@ -201,6 +201,13 @@ export default function UserFormModal({
   });
 
   const careerOptions = Array.from(new Set(filteredCarreras.map((c) => c.nombre).filter(Boolean)));
+  const isCareerObjectiveValid = careerOptions.includes(formData?.carreraObjetivo);
+  const birthDateError = touched.fechaNacimiento && !formData?.fechaNacimiento
+    ? "La fecha de nacimiento es obligatoria."
+    : "";
+  const careerObjectiveError = touched.carreraObjetivo && !isCareerObjectiveValid
+    ? "Seleccione una carrera objetivo del área académica."
+    : "";
 
   // 3. Ciclos desde la base de datos (tipos_ciclo y ciclos_academicos)
   const cycleOptions = Array.from(new Set(dbCiclos.map((c) => c.nombre || c.codigo).filter(Boolean)));
@@ -296,7 +303,14 @@ export default function UserFormModal({
 
   const handleFormSubmit = (e) => {
     e.preventDefault();
-    setTouched({ dni: true, celular: true, apellidos: true, nombres: true });
+    setTouched({
+      dni: true,
+      celular: true,
+      apellidos: true,
+      nombres: true,
+      fechaNacimiento: true,
+      carreraObjetivo: true
+    });
 
     if (!formData?.apellidos?.trim() || !formData?.nombres?.trim()) {
       setLocalError("Por favor complete los campos obligatorios (Nombres y Apellidos).");
@@ -310,6 +324,16 @@ export default function UserFormModal({
 
     if (!isCelularValid) {
       setLocalError("El número de teléfono no es válido. Ingrese 9 dígitos para Perú o formato internacional (+ código país).");
+      return;
+    }
+
+    if (!formData?.fechaNacimiento) {
+      setLocalError("La fecha de nacimiento es obligatoria.");
+      return;
+    }
+
+    if (!isCareerObjectiveValid) {
+      setLocalError("Seleccione una carrera objetivo del área académica.");
       return;
     }
 
@@ -481,7 +505,7 @@ export default function UserFormModal({
 
             <div>
               <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                Fecha Nacimiento
+                Fecha Nacimiento *
               </label>
               <input
                 type="date"
@@ -490,9 +514,21 @@ export default function UserFormModal({
                 max={todayStr}
                 value={formData?.fechaNacimiento || ""}
                 onChange={handleChange}
-                className="w-full px-3 py-2 border border-slate-200 dark:border-white/10 rounded-lg text-xs focus:ring-2 focus:ring-blue-500 focus:outline-hidden bg-white dark:bg-white/5 dark:text-white dark:[color-scheme:dark]"
+                onBlur={() => handleBlur("fechaNacimiento")}
+                required
+                aria-invalid={Boolean(birthDateError)}
+                className={`w-full px-3 py-2 border rounded-lg text-xs focus:ring-2 focus:outline-hidden bg-white dark:bg-white/5 dark:text-white dark:[color-scheme:dark] ${
+                  birthDateError
+                    ? "border-red-400 dark:border-red-500 focus:ring-red-400"
+                    : "border-slate-200 dark:border-white/10 focus:ring-blue-500"
+                }`}
               />
-
+              {birthDateError && (
+                <p className="mt-1 text-[11px] text-red-500 flex items-center gap-1">
+                  <AlertCircle className="w-3 h-3 shrink-0" />
+                  {birthDateError}
+                </p>
+              )}
             </div>
 
             <div>
@@ -610,14 +646,21 @@ export default function UserFormModal({
             {/* Selector dinámico de Carrera según Área */}
             <div>
               <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                Carrera / Objetivo
+                Carrera / Objetivo *
               </label>
               <select
                 name="carreraObjetivo"
                 value={formData?.carreraObjetivo || ""}
                 onChange={handleChange}
+                onBlur={() => handleBlur("carreraObjetivo")}
+                required
+                aria-invalid={Boolean(careerObjectiveError)}
                 disabled={(!formData?.areaAcademica && careerOptions.length === 0) || (loadingAcademicos && careerOptions.length === 0)}
-                className="w-full px-3 py-2 border border-slate-200 dark:border-white/10 rounded-lg text-xs focus:ring-2 focus:ring-blue-500 focus:outline-hidden bg-white dark:bg-white/5 dark:text-white disabled:opacity-50"
+                className={`w-full px-3 py-2 border rounded-lg text-xs focus:ring-2 focus:outline-hidden bg-white dark:bg-white/5 dark:text-white disabled:opacity-50 ${
+                  careerObjectiveError
+                    ? "border-red-400 dark:border-red-500 focus:ring-red-400"
+                    : "border-slate-200 dark:border-white/10 focus:ring-blue-500"
+                }`}
               >
                 <option value="" className="dark:bg-[#0a0a0e] dark:text-white">
                   {loadingAcademicos && careerOptions.length === 0
@@ -632,6 +675,12 @@ export default function UserFormModal({
                   </option>
                 ))}
               </select>
+              {careerObjectiveError && (
+                <p className="mt-1 text-[11px] text-red-500 flex items-center gap-1">
+                  <AlertCircle className="w-3 h-3 shrink-0" />
+                  {careerObjectiveError}
+                </p>
+              )}
             </div>
 
             {/* Selector de Ciclo Virtual cargado dinámicamente de la BD */}

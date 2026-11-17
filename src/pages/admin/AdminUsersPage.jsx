@@ -144,6 +144,16 @@ function AdminUsersContent() {
       return;
     }
 
+    if (!formData.fechaNacimiento) {
+      setError("La fecha de nacimiento es obligatoria.");
+      return;
+    }
+
+    if (!formData.carreraObjetivo?.trim()) {
+      setError("Seleccione una carrera objetivo del área académica.");
+      return;
+    }
+
     const isEditing = Boolean(editingUserId);
     if (!isEditing && !pendingAuthAccount && (!formData.correo?.trim() || !formData.password)) {
       setError("El correo y la contraseña son obligatorios para crear la cuenta.");
