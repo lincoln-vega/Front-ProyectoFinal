@@ -86,7 +86,10 @@ function AdminUsersContent() {
       setError("La cuenta de acceso ya existe. Reintenta guardar su perfil para completar el registro.");
       setFormData({
         ...pendingAuthAccount.profile,
-        cicloVirtual: pendingAuthAccount.profile.ciclovirtual,
+        cicloVirtual:
+          pendingAuthAccount.profile.cicloVirtual ||
+          pendingAuthAccount.profile.ciclovirtual ||
+          "Semestral",
         rol: roles.find(
           (role) => String(role).toLowerCase() === pendingAuthAccount.profile.rol
         ) || pendingAuthAccount.profile.rol,
@@ -178,8 +181,7 @@ function AdminUsersContent() {
 
         const profile = adminUserRegistrationService.buildProfilePayload(
           formData,
-          pending.authUserId,
-          pending.profile.id
+          pending.authUserId
         );
         pending = { ...pending, profile };
         setPendingAuthAccount(pending);

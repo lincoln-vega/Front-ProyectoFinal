@@ -2,8 +2,16 @@ import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { ShieldCheck, User, Lock, ArrowRight, Loader2 } from "lucide-react";
 import ThemeToggle from "../components/ThemeToggle";
-import { insforge } from "../lib/insforge";
-import { userService } from "../services/api";
+import { setApiAccessToken } from "../lib/insforge";
+import { authService } from "../services/api";
+
+const normalizeLoginRole = (role) => {
+  const normalizedRole = String(role || "").trim().toLowerCase();
+  if (["admin", "administrador"].includes(normalizedRole)) return "admin";
+  if (["docente", "profesor", "profesora"].includes(normalizedRole)) return "docente";
+  if (["estudiante", "alumno", "alumna"].includes(normalizedRole)) return "estudiante";
+  return "";
+};
 
 export default function Login() {
   const navigate = useNavigate();
@@ -19,38 +27,24 @@ export default function Login() {
 
     try {
       const trimmedEmail = email.trim().toLowerCase();
-      const { data: authData, error: authError } = await insforge.auth.signInWithPassword({
-        email: trimmedEmail,
-        password
-      });
-
-      if (authError) {
-        throw new Error(
-          "No se pudo iniciar sesión. Verifica tu correo y contraseña registrados."
-        );
+      const session = await authService.login(trimmedEmail, password);
+      const role = normalizeLoginRole(session.role);
+      if (!role) {
+        throw new Error("El backend devolvió un rol que no es compatible con la plataforma.");
       }
 
-      const foundUser = await userService.getUserByEmail(trimmedEmail);
-      if (!foundUser) {
-        await insforge.auth.signOut();
-        throw new Error("La cuenta inició sesión, pero no tiene un perfil en la tabla users.");
-      }
+      const name = String(session.name || "").trim() || trimmedEmail;
+      const userId = session.userId || session.user_id || session.id || "";
+      const user = { id: userId, correo: trimmedEmail, rol: role, nombres: name };
 
-      if (foundUser.estado && foundUser.estado.toLowerCase() !== "activo") {
-        await insforge.auth.signOut();
-        setError("La cuenta se encuentra inactiva. Contacte al administrador.");
-        return;
-      }
-
-      const role = (foundUser.rol || foundUser.role || "estudiante").toLowerCase();
-      const name = `${foundUser.nombres || foundUser.name || ""} ${foundUser.apellidos || ""}`.trim();
-      
+      setApiAccessToken(session.access_token);
       localStorage.setItem("userRole", role);
-      localStorage.setItem("userName", name || foundUser.correo);
-      localStorage.setItem("userEmail", foundUser.correo || trimmedEmail);
-      localStorage.setItem("userId", foundUser.id || "1");
-      localStorage.setItem("user", JSON.stringify(foundUser));
-      localStorage.setItem("usuarioLogueado", JSON.stringify(foundUser));
+      localStorage.setItem("userName", name);
+      localStorage.setItem("userEmail", trimmedEmail);
+      localStorage.setItem("userId", userId);
+      localStorage.setItem("user", JSON.stringify(user));
+      localStorage.setItem("usuarioLogueado", JSON.stringify(user));
+      setPassword("");
 
       if (role === "admin") navigate("/admin/usuarios");
       else if (role === "docente") navigate("/docente/panel");
@@ -58,7 +52,7 @@ export default function Login() {
 
     } catch (err) {
       console.error("Error en login:", err);
-      setError(err.message || "Error al conectar con InsForge Auth.");
+      setError(err.message || "No se pudo iniciar sesión.");
     } finally {
       setLoading(false);
     }

@@ -1,4 +1,8 @@
-import { createIsolatedAuthClient, insforge } from "../lib/insforge";
+import {
+  createIsolatedAuthClient,
+  getApiAccessToken,
+  insforge
+} from "../lib/insforge";
 export { courseService } from "./cursosServices";
 
 const SYSTEM_ROLES = ["Admin", "Docente", "Estudiante"];
@@ -58,42 +62,6 @@ const throwIfError = (error, operation) => {
   }
 };
 
-/**
- * Validador contra el Backend FastAPI (Capa 2)
- */
-export const validateWithBackend = async ({ tipoDocumento = "DNI", dni, celular, correo }) => {
-  const backendUrl =
-    import.meta.env.VITE_API_URL ||
-    import.meta.env.VITE_BACKEND_URL ||
-    "http://localhost:8000";
-  try {
-    const res = await fetch(`${backendUrl}/usuarios/validar`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ tipoDocumento, dni, celular, correo })
-    });
-    if (!res.ok) {
-      const data = await res.json().catch(() => ({}));
-      if (data?.detail?.errores) {
-        const firstError = Object.values(data.detail.errores)[0];
-        throw new Error(`[Backend 422] ${firstError}`);
-      } else if (typeof data?.detail === "string") {
-        throw new Error(`[Backend 422] ${data.detail}`);
-      }
-      throw new Error(`[Backend] Validación fallida con código HTTP ${res.status}`);
-    }
-  } catch (err) {
-    if (err.message && err.message.startsWith("[Backend")) {
-      throw err;
-    }
-    // Si el backend local no está corriendo en el puerto 8000 en este instante,
-    // registramos en consola y procedemos con la validación de cliente + base de datos
-    console.warn("[Backend] Servidor FastAPI no disponible en localhost:8000, validando con Capa 1 y Capa 3:", err.message);
-  }
-};
-
-const ADMIN_USER_ROLES = ["admin", "docente", "estudiante"];
-
 const getApiBaseUrl = () => {
   const apiUrl = import.meta.env.VITE_API_URL?.trim();
   if (!apiUrl) {
@@ -104,6 +72,9 @@ const getApiBaseUrl = () => {
 
 const getApiErrorMessage = (body, status) => {
   const detail = body?.detail;
+  const errorCode = String(
+    body?.code || body?.error_code || detail?.code || ""
+  ).toUpperCase();
   let message = "";
 
   if (detail?.errores && typeof detail.errores === "object") {
@@ -126,19 +97,28 @@ const getApiErrorMessage = (body, status) => {
     message = body;
   }
 
+  if (
+    ["AUTH_NEED_VERIFICATION", "EMAIL_NOT_VERIFIED", "EMAIL_UNVERIFIED"].includes(errorCode) ||
+    /verific|confirm.*correo|email.*confirm/i.test(message)
+  ) {
+    return "Debes verificar tu correo antes de iniciar sesión.";
+  }
   if (/correo|email/i.test(message) && /duplicad|registrad|existe|already|exist/i.test(message)) {
     return "Ese correo ya está registrado.";
+  }
+  if (status === 401) {
+    return "La sesión expiró o las credenciales no son válidas. Inicia sesión nuevamente.";
+  }
+  if (status === 403) {
+    return "No tienes permisos para realizar esta operación. Se requiere una sesión de administrador.";
   }
   if (status === 409) {
     return "El correo o el perfil ya existe en el backend. Revisa los datos antes de reintentar.";
   }
-  if (status === 401 || status === 403) {
-    return "El backend rechazó la sesión de administrador. Inicia sesión nuevamente.";
-  }
   return message || `El backend respondió con el código HTTP ${status}.`;
 };
 
-const parseApiErrorBody = async (response) => {
+const parseApiResponseBody = async (response) => {
   const text = await response.text();
   if (!text) return null;
   try {
@@ -147,6 +127,58 @@ const parseApiErrorBody = async (response) => {
     return text;
   }
 };
+
+const requestBackend = async (path, options = {}) => {
+  let response;
+  try {
+    response = await fetch(`${getApiBaseUrl()}${path}`, options);
+  } catch (error) {
+    if (error instanceof TypeError) {
+      throw new Error("No se pudo conectar con el backend. Verifica VITE_API_URL, DNS y CORS.");
+    }
+    throw error;
+  }
+  const body = await parseApiResponseBody(response);
+  if (!response.ok) {
+    throw new Error(getApiErrorMessage(body, response.status));
+  }
+  return body;
+};
+
+export const authService = {
+  async login(email, password) {
+    const body = await requestBackend("/usuarios/login", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        correo: String(email || "").trim().toLowerCase(),
+        password
+      })
+    });
+
+    if (!body?.access_token || !body?.role) {
+      throw new Error("El backend no devolvió access_token y role para iniciar sesión.");
+    }
+    return body;
+  }
+};
+
+/**
+ * Validador contra el Backend FastAPI (Capa 2)
+ */
+export const validateWithBackend = async ({ tipoDocumento = "DNI", dni, celular, correo }) => {
+  const accessToken = getApiAccessToken();
+  const headers = { "Content-Type": "application/json" };
+  if (accessToken) headers.Authorization = `Bearer ${accessToken}`;
+
+  await requestBackend("/usuarios/validar", {
+    method: "POST",
+    headers,
+    body: JSON.stringify({ tipoDocumento, dni, celular, correo })
+  });
+};
+
+const ADMIN_USER_ROLES = ["admin", "docente", "estudiante"];
 
 const assertAllowedAdminUserRole = (role) => {
   const normalizedRole = String(role || "").trim().toLowerCase();
@@ -185,7 +217,7 @@ export const adminUserRegistrationService = {
       throw new Error("No se encontró el token de la sesión de administrador.");
     }
 
-    const response = await fetch(`${getApiBaseUrl()}/usuarios/validar`, {
+    await requestBackend("/usuarios/validar", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -198,10 +230,6 @@ export const adminUserRegistrationService = {
         correo: String(formData.correo || "").trim().toLowerCase()
       })
     });
-
-    if (!response.ok) {
-      throw new Error(getApiErrorMessage(await parseApiErrorBody(response), response.status));
-    }
   },
 
   async createAuthAccount(formData) {
@@ -228,14 +256,13 @@ export const adminUserRegistrationService = {
     };
   },
 
-  buildProfilePayload(formData, authUserId, profileId) {
+  buildProfilePayload(formData, authUserId) {
     const role = assertAllowedAdminUserRole(formData.rol);
     if (!authUserId) {
       throw new Error("No se puede guardar el perfil sin el ID de la cuenta Auth.");
     }
 
     const payload = {
-      id: profileId || formData.id || `USR-${Date.now().toString().slice(-4)}`,
       authUserId,
       apellidos: String(formData.apellidos || "").trim(),
       nombres: String(formData.nombres || "").trim(),
@@ -246,16 +273,11 @@ export const adminUserRegistrationService = {
       estado: formData.estado || "Activo",
       areaAcademica: formData.areaAcademica || formData.carreraObjetivo || "General",
       carreraObjetivo: formData.carreraObjetivo || formData.areaAcademica || "General",
-      ciclovirtual: formData.cicloVirtual || formData.ciclovirtual || "Semestral"
+      cicloVirtual: formData.cicloVirtual || formData.ciclovirtual || "Semestral"
     };
 
     if (formData.fechaNacimiento) payload.fechaNacimiento = formData.fechaNacimiento;
     if (formData.celular) payload.celular = formData.celular;
-    if (Array.isArray(formData.cursosAsignados)) payload.cursosAsignados = formData.cursosAsignados;
-    if (Array.isArray(formData.cursosInscritos)) payload.cursosInscritos = formData.cursosInscritos;
-    if (Number.isFinite(Number(formData.salario)) && formData.salario !== "") {
-      payload.salario = Number(formData.salario);
-    }
 
     return payload;
   },
@@ -269,7 +291,7 @@ export const adminUserRegistrationService = {
     delete safeProfile.password;
     delete safeProfile.universidad;
 
-    const response = await fetch(`${getApiBaseUrl()}/usuarios/`, {
+    const savedProfile = await requestBackend("/usuarios/", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -278,11 +300,9 @@ export const adminUserRegistrationService = {
       body: JSON.stringify(safeProfile)
     });
 
-    if (!response.ok) {
-      throw new Error(getApiErrorMessage(await parseApiErrorBody(response), response.status));
-    }
-
-    return normalizeUser(safeProfile);
+    return normalizeUser(
+      savedProfile && typeof savedProfile === "object" ? savedProfile : safeProfile
+    );
   }
 };
 
