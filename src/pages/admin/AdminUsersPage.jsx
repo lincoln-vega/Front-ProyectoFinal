@@ -75,7 +75,7 @@ export default function AdminUsersPage() {
   const handleResetData = async () => {
     try {
       await resetUsers();
-      showNotification("Usuarios actualizados desde InsForge.");
+      showNotification("Usuarios actualizados desde la base de datos.");
     } catch (err) {
       showNotification(`No se pudieron cargar los usuarios: ${err.message}`);
     }
@@ -115,6 +115,7 @@ export default function AdminUsersPage() {
       user.nombres,
       user.dni,
       user.correo,
+      user.areaAcademica,
       user.carreraObjetivo,
       user.cicloVirtual,
       user.ciclovirtual
@@ -142,10 +143,6 @@ export default function AdminUsersPage() {
                 Padrón General de Usuarios de la Academia
               </h2>
             </div>
-            <p className="text-xs text-slate-500 mt-1">
-              Administración de matrículas, docentes y personal académico conectada a InsForge.
-              Administración general de estudiantes, docentes y personal académico.
-            </p>
           </div>
 
           <div className="flex flex-wrap items-center gap-2">

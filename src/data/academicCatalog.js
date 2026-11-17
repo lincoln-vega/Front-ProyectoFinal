@@ -20,6 +20,14 @@ export const ACADEMIC_AREAS = [
 
 export const CAREERS = [...new Set(Object.values(AREA_CAREERS).flat())];
 
+export const ACADEMIC_CYCLES = [
+  "Semestral",
+  "Anual",
+  "Intensivo",
+  "Reforzamiento Escolar",
+  "Repaso"
+];
+
 export const getCareersByArea = (area = "") => {
   if (!area) return CAREERS;
   if (AREA_CAREERS[area]) return AREA_CAREERS[area];
@@ -27,4 +35,26 @@ export const getCareersByArea = (area = "") => {
     k.toLowerCase().includes(area.toLowerCase()) || area.toLowerCase().includes(k.toLowerCase())
   );
   return found ? AREA_CAREERS[found] : CAREERS;
+};
+
+export const inferAreaForCareer = (career = "") => {
+  if (!career) return ACADEMIC_AREAS[0];
+  for (const [area, careers] of Object.entries(AREA_CAREERS)) {
+    if (careers.some(c => c.toLowerCase() === career.toLowerCase() || career.toLowerCase().includes(c.toLowerCase()) || c.toLowerCase().includes(career.toLowerCase()))) {
+      const matched = ACADEMIC_AREAS.find(a => a.toLowerCase() === area.toLowerCase() || area.toLowerCase().includes(a.toLowerCase()) || a.toLowerCase().includes(area.toLowerCase()));
+      if (matched) return matched;
+      return area;
+    }
+  }
+  const lower = career.toLowerCase();
+  if (lower.includes("med") || lower.includes("salud") || lower.includes("bio") || lower.includes("enf") || lower.includes("odon")) {
+    return "Ciencias Médicas y de la Salud";
+  }
+  if (lower.includes("ing") || lower.includes("sist") || lower.includes("mat") || lower.includes("fis") || lower.includes("quim") || lower.includes("alg")) {
+    return "Ciencias Exactas e Ingenierías";
+  }
+  if (lower.includes("adm") || lower.includes("econ") || lower.includes("cont") || lower.includes("dir") || lower.includes("gest")) {
+    return "Gestión Institucional y Empresarial";
+  }
+  return "Humanidades y Ciencias Sociales";
 };

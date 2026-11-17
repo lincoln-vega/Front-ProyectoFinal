@@ -1,8 +1,11 @@
 import { insforge } from "../lib/insforge";
+import db from "../data/db.json";
+import { inferAreaForCareer } from "../data/academicCatalog";
 export { courseService } from "./cursosServices";
 export { academicosService } from "./academicosService";
 
 const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || "https://portal-backend-5adf751c-968e-487d-92f9-672da789d8b3.fly.dev";
+const STORAGE_KEY_USERS = "academia_users";
 
 const SYSTEM_ROLES = ["Admin", "Docente", "Estudiante"];
 const USER_COLUMNS = [
@@ -14,7 +17,6 @@ const USER_COLUMNS = [
   "fechaNacimiento",
   "correo",
   "celular",
-  "universidad",
   "carreraObjetivo",
   "areaAcademica",
   "rol",
@@ -30,15 +32,32 @@ const normalizeUser = (user) => {
   if (!user) return user;
   const ciclo = user.cicloVirtual || user.ciclovirtual || "Semestral";
   const isTeacher = ["docente", "profesor", "profesora"].includes(String(user.rol || "").toLowerCase());
+  const carrera = user.carreraObjetivo || user.carrera || "";
+  const area = user.areaAcademica || "";
   return {
     ...user,
     tipoDocumento: user.tipoDocumento || "DNI",
     salario: Number(user.salario) > 0 ? Number(user.salario) : (isTeacher ? 3200 : 0),
     cicloVirtual: ciclo,
     ciclovirtual: ciclo,
-    carreraObjetivo: user.carreraObjetivo || user.areaAcademica || "General",
-    areaAcademica: user.areaAcademica || user.carreraObjetivo || "General"
+    carreraObjetivo: carrera,
+    areaAcademica: area
   };
+};
+
+const getStoredUsers = () => {
+  try {
+    const raw = typeof window !== "undefined" ? localStorage.getItem(STORAGE_KEY_USERS) : null;
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed)) {
+        return parsed.map(normalizeUser);
+      }
+    }
+  } catch (err) {
+    console.warn("[userService] Error leyendo cache de usuarios:", err);
+  }
+  return [];
 };
 
 const throwIfError = (error, operation) => {
@@ -61,6 +80,27 @@ const throwIfError = (error, operation) => {
   }
 };
 
+const formatRoleForDb = (rol) => {
+  if (!rol) return "Estudiante";
+  const r = String(rol).trim().toLowerCase();
+  if (r.startsWith("admin")) return "Admin";
+  if (r.startsWith("doc") || r.startsWith("prof")) return "Docente";
+  return "Estudiante";
+};
+
+const formatEstadoForDb = (estado) => {
+  if (!estado) return "Activo";
+  const e = String(estado).trim().toLowerCase();
+  if (e === "inactivo") return "Inactivo";
+  return "Activo";
+};
+
+const formatIdForDb = (id) => {
+  if (id && /^USR-\d+$/.test(id)) return id;
+  const digits = String(Date.now()).slice(-6);
+  return `USR-${digits}`;
+};
+
 /**
  * Validador contra el Backend FastAPI (Capa 2)
  */
@@ -69,20 +109,27 @@ export const validateWithBackend = async ({ tipoDocumento = "DNI", dni, celular,
     const res = await fetch(`${BACKEND_URL}/usuarios/validar`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ tipoDocumento, dni, celular, correo })
+      body: JSON.stringify({
+        tipoDocumento: tipoDocumento || "DNI",
+        dni: dni ? String(dni).trim() : null,
+        celular: celular ? String(celular).trim() : null,
+        correo: correo ? String(correo).trim().toLowerCase() : null
+      })
     });
     if (!res.ok) {
       const data = await res.json().catch(() => ({}));
       if (data?.detail?.errores) {
-        const firstError = Object.values(data.detail.errores)[0];
-        throw new Error(`[Backend 422] ${firstError}`);
+        const errorList = Object.values(data.detail.errores);
+        throw new Error(errorList.join(" | "));
+      } else if (typeof data?.detail?.mensaje === "string") {
+        throw new Error(data.detail.mensaje);
       } else if (typeof data?.detail === "string") {
-        throw new Error(`[Backend 422] ${data.detail}`);
+        throw new Error(data.detail);
       }
-      throw new Error(`[Backend] Validación fallida con código HTTP ${res.status}`);
+      throw new Error(`Validación fallida con código HTTP ${res.status}`);
     }
   } catch (err) {
-    if (err.message && err.message.startsWith("[Backend")) {
+    if (err.message && !err.message.includes("Failed to fetch") && !err.message.includes("Network request failed") && !err.message.includes("fetch failed")) {
       throw err;
     }
     // Si el backend remoto o local no está disponible, registramos y procedemos con Capa 1 y 3
@@ -91,14 +138,59 @@ export const validateWithBackend = async ({ tipoDocumento = "DNI", dni, celular,
 };
 
 export const userService = {
+  getStoredUsers,
+
   async getUsers() {
-    const { data, error } = await insforge.database
-      .from("users")
-      .select(USER_COLUMNS)
-      .order("created_at", { ascending: false })
-      .limit(500);
-    throwIfError(error, "cargar usuarios");
-    return (data || []).map(normalizeUser);
+    // 1. Si hay token de autenticación en localStorage, consultar backend FastAPI
+    const token = typeof window !== "undefined" ? localStorage.getItem("authToken") : null;
+    if (token) {
+      try {
+        const res = await fetch(`${BACKEND_URL}/usuarios/`, {
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`
+          }
+        });
+        if (res.ok) {
+          const remoteUsers = await res.json();
+          const list = Array.isArray(remoteUsers)
+            ? remoteUsers
+            : Array.isArray(remoteUsers?.data)
+            ? remoteUsers.data
+            : null;
+          if (list && list.length > 0) {
+            const normalized = list.map(normalizeUser);
+            if (typeof window !== "undefined") {
+              localStorage.setItem(STORAGE_KEY_USERS, JSON.stringify(normalized));
+            }
+            return normalized;
+          }
+        }
+      } catch (err) {
+        console.warn("[userService] Error al consultar backend FastAPI:", err.message);
+      }
+    }
+
+    // 2. Consultar base de datos InsForge PostgreSQL
+    try {
+      const { data, error } = await insforge.database
+        .from("users")
+        .select(USER_COLUMNS)
+        .order("created_at", { ascending: false })
+        .limit(500);
+      if (!error && Array.isArray(data)) {
+        const normalized = data.map(normalizeUser);
+        if (typeof window !== "undefined") {
+          localStorage.setItem(STORAGE_KEY_USERS, JSON.stringify(normalized));
+        }
+        return normalized;
+      }
+    } catch (err) {
+      console.warn("[userService] Error al consultar InsForge:", err.message);
+    }
+
+    // 3. Fallback resiliente a cache de localStorage
+    return getStoredUsers();
   },
 
   async fetchUsers() {
@@ -106,17 +198,25 @@ export const userService = {
   },
 
   async getUserByEmail(email) {
-    const { data, error } = await insforge.database
-      .from("users")
-      .select(USER_COLUMNS)
-      .eq("correo", email.trim().toLowerCase())
-      .limit(1);
-    throwIfError(error, "cargar perfil");
-    return data?.[0] ? normalizeUser(data[0]) : null;
+    const targetEmail = (email || "").trim().toLowerCase();
+    // Primero buscar en InsForge
+    try {
+      const { data, error } = await insforge.database
+        .from("users")
+        .select(USER_COLUMNS)
+        .eq("correo", targetEmail)
+        .limit(1);
+      if (!error && data?.[0]) return normalizeUser(data[0]);
+    } catch {}
+
+    // Fallback a usuarios locales
+    const local = getStoredUsers();
+    const found = local.find((u) => (u.correo || "").trim().toLowerCase() === targetEmail);
+    return found ? normalizeUser(found) : null;
   },
 
-    async saveUsers(users) {
-    const safeUsers = users.map(({ password, created_at, cicloVirtual, ...user }) => {
+  async saveUsers(users) {
+    const safeUsers = users.map(({ password, created_at, cicloVirtual, universidad, ...user }) => {
       const ciclo = cicloVirtual || user.ciclovirtual || "Semestral";
       return {
         ...user,
@@ -125,47 +225,119 @@ export const userService = {
     });
     if (safeUsers.length === 0) return [];
 
-    const { data, error } = await insforge.database
-      .from("users")
-      .upsert(safeUsers)
-      .select(USER_COLUMNS);
-    throwIfError(error, "guardar usuarios");
-    return (data || []).map(normalizeUser);
+    try {
+      await insforge.database.from("users").upsert(safeUsers);
+    } catch (err) {
+      console.warn("[userService] Error guardando usuarios en InsForge:", err.message);
+    }
+
+    const normalized = users.map(normalizeUser);
+    if (typeof window !== "undefined") {
+      localStorage.setItem(STORAGE_KEY_USERS, JSON.stringify(normalized));
+    }
+    return normalized;
   },
 
-    async saveUser(user) {
-    const { password, created_at, cicloVirtual, ...safeUser } = user;
+  async saveUser(user) {
+    const { password, created_at, cicloVirtual, universidad, ...safeUser } = user;
     const ciclo = cicloVirtual || safeUser.ciclovirtual || "Semestral";
     const payload = {
       ...safeUser,
+      id: formatIdForDb(safeUser.id),
+      rol: formatRoleForDb(safeUser.rol),
+      estado: formatEstadoForDb(safeUser.estado),
+      tipoDocumento: safeUser.tipoDocumento || "DNI",
+      dni: safeUser.dni ? String(safeUser.dni).trim() : "",
+      celular: safeUser.celular ? String(safeUser.celular).trim() : "",
+      correo: safeUser.correo ? String(safeUser.correo).trim().toLowerCase() : "",
       ciclovirtual: ciclo
     };
 
     // Validación Capa 2 (FastAPI Backend)
     await validateWithBackend({
-      tipoDocumento: payload.tipoDocumento || "DNI",
+      tipoDocumento: payload.tipoDocumento,
       dni: payload.dni,
       celular: payload.celular,
       correo: payload.correo
     });
 
-    const { data, error } = await insforge.database
-      .from("users")
-      .upsert([payload])
-      .select(USER_COLUMNS);
-    throwIfError(error, "guardar usuario");
-    return data?.[0] ? normalizeUser(data[0]) : null;
+    let saved = null;
+    try {
+      const { data, error } = await insforge.database
+        .from("users")
+        .upsert([payload])
+        .select(USER_COLUMNS);
+      if (error) {
+        console.error("[userService] Error al guardar en InsForge:", error);
+        throw new Error(error.message || "Error al persistir en la base de datos");
+      }
+      if (data?.[0]) {
+        saved = normalizeUser(data[0]);
+      }
+    } catch (err) {
+      console.warn("[userService] Error al persistir usuario en InsForge:", err.message);
+      throw err;
+    }
+
+    if (!saved) {
+      saved = normalizeUser(payload);
+    }
+
+    // Sincronizar en localStorage
+    const current = getStoredUsers();
+    const idx = current.findIndex((u) => u.id === saved.id || (saved.dni && u.dni === saved.dni));
+    let updated;
+    if (idx >= 0) {
+      updated = [...current];
+      updated[idx] = { ...current[idx], ...saved };
+    } else {
+      updated = [saved, ...current];
+    }
+    if (typeof window !== "undefined") {
+      localStorage.setItem(STORAGE_KEY_USERS, JSON.stringify(updated));
+    }
+
+    return saved;
   },
 
   async deleteUser(id) {
+    // 1. Eliminar en el backend FastAPI si hay sesión con token
+    const token = typeof window !== "undefined" ? localStorage.getItem("authToken") : null;
+    if (token) {
+      try {
+        await fetch(`${BACKEND_URL}/usuarios/${id}`, {
+          method: "DELETE",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`
+          }
+        });
+      } catch (err) {
+        console.warn("[userService] Error al eliminar en FastAPI:", err.message);
+      }
+    }
+
+    // 2. Eliminar en InsForge PostgreSQL
     const { error } = await insforge.database
       .from("users")
       .delete()
       .eq("id", id);
-    throwIfError(error, "eliminar usuario");
+    if (error) {
+      console.error("[userService] Error al eliminar en InsForge:", error);
+      throw new Error(`Error en base de datos al eliminar usuario: ${error.message}`);
+    }
+
+    // 3. Actualizar almacenamiento local para que coincida de inmediato
+    const current = getStoredUsers();
+    const filtered = current.filter((u) => u.id !== id);
+    if (typeof window !== "undefined") {
+      localStorage.setItem(STORAGE_KEY_USERS, JSON.stringify(filtered));
+    }
+    return true;
   },
 
-  resetUsers() {
+  async resetUsers() {
+    // Ya no reinserta usuarios estáticos de db.json: recarga los usuarios reales de la base de datos
     return userService.getUsers();
   }
 };

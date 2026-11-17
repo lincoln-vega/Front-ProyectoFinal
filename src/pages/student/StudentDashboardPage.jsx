@@ -66,7 +66,6 @@ export default function StudentDashboardPage() {
     : "Estudiante";
 
   const carreraObjetivo = estudianteActivo?.carreraObjetivo || "Ingeniería de Sistemas";
-  const universidadObjetivo = estudianteActivo?.universidad || "UNI";
 
   // Cruce de cursosInscritos de la sesión con la lista global del backend
   const misCursosInscritos = useMemo(() => {
@@ -159,8 +158,8 @@ export default function StudentDashboardPage() {
               <strong className="text-white text-sm">{estudianteActivo?.cicloVirtual || estudianteActivo?.ciclovirtual || "Semestral"}</strong>
             </div>
             <div className="bg-white/10 backdrop-blur-md px-3.5 py-2 rounded-xl border border-white/15">
-              <span className="text-blue-200 block">Meta Universitaria:</span>
-              <strong className="text-white text-sm">{carreraObjetivo} ({universidadObjetivo})</strong>
+              <span className="text-blue-200 block">Carrera / Meta:</span>
+              <strong className="text-white text-sm">{carreraObjetivo}</strong>
             </div>
             <div className="bg-white/10 backdrop-blur-md px-3.5 py-2 rounded-xl border border-white/15">
               <span className="text-blue-200 block">Puntualidad General:</span>

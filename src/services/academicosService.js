@@ -1,3 +1,5 @@
+import { insforge } from "../lib/insforge";
+
 const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || "https://portal-backend-5adf751c-968e-487d-92f9-672da789d8b3.fly.dev";
 
 const DEFAULT_AREAS = [
@@ -211,6 +213,17 @@ export const academicosService = {
   // Áreas Académicas
   async getAreas() {
     try {
+      const { data, error } = await insforge.database
+        .from("areas_academicas")
+        .select("*")
+        .order("nombre");
+      if (!error && Array.isArray(data) && data.length > 0) {
+        localAreas = data;
+        return data;
+      }
+    } catch {}
+
+    try {
       const data = await apiFetch("/academicos/areas");
       if (Array.isArray(data) && data.length > 0) {
         localAreas = data;
@@ -233,6 +246,10 @@ export const academicosService = {
     };
 
     try {
+      await insforge.database.from("areas_academicas").upsert([payload]);
+    } catch {}
+
+    try {
       const created = await apiFetch("/academicos/areas", {
         method: "POST",
         body: JSON.stringify(payload)
@@ -248,6 +265,17 @@ export const academicosService = {
 
   // Carreras
   async getCarreras() {
+    try {
+      const { data, error } = await insforge.database
+        .from("carreras")
+        .select("*")
+        .order("nombre");
+      if (!error && Array.isArray(data) && data.length > 0) {
+        localCarreras = data;
+        return data;
+      }
+    } catch {}
+
     try {
       const data = await apiFetch("/academicos/carreras");
       if (Array.isArray(data) && data.length > 0) {
@@ -276,6 +304,10 @@ export const academicosService = {
     };
 
     try {
+      await insforge.database.from("carreras").upsert([payload]);
+    } catch {}
+
+    try {
       const created = await apiFetch("/academicos/carreras", {
         method: "POST",
         body: JSON.stringify(payload)
@@ -291,6 +323,17 @@ export const academicosService = {
 
   // Tipos de Ciclo
   async getTiposCiclo() {
+    try {
+      const { data, error } = await insforge.database
+        .from("tipos_ciclo")
+        .select("*")
+        .order("nombre");
+      if (!error && Array.isArray(data) && data.length > 0) {
+        localTiposCiclo = data;
+        return data;
+      }
+    } catch {}
+
     try {
       const data = await apiFetch("/academicos/tipos-ciclo");
       if (Array.isArray(data) && data.length > 0) {
@@ -315,6 +358,10 @@ export const academicosService = {
     };
 
     try {
+      await insforge.database.from("tipos_ciclo").upsert([payload]);
+    } catch {}
+
+    try {
       const created = await apiFetch("/academicos/tipos-ciclo", {
         method: "POST",
         body: JSON.stringify(payload)
@@ -330,6 +377,17 @@ export const academicosService = {
 
   // Ciclos Académicos
   async getCiclos() {
+    try {
+      const { data, error } = await insforge.database
+        .from("ciclos_academicos")
+        .select("*")
+        .order("nombre");
+      if (!error && Array.isArray(data) && data.length > 0) {
+        localCiclos = data;
+        return data;
+      }
+    } catch {}
+
     try {
       const data = await apiFetch("/academicos/ciclos");
       if (Array.isArray(data) && data.length > 0) {
@@ -360,6 +418,10 @@ export const academicosService = {
     };
 
     try {
+      await insforge.database.from("ciclos_academicos").upsert([payload]);
+    } catch {}
+
+    try {
       const created = await apiFetch("/academicos/ciclos", {
         method: "POST",
         body: JSON.stringify(payload)
@@ -375,6 +437,17 @@ export const academicosService = {
 
   // Turnos
   async getTurnos() {
+    try {
+      const { data, error } = await insforge.database
+        .from("turnos")
+        .select("*")
+        .order("nombre");
+      if (!error && Array.isArray(data) && data.length > 0) {
+        localTurnos = data;
+        return data;
+      }
+    } catch {}
+
     try {
       const data = await apiFetch("/academicos/turnos");
       if (Array.isArray(data) && data.length > 0) {
