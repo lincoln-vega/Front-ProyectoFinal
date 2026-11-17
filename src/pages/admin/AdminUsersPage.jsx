@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { Navigate } from "react-router-dom";
 import { RotateCcw, UserPlus, ShieldCheck } from "lucide-react";
 import Notification from "../../components/admin/Notification";
 import UserFilters from "../../components/admin/UserFilters";
@@ -6,8 +7,38 @@ import UserFormModal from "../../components/admin/UserFormModal";
 import RolesModal from "../../components/admin/RolesModal";
 import UsersTable from "../../components/admin/UsersTable";
 import useUsers, { createInitialUserForm } from "../../hooks/useUsers";
+import { adminUserRegistrationService } from "../../services/api";
+import { getAuthenticatedAdminAccessToken } from "../../services/session";
 
 export default function AdminUsersPage() {
+  const [accessStatus, setAccessStatus] = useState("checking");
+
+  useEffect(() => {
+    let active = true;
+    getAuthenticatedAdminAccessToken()
+      .then(() => {
+        if (active) setAccessStatus("allowed");
+      })
+      .catch(() => {
+        if (active) setAccessStatus("denied");
+      });
+
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  if (accessStatus === "checking") {
+    return <p className="p-5 text-sm text-slate-500">Verificando la sesión de administrador...</p>;
+  }
+  if (accessStatus === "denied") {
+    return <Navigate to="/login" replace />;
+  }
+
+  return <AdminUsersContent />;
+}
+
+function AdminUsersContent() {
   const {
     users,
     roles,
@@ -17,6 +48,7 @@ export default function AdminUsersPage() {
     resetUsers,
     deleteUser,
     saveUser,
+    addCreatedUser,
     loading,
     error,
     setError
@@ -33,6 +65,8 @@ export default function AdminUsersPage() {
   
   const [editingUserId, setEditingUserId] = useState(null);
   const [formData, setFormData] = useState(createInitialUserForm);
+  const [pendingAuthAccount, setPendingAuthAccount] = useState(null);
+  const submissionLock = useRef(false);
 
   const showNotification = (message) => {
     setNotification(message);
@@ -48,12 +82,28 @@ export default function AdminUsersPage() {
 
   const openNewUserModal = () => {
     setEditingUserId(null);
-    setError(null);
-    setFormData(createInitialUserForm());
+    if (pendingAuthAccount) {
+      setError("La cuenta de acceso ya existe. Reintenta guardar su perfil para completar el registro.");
+      setFormData({
+        ...pendingAuthAccount.profile,
+        cicloVirtual: pendingAuthAccount.profile.ciclovirtual,
+        rol: roles.find(
+          (role) => String(role).toLowerCase() === pendingAuthAccount.profile.rol
+        ) || pendingAuthAccount.profile.rol,
+        password: ""
+      });
+    } else {
+      setError(null);
+      setFormData(createInitialUserForm());
+    }
     setIsModalOpen(true);
   };
 
   const handleEdit = (user) => {
+    if (pendingAuthAccount) {
+      setError("Completa el guardado del perfil pendiente antes de editar otro usuario.");
+      return;
+    }
     setEditingUserId(user.id);
     setError(null);
     setFormData({ ...user });
@@ -83,6 +133,7 @@ export default function AdminUsersPage() {
 
   const handleSubmitForm = async (event) => {
     event.preventDefault();
+    if (submissionLock.current) return;
     setError(null);
 
     if (!formData.apellidos || !formData.nombres || !formData.dni) {
@@ -91,19 +142,74 @@ export default function AdminUsersPage() {
     }
 
     const isEditing = Boolean(editingUserId);
+    if (!isEditing && !pendingAuthAccount && (!formData.correo?.trim() || !formData.password)) {
+      setError("El correo y la contraseña son obligatorios para crear la cuenta.");
+      return;
+    }
+
     setIsSubmitting(true);
+    submissionLock.current = true;
+    let pending = pendingAuthAccount;
     try {
-      await saveUser(formData, editingUserId);
-      closeModal();
-      showNotification(
-        isEditing
-          ? "Usuario actualizado correctamente."
-          : "Usuario registrado correctamente."
-      );
+      if (isEditing) {
+        await saveUser(formData, editingUserId);
+        closeModal();
+        showNotification("Usuario actualizado correctamente.");
+      } else {
+        if (!pending) {
+          const validationToken = await getAuthenticatedAdminAccessToken();
+          await adminUserRegistrationService.validate(formData, validationToken);
+
+          const authAccount = await adminUserRegistrationService.createAuthAccount(formData);
+          pending = {
+            ...authAccount,
+            profile: adminUserRegistrationService.buildProfilePayload(
+              formData,
+              authAccount.authUserId
+            )
+          };
+          setPendingAuthAccount(pending);
+          setFormData((current) => ({ ...current, password: "" }));
+        } else if (
+          String(formData.correo || "").trim().toLowerCase() !== pending.profile.correo
+        ) {
+          throw new Error("No se puede cambiar el correo de una cuenta Auth ya creada.");
+        }
+
+        const profile = adminUserRegistrationService.buildProfilePayload(
+          formData,
+          pending.authUserId,
+          pending.profile.id
+        );
+        pending = { ...pending, profile };
+        setPendingAuthAccount(pending);
+
+        const adminAccessToken = await getAuthenticatedAdminAccessToken();
+        const savedUser = await adminUserRegistrationService.saveProfile(profile, adminAccessToken);
+        addCreatedUser(savedUser);
+        setPendingAuthAccount(null);
+        closeModal();
+
+        if (pending.requiresEmailVerification) {
+          showNotification("Usuario registrado. Debe verificar su correo antes de iniciar sesión.");
+        } else if (!pending.emailVerified) {
+          showNotification("Usuario registrado; el correo todavía aparece sin verificar.");
+        } else {
+          showNotification("Usuario registrado correctamente.");
+        }
+      }
     } catch (err) {
-      // No cerramos el modal ni limpiamos formData para conservar lo escrito
-      setError(err.message || "Ocurrió un error al guardar el usuario en la base de datos.");
+      if (!isEditing && pending) {
+        setPendingAuthAccount(pending);
+        setError(
+          `La cuenta de InsForge Auth ya fue creada, pero no se pudo guardar su perfil. ` +
+          `Reintenta para enviar solo el perfil con la misma cuenta. ${err.message}`
+        );
+      } else {
+        setError(err.message || "No se pudo completar el registro.");
+      }
     } finally {
+      submissionLock.current = false;
       setIsSubmitting(false);
     }
   };
@@ -217,6 +323,7 @@ export default function AdminUsersPage() {
           onClearServerError={() => setError(null)}
           onChange={setFormData}
           onSubmit={handleSubmitForm}
+          isPendingProfile={Boolean(pendingAuthAccount)}
           onClose={closeModal}
         />
       )}

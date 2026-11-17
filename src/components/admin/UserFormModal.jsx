@@ -54,6 +54,7 @@ export default function UserFormModal({
   roles = [],
   serverError = "",
   isSubmitting = false,
+  isPendingProfile = false,
   onClearServerError,
   onChange,
   onSubmit,
@@ -361,6 +362,8 @@ export default function UserFormModal({
                 name="correo"
                 value={formData.correo || ""}
                 onChange={handleChange}
+                required={!isEditing}
+                disabled={isPendingProfile}
                 className="w-full px-3 py-2 border border-slate-200 dark:border-white/10 rounded-lg text-xs focus:ring-2 focus:ring-blue-500 focus:outline-hidden bg-white dark:bg-white/5 dark:text-white"
               />
             </div>
@@ -378,6 +381,8 @@ export default function UserFormModal({
                   placeholder="••••••••"
                   value={formData.password || ""}
                   onChange={handleChange}
+                  required={!isEditing && !isPendingProfile}
+                  disabled={isPendingProfile}
                   className="w-full px-3 py-2 pr-9 border border-slate-200 dark:border-white/10 rounded-lg text-xs focus:ring-2 focus:ring-blue-500 focus:outline-hidden bg-white dark:bg-white/5 dark:text-white"
                 />
                 <button
@@ -390,7 +395,9 @@ export default function UserFormModal({
                 </button>
               </div>
               <p className="mt-0.5 text-[10px] text-slate-400 dark:text-slate-500">
-                Se muestra en puntos por seguridad.
+                {isPendingProfile
+                  ? "La cuenta Auth ya existe; el reintento solo guarda el perfil."
+                  : "Se muestra en puntos por seguridad."}
               </p>
             </div>
 
@@ -510,6 +517,8 @@ export default function UserFormModal({
             >
               {isSubmitting
                 ? "Guardando..."
+                : isPendingProfile
+                ? "Reintentar perfil"
                 : isEditing
                 ? "Guardar Cambios"
                 : "Registrar Usuario"}

@@ -38,3 +38,25 @@ export async function getCurrentSessionProfile() {
 
   return { authUser, profile };
 }
+
+export async function getAuthenticatedAdminAccessToken() {
+  const { data, error } = await insforge.auth.getCurrentUser();
+  if (error || !data?.user?.email) {
+    throw new Error("La sesión de administrador expiró. Inicia sesión nuevamente.");
+  }
+
+  const profile = await userService.getUserByEmail(data.user.email);
+  if (!profile || String(profile.rol || profile.role || "").trim().toLowerCase() !== "admin") {
+    throw new Error("Solo un administrador autenticado puede registrar usuarios.");
+  }
+  if (profile.estado && String(profile.estado).toLowerCase() !== "activo") {
+    throw new Error("La cuenta de administrador se encuentra inactiva.");
+  }
+
+  const accessToken = await insforge.getHttpClient().getValidAccessToken();
+  if (!accessToken) {
+    throw new Error("No se pudo recuperar el token de la sesión de administrador.");
+  }
+
+  return accessToken;
+}

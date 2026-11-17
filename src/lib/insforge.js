@@ -7,3 +7,8 @@ export const insforge = createClient({
   baseUrl,
   anonKey
 });
+
+export const createIsolatedAuthClient = () => createClient({
+  baseUrl,
+  anonKey
+});

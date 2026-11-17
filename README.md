@@ -48,6 +48,7 @@ Para facilitar las pruebas funcionales del sistema en sus diferentes roles, se d
 3. **Configurar variables de entorno:**
    Crea un archivo `.env` o `.env.local` en la raíz del proyecto tomando como referencia `.env.example`:
    ```env
+   VITE_API_URL=https://portal-backend-5adf751c-968e-487d-92f9-672da789d8b3.fly.dev
    VITE_INSFORGE_URL=https://rbxki34t.us-east.insforge.app
    VITE_INSFORGE_ANON_KEY=ik_d0819137e3c783ce6a002a534d62e4e6
    ```

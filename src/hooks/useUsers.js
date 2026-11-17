@@ -102,6 +102,10 @@ export default function useUsers() {
       : [savedUser, ...current]);
   };
 
+  const addCreatedUser = (user) => {
+    setUsers((current) => [user, ...current.filter((item) => item.id !== user.id)]);
+  };
+
   return {
     users,
     roles,
@@ -113,6 +117,7 @@ export default function useUsers() {
     deleteRole,
     resetUsers,
     deleteUser,
-    saveUser
+    saveUser,
+    addCreatedUser
   };
 }

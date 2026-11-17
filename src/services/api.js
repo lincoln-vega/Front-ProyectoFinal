@@ -1,4 +1,4 @@
-import { insforge } from "../lib/insforge";
+import { createIsolatedAuthClient, insforge } from "../lib/insforge";
 export { courseService } from "./cursosServices";
 
 const SYSTEM_ROLES = ["Admin", "Docente", "Estudiante"];
@@ -62,7 +62,10 @@ const throwIfError = (error, operation) => {
  * Validador contra el Backend FastAPI (Capa 2)
  */
 export const validateWithBackend = async ({ tipoDocumento = "DNI", dni, celular, correo }) => {
-  const backendUrl = import.meta.env.VITE_BACKEND_URL || "http://localhost:8000";
+  const backendUrl =
+    import.meta.env.VITE_API_URL ||
+    import.meta.env.VITE_BACKEND_URL ||
+    "http://localhost:8000";
   try {
     const res = await fetch(`${backendUrl}/usuarios/validar`, {
       method: "POST",
@@ -86,6 +89,200 @@ export const validateWithBackend = async ({ tipoDocumento = "DNI", dni, celular,
     // Si el backend local no está corriendo en el puerto 8000 en este instante,
     // registramos en consola y procedemos con la validación de cliente + base de datos
     console.warn("[Backend] Servidor FastAPI no disponible en localhost:8000, validando con Capa 1 y Capa 3:", err.message);
+  }
+};
+
+const ADMIN_USER_ROLES = ["admin", "docente", "estudiante"];
+
+const getApiBaseUrl = () => {
+  const apiUrl = import.meta.env.VITE_API_URL?.trim();
+  if (!apiUrl) {
+    throw new Error("Falta configurar la variable VITE_API_URL para conectar con el backend.");
+  }
+  return apiUrl.replace(/\/+$/, "");
+};
+
+const getApiErrorMessage = (body, status) => {
+  const detail = body?.detail;
+  let message = "";
+
+  if (detail?.errores && typeof detail.errores === "object") {
+    message = String(Object.values(detail.errores)[0] || "");
+  } else if (Array.isArray(detail)) {
+    message = detail
+      .map((item) => {
+        const field = Array.isArray(item?.loc) ? item.loc[item.loc.length - 1] : "";
+        return [field, item?.msg].filter(Boolean).join(": ");
+      })
+      .filter(Boolean)
+      .join("; ");
+  } else if (typeof detail === "string") {
+    message = detail;
+  } else if (typeof body?.message === "string") {
+    message = body.message;
+  } else if (typeof body?.error === "string") {
+    message = body.error;
+  } else if (typeof body === "string") {
+    message = body;
+  }
+
+  if (/correo|email/i.test(message) && /duplicad|registrad|existe|already|exist/i.test(message)) {
+    return "Ese correo ya está registrado.";
+  }
+  if (status === 409) {
+    return "El correo o el perfil ya existe en el backend. Revisa los datos antes de reintentar.";
+  }
+  if (status === 401 || status === 403) {
+    return "El backend rechazó la sesión de administrador. Inicia sesión nuevamente.";
+  }
+  return message || `El backend respondió con el código HTTP ${status}.`;
+};
+
+const parseApiErrorBody = async (response) => {
+  const text = await response.text();
+  if (!text) return null;
+  try {
+    return JSON.parse(text);
+  } catch {
+    return text;
+  }
+};
+
+const assertAllowedAdminUserRole = (role) => {
+  const normalizedRole = String(role || "").trim().toLowerCase();
+  if (!ADMIN_USER_ROLES.includes(normalizedRole)) {
+    throw new Error("El rol debe ser admin, docente o estudiante.");
+  }
+  return normalizedRole;
+};
+
+const formatAuthCreationError = (error) => {
+  const code = String(error?.error || error?.code || "").toUpperCase();
+  const message = String(error?.message || "");
+
+  if (code === "AUTH_EMAIL_EXISTS" || /email.*(already|exists)|correo.*(registrad|existe)/i.test(message)) {
+    return "Ya existe una cuenta de InsForge Auth con ese correo.";
+  }
+  if (code === "AUTH_NEED_VERIFICATION") {
+    return "La cuenta ya existe, pero el correo necesita verificación antes de iniciar sesión.";
+  }
+  if (code === "AUTH_WEAK_PASSWORD") {
+    return "La contraseña no cumple los requisitos de InsForge Auth.";
+  }
+  if (code === "AUTH_INVALID_EMAIL") {
+    return "El correo no tiene un formato válido.";
+  }
+  if (code === "AUTH_SIGNUP_DISABLED") {
+    return "InsForge Auth no permite crear cuentas en este momento.";
+  }
+  return message || "No se pudo crear la cuenta en InsForge Auth.";
+};
+
+export const adminUserRegistrationService = {
+  async validate(formData, adminAccessToken) {
+    assertAllowedAdminUserRole(formData.rol);
+    if (!adminAccessToken) {
+      throw new Error("No se encontró el token de la sesión de administrador.");
+    }
+
+    const response = await fetch(`${getApiBaseUrl()}/usuarios/validar`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${adminAccessToken}`
+      },
+      body: JSON.stringify({
+        tipoDocumento: formData.tipoDocumento || "DNI",
+        dni: formData.dni,
+        celular: formData.celular,
+        correo: String(formData.correo || "").trim().toLowerCase()
+      })
+    });
+
+    if (!response.ok) {
+      throw new Error(getApiErrorMessage(await parseApiErrorBody(response), response.status));
+    }
+  },
+
+  async createAuthAccount(formData) {
+    const isolatedClient = createIsolatedAuthClient();
+    const { data, error } = await isolatedClient.auth.signUp({
+      email: String(formData.correo || "").trim().toLowerCase(),
+      password: formData.password,
+      name: `${formData.nombres || ""} ${formData.apellidos || ""}`.trim()
+    });
+
+    if (error) {
+      throw new Error(formatAuthCreationError(error));
+    }
+    if (!data?.user?.id) {
+      throw new Error(
+        "InsForge no devolvió el ID de la cuenta creada. Verifica Auth antes de volver a intentarlo."
+      );
+    }
+
+    return {
+      authUserId: data.user.id,
+      emailVerified: data.user.emailVerified === true,
+      requiresEmailVerification: data.requireEmailVerification === true
+    };
+  },
+
+  buildProfilePayload(formData, authUserId, profileId) {
+    const role = assertAllowedAdminUserRole(formData.rol);
+    if (!authUserId) {
+      throw new Error("No se puede guardar el perfil sin el ID de la cuenta Auth.");
+    }
+
+    const payload = {
+      id: profileId || formData.id || `USR-${Date.now().toString().slice(-4)}`,
+      authUserId,
+      apellidos: String(formData.apellidos || "").trim(),
+      nombres: String(formData.nombres || "").trim(),
+      tipoDocumento: formData.tipoDocumento || "DNI",
+      dni: String(formData.dni || "").trim(),
+      correo: String(formData.correo || "").trim().toLowerCase(),
+      rol: role,
+      estado: formData.estado || "Activo",
+      areaAcademica: formData.areaAcademica || formData.carreraObjetivo || "General",
+      carreraObjetivo: formData.carreraObjetivo || formData.areaAcademica || "General",
+      ciclovirtual: formData.cicloVirtual || formData.ciclovirtual || "Semestral"
+    };
+
+    if (formData.fechaNacimiento) payload.fechaNacimiento = formData.fechaNacimiento;
+    if (formData.celular) payload.celular = formData.celular;
+    if (Array.isArray(formData.cursosAsignados)) payload.cursosAsignados = formData.cursosAsignados;
+    if (Array.isArray(formData.cursosInscritos)) payload.cursosInscritos = formData.cursosInscritos;
+    if (Number.isFinite(Number(formData.salario)) && formData.salario !== "") {
+      payload.salario = Number(formData.salario);
+    }
+
+    return payload;
+  },
+
+  async saveProfile(profilePayload, adminAccessToken) {
+    if (!adminAccessToken) {
+      throw new Error("No se encontró el token de la sesión de administrador.");
+    }
+
+    const safeProfile = { ...profilePayload };
+    delete safeProfile.password;
+    delete safeProfile.universidad;
+
+    const response = await fetch(`${getApiBaseUrl()}/usuarios/`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${adminAccessToken}`
+      },
+      body: JSON.stringify(safeProfile)
+    });
+
+    if (!response.ok) {
+      throw new Error(getApiErrorMessage(await parseApiErrorBody(response), response.status));
+    }
+
+    return normalizeUser(safeProfile);
   }
 };
 
