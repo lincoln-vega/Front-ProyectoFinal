@@ -67,31 +67,25 @@ export default function StudentDashboardPage() {
 
   const carreraObjetivo = estudianteActivo?.carreraObjetivo || "Ingeniería de Sistemas";
 
-  // Cruce de cursosInscritos de la sesión con la lista global del backend
+  // Mostrar solo cursos activos incluidos en la matrícula del estudiante.
   const misCursosInscritos = useMemo(() => {
     if (!estudianteActivo) return [];
 
-    const inscritos = estudianteActivo.cursosInscritos;
-    if (Array.isArray(inscritos) && inscritos.length > 0) {
-      const idsInscritos = new Set(
-        inscritos.map((c) => (typeof c === "object" && c !== null ? c.id : c))
-      );
-      const encontrados = (listaCursosGlobal || []).filter(
-        (curso) => idsInscritos.has(curso.id) && curso.estado === "Activo"
-      );
-      if (encontrados.length > 0) return encontrados;
-    }
+    const inscritos = Array.isArray(estudianteActivo.cursosInscritos)
+      ? estudianteActivo.cursosInscritos
+      : [];
+    const idsInscritos = new Set(
+      inscritos
+        .map((curso) => (typeof curso === "object" && curso !== null ? curso.id : curso))
+        .filter((id) => id !== undefined && id !== null)
+        .map((id) => String(id))
+    );
 
-    // Fallback inteligente: Filtrar según su área académica si no hay lista explícita
-    if (estudianteActivo.areaAcademica) {
-      const porArea = (listaCursosGlobal || []).filter(
-        (curso) => curso.estado === "Activo" && (curso.area || "").includes(estudianteActivo.areaAcademica)
-      );
-      if (porArea.length > 0) return porArea;
-    }
-
-    // Si no tiene área académica definida, mostrar catálogo activo
-    return (listaCursosGlobal || []).filter((curso) => curso.estado === "Activo");
+    return (listaCursosGlobal || []).filter(
+      (curso) =>
+        idsInscritos.has(String(curso.id)) &&
+        String(curso.estado || "").toLowerCase() === "activo"
+    );
   }, [estudianteActivo, listaCursosGlobal]);
 
   const handleJoinMeet = (course) => {
