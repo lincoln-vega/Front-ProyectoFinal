@@ -158,11 +158,11 @@ export default function DocentesPage() {
         id: newUserId,
         ...name,
         dni: documento,
-        correo: `${newUserId.toLowerCase()}@academia.edu.pe`,
+        correo: `${newUserId.toLowerCase().replace(/[^a-z0-9]/g, "")}@academia.edu.pe`,
         celular: "",
         carreraObjetivo: especialidad,
         salario: Number(salario) || 0,
-        rol: "docente",
+        rol: "Docente",
         estado: "Activo"
       };
       const savedUser = await userService.saveUser(newUser);

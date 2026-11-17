@@ -18,6 +18,7 @@ import {
 } from "lucide-react";
 import { configService } from "../../services/api";
 import Notification from "../../components/admin/Notification";
+import CatalogoAcademicoManager from "../../components/admin/academicos/CatalogoAcademicoManager";
 
 export default function AdminConfiguracionPage() {
   const [activeTab, setActiveTab] = useState("institucion"); // 'institucion' | 'ciclo' | 'auditoria'
@@ -186,6 +187,19 @@ export default function AdminConfiguracionPage() {
 
         <button
           type="button"
+          onClick={() => setActiveTab("catalogo")}
+          className={`flex items-center space-x-2 px-4 py-2.5 rounded-t-xl font-bold transition-all border-b-2 cursor-pointer ${
+            activeTab === "catalogo"
+              ? "border-[#1E3A8A] text-[#1E3A8A] dark:text-blue-400 dark:border-blue-400 bg-white/60 dark:bg-white/5"
+              : "border-transparent text-slate-500 hover:text-slate-800 dark:hover:text-slate-300"
+          }`}
+        >
+          <School className="w-4 h-4" />
+          <span>Catálogo Académico (Áreas, Carreras, Ciclos, Turnos)</span>
+        </button>
+
+        <button
+          type="button"
           onClick={() => setActiveTab("auditoria")}
           className={`flex items-center space-x-2 px-4 py-2.5 rounded-t-xl font-bold transition-all border-b-2 cursor-pointer ${
             activeTab === "auditoria"
@@ -198,7 +212,12 @@ export default function AdminConfiguracionPage() {
         </button>
       </div>
 
-      {/* CONTENIDO DEL FORMULARIO SEGÚN LA PESTAÑA */}
+      {/* CONTENIDO SEGÚN LA PESTAÑA */}
+      {activeTab === "catalogo" ? (
+        <div className="bg-white/60 dark:bg-white/5 backdrop-blur-2xl rounded-2xl border border-slate-200 dark:border-white/10 shadow-xs p-6">
+          <CatalogoAcademicoManager onNotify={showNotification} />
+        </div>
+      ) : (
       <form onSubmit={handleSave} className="bg-white/60 dark:bg-white/5 backdrop-blur-2xl rounded-2xl border border-slate-200 dark:border-white/10 shadow-xs p-6 space-y-6">
         {activeTab === "institucion" && (
           <div className="space-y-4 animate-fade-in">
@@ -452,6 +471,7 @@ export default function AdminConfiguracionPage() {
           </button>
         </div>
       </form>
+      )}
     </div>
   );
 }

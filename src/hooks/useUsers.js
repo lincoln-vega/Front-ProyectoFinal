@@ -10,23 +10,23 @@ export const createInitialUserForm = () => ({
   correo: "",
   password: "",
   celular: "",
-  areaAcademica: "",
-  carreraObjetivo: "",
+  areaAcademica: "Ciencias Exactas e Ingenierías",
+  carreraObjetivo: "Ingeniería de Sistemas",
   cicloVirtual: "Semestral",
   rol: "Estudiante",
   estado: "Activo"
 });
 
 export default function useUsers() {
-  const [users, setUsers] = useState([]);
+  const [users, setUsers] = useState(() => (userService.getStoredUsers ? userService.getStoredUsers() : []));
   const [roles, setRoles] = useState(() => roleService.getRoles());
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
   useEffect(() => {
     userService.getUsers()
       .then((data) => {
-        if (data && Array.isArray(data) && data.length > 0) {
+        if (data && Array.isArray(data)) {
           setUsers(data);
         }
       })
@@ -70,12 +70,9 @@ export default function useUsers() {
     setLoading(true);
     setError("");
     try {
-      const freshUsers = await userService.resetUsers();
-      // Validamos que traiga datos reales antes de sobrescribir la vista y dejarla en blanco
-      if (freshUsers && Array.isArray(freshUsers) && freshUsers.length > 0) {
+      const freshUsers = await userService.getUsers();
+      if (freshUsers && Array.isArray(freshUsers)) {
         setUsers(freshUsers);
-      } else {
-        console.warn("La sincronización devolvió una lista vacía. Se conservan los registros actuales.");
       }
     } catch (err) {
       setError(err.message);
@@ -97,9 +94,10 @@ export default function useUsers() {
       ? { ...users.find((item) => item.id === editingUserId), ...formData }
       : { id: `USR-${Date.now().toString().slice(-4)}`, ...formData };
     const savedUser = await userService.saveUser(user);
+    const resolvedUser = savedUser || user;
     setUsers((current) => editingUserId
-      ? current.map((item) => item.id === editingUserId ? savedUser : item)
-      : [savedUser, ...current]);
+      ? current.map((item) => item.id === editingUserId ? resolvedUser : item)
+      : [resolvedUser, ...current]);
   };
 
   const addCreatedUser = (user) => {

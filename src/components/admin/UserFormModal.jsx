@@ -1,5 +1,6 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { X, AlertCircle, CheckCircle2, Globe, Eye, EyeOff, Lock } from "lucide-react";
+import { academicosService } from "../../services/academicosService";
 
 const DOCUMENT_TYPES = [
   { id: "DNI", label: "DNI (Perú - 8 dígitos)", max: 8 },
@@ -10,7 +11,16 @@ const DOCUMENT_TYPES = [
 // Traduce los errores técnicos de PostgreSQL / InsForge a mensajes entendibles
 function formatBackendError(rawError) {
   if (!rawError) return "";
-  const msg = String(rawError);
+  let msg = "";
+  if (typeof rawError === "object") {
+    msg = rawError.message || JSON.stringify(rawError);
+  } else {
+    msg = String(rawError);
+  }
+
+  if (msg.startsWith("[Backend 422]")) {
+    msg = msg.replace("[Backend 422]", "").trim();
+  }
 
   if (msg.includes("users_correo_key")) {
     return "El correo electrónico ingresado ya está registrado con otro usuario.";
@@ -45,13 +55,17 @@ function formatBackendError(rawError) {
   if (msg.includes("chk_users_correo")) {
     return "El formato del correo electrónico contiene caracteres no permitidos o supera los 40 caracteres.";
   }
+  if (msg.includes("chk_users_id")) {
+    return "El código de usuario debe seguir el formato institucional USR- seguido de números.";
+  }
   return msg;
 }
 
 export default function UserFormModal({
-  isEditing,
-  formData,
+  isEditing = false,
+  formData = {},
   roles = [],
+  showRole = true,
   serverError = "",
   isSubmitting = false,
   isPendingProfile = false,
@@ -64,60 +78,176 @@ export default function UserFormModal({
   const [localError, setLocalError] = useState("");
   const [showPassword, setShowPassword] = useState(false);
 
+  // Limpiar errores cuando cambia de usuario o modo
+  useEffect(() => {
+    setLocalError("");
+    setTouched({});
+    if (onClearServerError) onClearServerError();
+  }, [formData?.id, isEditing]);
+
   const activeError = localError || formatBackendError(serverError);
 
-  const tipoDocumento = formData.tipoDocumento || "DNI";
-  const dni = formData.dni ? String(formData.dni).trim() : "";
-  const celular = formData.celular ? String(formData.celular).trim() : "";
+  const tipoDocumento = formData?.tipoDocumento || "DNI";
+  const dni = formData?.dni ? String(formData.dni).trim() : "";
+  const celular = formData?.celular ? String(formData.celular).trim() : "";
 
   // Fecha actual formateada a YYYY-MM-DD para el atributo max del input date
   const todayStr = new Date().toISOString().split("T")[0];
+
+  const cleanDni = dni.replace(/\s+/g, "");
+  const cleanCelular = celular.replace(/[\s-]/g, "");
 
   // Validaciones dinámicas según Tipo de Documento
   let isDocValid = false;
   let docErrorMsg = "";
 
   if (tipoDocumento === "DNI") {
-    isDocValid = /^\d{8}$/.test(dni);
-    if (touched.dni && dni && !isDocValid) {
-      docErrorMsg = `El DNI peruano debe tener exactamente 8 números (actual: ${dni.length}/8)`;
+    isDocValid = /^\d{8}$/.test(cleanDni);
+    if (touched.dni && cleanDni && !isDocValid) {
+      docErrorMsg = `El DNI peruano debe tener exactamente 8 números`;
     }
   } else if (tipoDocumento === "CE") {
-    isDocValid = /^[A-Za-z0-9]{9,12}$/.test(dni);
-    if (touched.dni && dni && !isDocValid) {
-      docErrorMsg = `El Carnet de Extranjería debe tener entre 9 y 12 caracteres alfanuméricos (actual: ${dni.length})`;
+    isDocValid = /^[A-Za-z0-9]{9,12}$/.test(cleanDni);
+    if (touched.dni && cleanDni && !isDocValid) {
+      docErrorMsg = `El Carnet de Extranjería debe tener entre 9 y 12 caracteres alfanuméricos`;
     }
   } else if (tipoDocumento === "Pasaporte") {
-    isDocValid = /^[A-Za-z0-9]{6,12}$/.test(dni);
-    if (touched.dni && dni && !isDocValid) {
-      docErrorMsg = `El Pasaporte debe tener entre 6 y 12 caracteres alfanuméricos (actual: ${dni.length})`;
+    isDocValid = /^[A-Za-z0-9]{6,12}$/.test(cleanDni);
+    if (touched.dni && cleanDni && !isDocValid) {
+      docErrorMsg = `El Pasaporte debe tener entre 6 y 12 caracteres alfanuméricos`;
     }
   }
 
   // Validación de teléfono: Nacional Perú (^9\d{8}$) o Internacional con + (^\+\d{8,15}$)
   const isCelularValid =
-    celular === "" ||
-    /^9\d{8}$/.test(celular) ||
-    /^\+\d{8,15}$/.test(celular);
+    cleanCelular === "" ||
+    /^9\d{8}$/.test(cleanCelular) ||
+    /^\+\d{8,15}$/.test(cleanCelular);
 
   const celularError =
-    touched.celular && celular && !isCelularValid
-      ? celular.startsWith("+")
+    touched.celular && cleanCelular && !isCelularValid
+      ? cleanCelular.startsWith("+")
         ? "El número internacional debe tener entre 8 y 15 dígitos numéricos tras el '+'. (Ej: +573001234567)"
-        : celular.length !== 9
-        ? `El número nacional debe tener 9 dígitos (actual: ${celular.length}/9) o use '+' para internacional`
+        : cleanCelular.length !== 9
+        ? `El número nacional debe tener 9 dígitos o use '+' para internacional`
         : "El número celular nacional debe comenzar con 9"
       : "";
+
+  const [dbAreas, setDbAreas] = useState([]);
+  const [dbCarreras, setDbCarreras] = useState([]);
+  const [dbCiclos, setDbCiclos] = useState([]);
+  const [loadingAcademicos, setLoadingAcademicos] = useState(true);
+
+  // Cargar catálogos académicos directamente de la base de datos
+  useEffect(() => {
+    let isMounted = true;
+    setLoadingAcademicos(true);
+    Promise.all([
+      academicosService.getAreas(),
+      academicosService.getCarreras(),
+      academicosService.getTiposCiclo(),
+      academicosService.getCiclos()
+    ])
+      .then(([areasData, carrerasData, tiposData, ciclosData]) => {
+        if (!isMounted) return;
+        if (Array.isArray(areasData) && areasData.length > 0) setDbAreas(areasData);
+        if (Array.isArray(carrerasData) && carrerasData.length > 0) setDbCarreras(carrerasData);
+        const combined = [
+          ...(Array.isArray(tiposData) ? tiposData : []),
+          ...(Array.isArray(ciclosData) ? ciclosData : [])
+        ];
+        if (combined.length > 0) setDbCiclos(combined);
+      })
+      .catch((err) => {
+        console.warn("[UserFormModal] Error cargando catálogos académicos de la BD:", err);
+      })
+      .finally(() => {
+        if (isMounted) setLoadingAcademicos(false);
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   const clearErrors = () => {
     if (localError) setLocalError("");
     if (serverError && onClearServerError) onClearServerError();
   };
 
+  // 1. Áreas obtenidas de la base de datos
+  const areaOptions = Array.from(new Set(dbAreas.map((a) => a.nombre || a.codigo).filter(Boolean)));
+  if (formData?.areaAcademica && !areaOptions.includes(formData.areaAcademica)) {
+    areaOptions.unshift(formData.areaAcademica);
+  }
+
+  // 2. Carreras filtradas según Área Académica desde la BD
+  const selectedAreaObj = dbAreas.find(
+    (a) =>
+      (a.nombre && a.nombre.toLowerCase() === (formData?.areaAcademica || "").toLowerCase()) ||
+      (a.id && a.id.toLowerCase() === (formData?.areaAcademica || "").toLowerCase()) ||
+      (a.codigo && a.codigo.toLowerCase() === (formData?.areaAcademica || "").toLowerCase())
+  );
+
+  const filteredCarreras = dbCarreras.filter((c) => {
+    if (!formData?.areaAcademica) return false;
+    if (selectedAreaObj && (c.area_id === selectedAreaObj.id || c.area_id === selectedAreaObj.codigo)) {
+      return true;
+    }
+    return (
+      (c.area_nombre && c.area_nombre.toLowerCase() === formData.areaAcademica.toLowerCase()) ||
+      (c.area_id && c.area_id.toLowerCase() === formData.areaAcademica.toLowerCase())
+    );
+  });
+
+  const careerOptions = Array.from(new Set(filteredCarreras.map((c) => c.nombre).filter(Boolean)));
+
+  // 3. Ciclos desde la base de datos (tipos_ciclo y ciclos_academicos)
+  const cycleOptions = Array.from(new Set(dbCiclos.map((c) => c.nombre || c.codigo).filter(Boolean)));
+  if (cycleOptions.length === 0) {
+    cycleOptions.push("Semestral", "Anual", "Intensivo", "Repaso / Super Intensivo", "Reforzamiento Escolar");
+  }
+  if (formData?.cicloVirtual && !cycleOptions.includes(formData.cicloVirtual)) {
+    cycleOptions.unshift(formData.cicloVirtual);
+  }
+
   const handleChange = (e) => {
     const { name, value } = e.target;
     clearErrors();
     onChange((prev) => ({ ...prev, [name]: value }));
+  };
+
+  const handleAreaChange = (e) => {
+    const newAreaName = e.target.value;
+    clearErrors();
+
+    const matchedAreaObj = dbAreas.find(
+      (a) =>
+        (a.nombre && a.nombre.toLowerCase() === newAreaName.toLowerCase()) ||
+        (a.id && a.id.toLowerCase() === newAreaName.toLowerCase()) ||
+        (a.codigo && a.codigo.toLowerCase() === newAreaName.toLowerCase())
+    );
+
+    const relatedCarreras = dbCarreras.filter((c) => {
+      if (!newAreaName) return false;
+      if (matchedAreaObj && (c.area_id === matchedAreaObj.id || c.area_id === matchedAreaObj.codigo)) {
+        return true;
+      }
+      return (
+        (c.area_nombre && c.area_nombre.toLowerCase() === newAreaName.toLowerCase()) ||
+        (c.area_id && c.area_id.toLowerCase() === newAreaName.toLowerCase())
+      );
+    });
+
+    const defaultCareer = relatedCarreras[0]?.nombre || "";
+
+    onChange((prev) => ({
+      ...prev,
+      areaAcademica: newAreaName,
+      carreraObjetivo: relatedCarreras.some((c) => c.nombre === prev.carreraObjetivo)
+        ? prev.carreraObjetivo
+        : defaultCareer
+    }));
   };
 
   const handleTipoDocumentoChange = (e) => {
@@ -168,6 +298,11 @@ export default function UserFormModal({
     e.preventDefault();
     setTouched({ dni: true, celular: true, apellidos: true, nombres: true });
 
+    if (!formData?.apellidos?.trim() || !formData?.nombres?.trim()) {
+      setLocalError("Por favor complete los campos obligatorios (Nombres y Apellidos).");
+      return;
+    }
+
     if (!isDocValid) {
       setLocalError(`El documento no es válido para el tipo '${tipoDocumento}'. Verifique el formato.`);
       return;
@@ -178,8 +313,15 @@ export default function UserFormModal({
       return;
     }
 
+    // Validación de Ciclo Virtual traído de la base de datos
+    const selectedCiclo = formData?.cicloVirtual || cycleOptions[0];
+    if (!selectedCiclo || (cycleOptions.length > 0 && !cycleOptions.includes(selectedCiclo))) {
+      setLocalError("Por favor seleccione un ciclo virtual válido registrado en la base de datos.");
+      return;
+    }
+
     // Validación de fecha de nacimiento (mínimo 01/01/1926 y máximo fecha actual)
-    if (formData.fechaNacimiento) {
+    if (formData?.fechaNacimiento) {
       const selectedDate = new Date(formData.fechaNacimiento);
       const minDate = new Date("1926-01-01");
       const today = new Date();
@@ -191,7 +333,9 @@ export default function UserFormModal({
     }
 
     setLocalError("");
-    onSubmit(e);
+    if (typeof onSubmit === "function") {
+      onSubmit(e);
+    }
   };
 
   return (
@@ -246,7 +390,7 @@ export default function UserFormModal({
               <input
                 type="text"
                 name="apellidos"
-                value={formData.apellidos || ""}
+                value={formData?.apellidos || ""}
                 onChange={handleChange}
                 className="w-full px-3 py-2 border border-slate-200 dark:border-white/10 rounded-lg text-xs focus:ring-2 focus:ring-blue-500 focus:outline-hidden bg-white dark:bg-white/5 dark:text-white"
                 required
@@ -260,7 +404,7 @@ export default function UserFormModal({
               <input
                 type="text"
                 name="nombres"
-                value={formData.nombres || ""}
+                value={formData?.nombres || ""}
                 onChange={handleChange}
                 className="w-full px-3 py-2 border border-slate-200 dark:border-white/10 rounded-lg text-xs focus:ring-2 focus:ring-blue-500 focus:outline-hidden bg-white dark:bg-white/5 dark:text-white"
                 required
@@ -309,7 +453,7 @@ export default function UserFormModal({
                     ? "Ej. CE001234567"
                     : "Ej. PAS987654"
                 }
-                value={formData.dni || ""}
+                value={formData?.dni || ""}
                 onChange={handleDocChange}
                 onBlur={() => handleBlur("dni")}
                 className={`w-full px-3 py-2 border rounded-lg text-xs focus:ring-2 focus:outline-hidden bg-white dark:bg-white/5 dark:text-white transition-colors uppercase ${
@@ -344,13 +488,11 @@ export default function UserFormModal({
                 name="fechaNacimiento"
                 min="1926-01-01"
                 max={todayStr}
-                value={formData.fechaNacimiento || ""}
+                value={formData?.fechaNacimiento || ""}
                 onChange={handleChange}
                 className="w-full px-3 py-2 border border-slate-200 dark:border-white/10 rounded-lg text-xs focus:ring-2 focus:ring-blue-500 focus:outline-hidden bg-white dark:bg-white/5 dark:text-white dark:[color-scheme:dark]"
               />
-              <p className="mt-0.5 text-[10px] text-slate-400 dark:text-slate-500">
-                Desde 01/01/1926 hasta hoy.
-              </p>
+
             </div>
 
             <div>
@@ -360,7 +502,7 @@ export default function UserFormModal({
               <input
                 type="email"
                 name="correo"
-                value={formData.correo || ""}
+                value={formData?.correo || ""}
                 onChange={handleChange}
                 required={!isEditing}
                 disabled={isPendingProfile}
@@ -379,7 +521,7 @@ export default function UserFormModal({
                   type={showPassword ? "text" : "password"}
                   name="password"
                   placeholder="••••••••"
-                  value={formData.password || ""}
+                  value={formData?.password || ""}
                   onChange={handleChange}
                   required={!isEditing && !isPendingProfile}
                   disabled={isPendingProfile}
@@ -419,7 +561,7 @@ export default function UserFormModal({
                 name="celular"
                 maxLength={16}
                 placeholder="Ej. 987654321 o +573001234567"
-                value={formData.celular || ""}
+                value={formData?.celular || ""}
                 onChange={handleCelularChange}
                 onBlur={() => handleBlur("celular")}
                 className={`w-full px-3 py-2 border rounded-lg text-xs focus:ring-2 focus:outline-hidden bg-white dark:bg-white/5 dark:text-white transition-colors ${
@@ -440,50 +582,101 @@ export default function UserFormModal({
               )}
             </div>
 
+            {/* Selector de Área Académica */}
             <div>
               <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                Carrera / Objetivo
-              </label>
-              <input
-                type="text"
-                name="carreraObjetivo"
-                value={formData.carreraObjetivo || ""}
-                onChange={handleChange}
-                className="w-full px-3 py-2 border border-slate-200 dark:border-white/10 rounded-lg text-xs focus:ring-2 focus:ring-blue-500 focus:outline-hidden bg-white dark:bg-white/5 dark:text-white"
-              />
-            </div>
-
-            <div>
-              <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                Ciclo Virtual
-              </label>
-              <input
-                type="text"
-                name="cicloVirtual"
-                value={formData.cicloVirtual || ""}
-                onChange={handleChange}
-                className="w-full px-3 py-2 border border-slate-200 dark:border-white/10 rounded-lg text-xs focus:ring-2 focus:ring-blue-500 focus:outline-hidden bg-white dark:bg-white/5 dark:text-white"
-              />
-            </div>
-
-            {/* Mapeo dinámico de Roles */}
-            <div>
-              <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                Rol *
+                Área Académica
               </label>
               <select
-                name="rol"
-                value={formData.rol || (roles[0] ?? "Estudiante")}
-                onChange={handleChange}
-                className="w-full px-3 py-2 border border-slate-200 dark:border-white/10 rounded-lg text-xs focus:ring-2 focus:ring-blue-500 focus:outline-hidden bg-white dark:bg-white/5 dark:text-white"
+                name="areaAcademica"
+                value={formData?.areaAcademica || ""}
+                onChange={handleAreaChange}
+                disabled={loadingAcademicos && areaOptions.length === 0}
+                className="w-full px-3 py-2 border border-slate-200 dark:border-white/10 rounded-lg text-xs focus:ring-2 focus:ring-blue-500 focus:outline-hidden bg-white dark:bg-white/5 dark:text-white disabled:opacity-50"
               >
-                {roles.map((rol) => (
-                  <option key={rol} value={rol} className="dark:bg-[#0a0a0e] dark:text-white">
-                    {rol}
+                <option value="" className="dark:bg-[#0a0a0e] dark:text-white">
+                  {loadingAcademicos && areaOptions.length === 0
+                    ? "-- Cargando áreas de la BD... --"
+                    : "-- Seleccione un Área --"}
+                </option>
+                {areaOptions.map((area) => (
+                  <option key={area} value={area} className="dark:bg-[#0a0a0e] dark:text-white">
+                    {area}
                   </option>
                 ))}
               </select>
             </div>
+
+            {/* Selector dinámico de Carrera según Área */}
+            <div>
+              <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                Carrera / Objetivo
+              </label>
+              <select
+                name="carreraObjetivo"
+                value={formData?.carreraObjetivo || ""}
+                onChange={handleChange}
+                disabled={(!formData?.areaAcademica && careerOptions.length === 0) || (loadingAcademicos && careerOptions.length === 0)}
+                className="w-full px-3 py-2 border border-slate-200 dark:border-white/10 rounded-lg text-xs focus:ring-2 focus:ring-blue-500 focus:outline-hidden bg-white dark:bg-white/5 dark:text-white disabled:opacity-50"
+              >
+                <option value="" className="dark:bg-[#0a0a0e] dark:text-white">
+                  {loadingAcademicos && careerOptions.length === 0
+                    ? "-- Cargando carreras de la BD... --"
+                    : formData?.areaAcademica
+                    ? "-- Seleccione Carrera --"
+                    : "-- Seleccione Área Primero --"}
+                </option>
+                {careerOptions.map((carrera) => (
+                  <option key={carrera} value={carrera} className="dark:bg-[#0a0a0e] dark:text-white">
+                    {carrera}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {/* Selector de Ciclo Virtual cargado dinámicamente de la BD */}
+            <div>
+              <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                Ciclo Virtual *
+              </label>
+              <select
+                name="cicloVirtual"
+                value={formData?.cicloVirtual || cycleOptions[0] || "Semestral"}
+                onChange={handleChange}
+                disabled={loadingAcademicos && cycleOptions.length === 0}
+                className="w-full px-3 py-2 border border-slate-200 dark:border-white/10 rounded-lg text-xs focus:ring-2 focus:ring-blue-500 focus:outline-hidden bg-white dark:bg-white/5 dark:text-white disabled:opacity-50"
+              >
+                {loadingAcademicos && cycleOptions.length === 0 && (
+                  <option value="">-- Cargando ciclos de la BD... --</option>
+                )}
+                {cycleOptions.map((ciclo) => (
+                  <option key={ciclo} value={ciclo} className="dark:bg-[#0a0a0e] dark:text-white">
+                    {ciclo}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {/* Mapeo dinámico de Roles */}
+            {showRole && (
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                  Rol *
+                </label>
+                <select
+                  name="rol"
+                  value={formData?.rol || (roles[0] ?? "Estudiante")}
+                  onChange={handleChange}
+                  className="w-full px-3 py-2 border border-slate-200 dark:border-white/10 rounded-lg text-xs focus:ring-2 focus:ring-blue-500 focus:outline-hidden bg-white dark:bg-white/5 dark:text-white"
+                >
+                  {roles.map((rol) => (
+                    <option key={rol} value={rol} className="dark:bg-[#0a0a0e] dark:text-white">
+                      {rol}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
 
             <div>
               <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
@@ -491,7 +684,7 @@ export default function UserFormModal({
               </label>
               <select
                 name="estado"
-                value={formData.estado || "Activo"}
+                value={formData?.estado || "Activo"}
                 onChange={handleChange}
                 className="w-full px-3 py-2 border border-slate-200 dark:border-white/10 rounded-lg text-xs focus:ring-2 focus:ring-blue-500 focus:outline-hidden bg-white dark:bg-white/5 dark:text-white"
               >

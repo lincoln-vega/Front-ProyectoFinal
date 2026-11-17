@@ -3,7 +3,11 @@ import {
   getApiAccessToken,
   insforge
 } from "../lib/insforge";
+import { getApiBaseUrl } from "../lib/apiUrl";
 export { courseService } from "./cursosServices";
+export { academicosService } from "./academicosService";
+
+const STORAGE_KEY_USERS = "academia_users";
 
 const SYSTEM_ROLES = ["Admin", "Docente", "Estudiante"];
 const USER_COLUMNS = [
@@ -15,7 +19,6 @@ const USER_COLUMNS = [
   "fechaNacimiento",
   "correo",
   "celular",
-  "universidad",
   "carreraObjetivo",
   "areaAcademica",
   "rol",
@@ -31,15 +34,42 @@ const normalizeUser = (user) => {
   if (!user) return user;
   const ciclo = user.cicloVirtual || user.ciclovirtual || "Semestral";
   const isTeacher = ["docente", "profesor", "profesora"].includes(String(user.rol || "").toLowerCase());
+  const carrera = user.carreraObjetivo || user.carrera || "";
+  const area = user.areaAcademica || "";
   return {
     ...user,
     tipoDocumento: user.tipoDocumento || "DNI",
     salario: Number(user.salario) > 0 ? Number(user.salario) : (isTeacher ? 3200 : 0),
     cicloVirtual: ciclo,
     ciclovirtual: ciclo,
-    carreraObjetivo: user.carreraObjetivo || user.areaAcademica || "General",
-    areaAcademica: user.areaAcademica || user.carreraObjetivo || "General"
+    carreraObjetivo: carrera,
+    areaAcademica: area
   };
+};
+
+const getStoredUsers = () => {
+  try {
+    const raw = typeof window !== "undefined" ? localStorage.getItem(STORAGE_KEY_USERS) : null;
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed)) {
+        return parsed.map((user) => {
+          const { password, ...safeUser } = user || {};
+          return normalizeUser(safeUser);
+        });
+      }
+    }
+  } catch (err) {
+    console.warn("[userService] Error leyendo cache de usuarios:", err);
+  }
+  return [];
+};
+
+const cacheUsers = (users) => {
+  if (typeof window !== "undefined") {
+    const safeUsers = users.map(({ password, ...user }) => user);
+    localStorage.setItem(STORAGE_KEY_USERS, JSON.stringify(safeUsers));
+  }
 };
 
 const throwIfError = (error, operation) => {
@@ -60,14 +90,6 @@ const throwIfError = (error, operation) => {
     
     throw new Error(msg);
   }
-};
-
-const getApiBaseUrl = () => {
-  const apiUrl = import.meta.env.VITE_API_URL?.trim();
-  if (!apiUrl) {
-    throw new Error("Falta configurar la variable VITE_API_URL para conectar con el backend.");
-  }
-  return apiUrl.replace(/\/+$/, "");
 };
 
 const getApiErrorMessage = (body, status) => {
@@ -161,6 +183,27 @@ export const authService = {
     }
     return body;
   }
+};
+
+const formatRoleForDb = (rol) => {
+  if (!rol) return "Estudiante";
+  const r = String(rol).trim().toLowerCase();
+  if (r.startsWith("admin")) return "Admin";
+  if (r.startsWith("doc") || r.startsWith("prof")) return "Docente";
+  return "Estudiante";
+};
+
+const formatEstadoForDb = (estado) => {
+  if (!estado) return "Activo";
+  const e = String(estado).trim().toLowerCase();
+  if (e === "inactivo") return "Inactivo";
+  return "Activo";
+};
+
+const formatIdForDb = (id) => {
+  if (id && /^USR-\d+$/.test(id)) return id;
+  const digits = String(Date.now()).slice(-6);
+  return `USR-${digits}`;
 };
 
 /**
@@ -307,6 +350,8 @@ export const adminUserRegistrationService = {
 };
 
 export const userService = {
+  getStoredUsers,
+
   async getUsers() {
     const { data, error } = await insforge.database
       .from("users")
@@ -314,7 +359,9 @@ export const userService = {
       .order("created_at", { ascending: false })
       .limit(500);
     throwIfError(error, "cargar usuarios");
-    return (data || []).map(normalizeUser);
+    const users = (data || []).map(normalizeUser);
+    cacheUsers(users);
+    return users;
   },
 
   async fetchUsers() {
@@ -331,8 +378,8 @@ export const userService = {
     return data?.[0] ? normalizeUser(data[0]) : null;
   },
 
-    async saveUsers(users) {
-    const safeUsers = users.map(({ password, created_at, cicloVirtual, ...user }) => {
+  async saveUsers(users) {
+    const safeUsers = users.map(({ password, created_at, cicloVirtual, universidad, ...user }) => {
       const ciclo = cicloVirtual || user.ciclovirtual || "Semestral";
       return {
         ...user,
@@ -346,20 +393,29 @@ export const userService = {
       .upsert(safeUsers)
       .select(USER_COLUMNS);
     throwIfError(error, "guardar usuarios");
-    return (data || []).map(normalizeUser);
+    const savedUsers = (data || []).map(normalizeUser);
+    cacheUsers(savedUsers);
+    return savedUsers;
   },
 
-    async saveUser(user) {
-    const { password, created_at, cicloVirtual, ...safeUser } = user;
+  async saveUser(user) {
+    const { password, created_at, cicloVirtual, universidad, ...safeUser } = user;
     const ciclo = cicloVirtual || safeUser.ciclovirtual || "Semestral";
     const payload = {
       ...safeUser,
+      id: formatIdForDb(safeUser.id),
+      rol: formatRoleForDb(safeUser.rol),
+      estado: formatEstadoForDb(safeUser.estado),
+      tipoDocumento: safeUser.tipoDocumento || "DNI",
+      dni: safeUser.dni ? String(safeUser.dni).trim() : "",
+      celular: safeUser.celular ? String(safeUser.celular).trim() : "",
+      correo: safeUser.correo ? String(safeUser.correo).trim().toLowerCase() : "",
       ciclovirtual: ciclo
     };
 
     // Validación Capa 2 (FastAPI Backend)
     await validateWithBackend({
-      tipoDocumento: payload.tipoDocumento || "DNI",
+      tipoDocumento: payload.tipoDocumento,
       dni: payload.dni,
       celular: payload.celular,
       correo: payload.correo
@@ -370,7 +426,16 @@ export const userService = {
       .upsert([payload])
       .select(USER_COLUMNS);
     throwIfError(error, "guardar usuario");
-    return data?.[0] ? normalizeUser(data[0]) : null;
+    const savedUser = data?.[0] ? normalizeUser(data[0]) : null;
+    if (savedUser) {
+      const current = getStoredUsers();
+      const updated = [
+        savedUser,
+        ...current.filter((stored) => stored.id !== savedUser.id)
+      ];
+      cacheUsers(updated);
+    }
+    return savedUser;
   },
 
   async deleteUser(id) {
@@ -379,9 +444,10 @@ export const userService = {
       .delete()
       .eq("id", id);
     throwIfError(error, "eliminar usuario");
+    cacheUsers(getStoredUsers().filter((user) => user.id !== id));
   },
 
-  resetUsers() {
+  async resetUsers() {
     return userService.getUsers();
   }
 };
@@ -459,6 +525,45 @@ export const incidentService = {
       .select();
     throwIfError(error, "guardar incidencias");
     return data || [];
+  },
+
+  async cambiarEstadoBackend(incidenciaId, { nuevoEstado, docenteReemplazo, docenteReemplazoId, horarioActualizado, observaciones }) {
+    const accessToken = getApiAccessToken();
+    const headers = { "Content-Type": "application/json" };
+    if (accessToken) headers.Authorization = `Bearer ${accessToken}`;
+
+    try {
+      return await requestBackend(`/incidencias/${incidenciaId}/estado`, {
+        method: "PATCH",
+        headers,
+        body: JSON.stringify({
+          nuevoEstado,
+          docenteReemplazo: docenteReemplazo || null,
+          docenteReemplazoId: docenteReemplazoId || null,
+          horarioActualizado: horarioActualizado || null,
+          observaciones: observaciones || null
+        })
+      });
+    } catch (error) {
+      console.warn("[Backend] Error al notificar transición de estado al backend:", error);
+      return null;
+    }
+  },
+
+  async calcularCruceNomina({ periodo, tarifaHoraDefault = 50, docenteId = null }) {
+    const accessToken = getApiAccessToken();
+    const headers = { "Content-Type": "application/json" };
+    if (accessToken) headers.Authorization = `Bearer ${accessToken}`;
+
+    return requestBackend("/incidencias/nomina/cruce", {
+      method: "POST",
+      headers,
+      body: JSON.stringify({
+        periodo,
+        tarifaHoraDefault: Number(tarifaHoraDefault) || 50,
+        docenteId: docenteId || null
+      })
+    });
   },
 
   resetIncidents() {
