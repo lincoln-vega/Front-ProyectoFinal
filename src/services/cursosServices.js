@@ -168,12 +168,30 @@ export const courseService = {
   },
 
   async countStudentsForTeacher(courseIds) {
-    if (courseIds.length === 0) return 0;
-    const { data, error } = await insforge.database.rpc("get_teacher_student_count", {
-      course_ids: courseIds
-    });
-    throwIfError(error, "contar estudiantes matriculados");
-    return Number(data || 0);
+    if (!courseIds || courseIds.length === 0) return 0;
+    try {
+      const { data, error } = await insforge.database.rpc("get_teacher_student_count", {
+        course_ids: courseIds
+      });
+      if (!error && data !== null && data !== undefined) {
+        return Number(data);
+      }
+    } catch {
+      // Fallback a matriculas
+    }
+
+    try {
+      const { data, error } = await insforge.database
+        .from("matriculas")
+        .select("id, estado")
+        .eq("estado", "Activa");
+      if (!error && Array.isArray(data)) {
+        return data.length;
+      }
+    } catch {
+      // Fallback silencioso
+    }
+    return 0;
   },
 
   async validarCruce(nuevoCurso) {

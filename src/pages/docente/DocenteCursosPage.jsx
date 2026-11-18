@@ -170,10 +170,10 @@ export default function DocenteCursosPage() {
                 <button
                   type="button"
                   onClick={() => setCursoSeleccionado(curso)}
-                  className="w-full py-2.5 px-3 rounded-xl border border-slate-200 dark:border-white/10 bg-slate-100/70 dark:bg-white/5 hover:bg-indigo-50 dark:hover:bg-indigo-950/40 text-slate-700 dark:text-slate-200 hover:text-indigo-600 dark:hover:text-indigo-400 hover:border-indigo-300 dark:hover:border-indigo-700 text-sm font-bold flex items-center justify-center gap-2 transition-all shadow-2xs cursor-pointer"
+                  className="w-full py-2.5 px-3 rounded-xl border border-slate-200 dark:border-white/10 bg-slate-100/70 dark:bg-white/5 hover:bg-indigo-50 dark:hover:bg-indigo-950/40 text-slate-700 dark:text-slate-200 hover:text-indigo-600 dark:hover:text-indigo-400 hover:border-indigo-300 dark:hover:border-indigo-700 text-xs font-bold flex items-center justify-center gap-2 transition-all shadow-2xs cursor-pointer"
                 >
                   <BookOpen className="w-4 h-4 text-slate-400 group-hover:text-indigo-500" />
-                  <span>Ver Asistencia e Historial</span>
+                  <span>Gestionar Tareas, Alumnos y Asistencia</span>
                   <ChevronRight className="w-4 h-4 ml-auto text-slate-400" />
                 </button>
               </div>
