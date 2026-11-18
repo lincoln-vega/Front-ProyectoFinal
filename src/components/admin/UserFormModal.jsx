@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { X, AlertCircle, CheckCircle2, Globe, Eye, EyeOff, Lock } from "lucide-react";
-import { academicosService } from "../../services/academicosService";
+import { academicosService, DEFAULT_AREAS, DEFAULT_CARRERAS, getCareersForArea, matchArea } from "../../services/academicosService";
 
 const DOCUMENT_TYPES = [
   { id: "DNI", label: "DNI (Perú - 8 dígitos)", max: 8 },
@@ -133,20 +133,20 @@ export default function UserFormModal({
         : "El número celular nacional debe comenzar con 9"
       : "";
 
-  const [dbAreas, setDbAreas] = useState([]);
-  const [dbCarreras, setDbCarreras] = useState([]);
+  const [dbAreas, setDbAreas] = useState(DEFAULT_AREAS);
+  const [dbCarreras, setDbCarreras] = useState(DEFAULT_CARRERAS);
   const [dbCiclos, setDbCiclos] = useState([]);
-  const [loadingAcademicos, setLoadingAcademicos] = useState(true);
+  const [loadingAcademicos, setLoadingAcademicos] = useState(false);
 
   // Cargar catálogos académicos directamente de la base de datos
   useEffect(() => {
     let isMounted = true;
     setLoadingAcademicos(true);
     Promise.all([
-      academicosService.getAreas(),
-      academicosService.getCarreras(),
-      academicosService.getTiposCiclo(),
-      academicosService.getCiclos()
+      academicosService.getAreas().catch(() => []),
+      academicosService.getCarreras().catch(() => []),
+      academicosService.getTiposCiclo().catch(() => []),
+      academicosService.getCiclos().catch(() => [])
     ])
       .then(([areasData, carrerasData, tiposData, ciclosData]) => {
         if (!isMounted) return;
@@ -175,33 +175,20 @@ export default function UserFormModal({
     if (serverError && onClearServerError) onClearServerError();
   };
 
-  // 1. Áreas obtenidas de la base de datos
+  // 1. Áreas obtenidas de la base de datos con respaldo completo
   const areaOptions = Array.from(new Set(dbAreas.map((a) => a.nombre || a.codigo).filter(Boolean)));
   if (formData?.areaAcademica && !areaOptions.includes(formData.areaAcademica)) {
     areaOptions.unshift(formData.areaAcademica);
   }
 
   // 2. Carreras filtradas según Área Académica desde la BD
-  const selectedAreaObj = dbAreas.find(
-    (a) =>
-      (a.nombre && a.nombre.toLowerCase() === (formData?.areaAcademica || "").toLowerCase()) ||
-      (a.id && a.id.toLowerCase() === (formData?.areaAcademica || "").toLowerCase()) ||
-      (a.codigo && a.codigo.toLowerCase() === (formData?.areaAcademica || "").toLowerCase())
-  );
+  const relatedCarrerasList = getCareersForArea(formData?.areaAcademica, dbCarreras, dbAreas);
+  const careerOptions = Array.from(new Set(relatedCarrerasList.map((c) => c.nombre).filter(Boolean)));
+  if (formData?.carreraObjetivo && !careerOptions.includes(formData.carreraObjetivo)) {
+    careerOptions.unshift(formData.carreraObjetivo);
+  }
 
-  const filteredCarreras = dbCarreras.filter((c) => {
-    if (!formData?.areaAcademica) return false;
-    if (selectedAreaObj && (c.area_id === selectedAreaObj.id || c.area_id === selectedAreaObj.codigo)) {
-      return true;
-    }
-    return (
-      (c.area_nombre && c.area_nombre.toLowerCase() === formData.areaAcademica.toLowerCase()) ||
-      (c.area_id && c.area_id.toLowerCase() === formData.areaAcademica.toLowerCase())
-    );
-  });
-
-  const careerOptions = Array.from(new Set(filteredCarreras.map((c) => c.nombre).filter(Boolean)));
-  const isCareerObjectiveValid = careerOptions.includes(formData?.carreraObjetivo);
+  const isCareerObjectiveValid = Boolean(formData?.carreraObjetivo?.trim());
   const birthDateError = touched.fechaNacimiento && !formData?.fechaNacimiento
     ? "La fecha de nacimiento es obligatoria."
     : "";
@@ -228,24 +215,7 @@ export default function UserFormModal({
     const newAreaName = e.target.value;
     clearErrors();
 
-    const matchedAreaObj = dbAreas.find(
-      (a) =>
-        (a.nombre && a.nombre.toLowerCase() === newAreaName.toLowerCase()) ||
-        (a.id && a.id.toLowerCase() === newAreaName.toLowerCase()) ||
-        (a.codigo && a.codigo.toLowerCase() === newAreaName.toLowerCase())
-    );
-
-    const relatedCarreras = dbCarreras.filter((c) => {
-      if (!newAreaName) return false;
-      if (matchedAreaObj && (c.area_id === matchedAreaObj.id || c.area_id === matchedAreaObj.codigo)) {
-        return true;
-      }
-      return (
-        (c.area_nombre && c.area_nombre.toLowerCase() === newAreaName.toLowerCase()) ||
-        (c.area_id && c.area_id.toLowerCase() === newAreaName.toLowerCase())
-      );
-    });
-
+    const relatedCarreras = getCareersForArea(newAreaName, dbCarreras, dbAreas);
     const defaultCareer = relatedCarreras[0]?.nombre || "";
 
     onChange((prev) => ({

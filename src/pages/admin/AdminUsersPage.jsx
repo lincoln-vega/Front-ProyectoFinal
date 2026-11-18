@@ -63,9 +63,29 @@ function AdminUsersContent() {
   const [isRolesModalOpen, setIsRolesModalOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   
-  const [editingUserId, setEditingUserId] = useState(null);
-  const [formData, setFormData] = useState(createInitialUserForm);
-  const [pendingAuthAccount, setPendingAuthAccount] = useState(null);
+  const PENDING_AUTH_KEY = "academia_pending_auth_account";
+  const [pendingAuthAccount, setPendingAuthAccountState] = useState(() => {
+    try {
+      const stored = sessionStorage.getItem(PENDING_AUTH_KEY);
+      return stored ? JSON.parse(stored) : null;
+    } catch {
+      return null;
+    }
+  });
+
+  const setPendingAuthAccount = (pending) => {
+    setPendingAuthAccountState(pending);
+    try {
+      if (pending) {
+        sessionStorage.setItem(PENDING_AUTH_KEY, JSON.stringify(pending));
+      } else {
+        sessionStorage.removeItem(PENDING_AUTH_KEY);
+      }
+    } catch (err) {
+      console.warn("Error persistiendo pending auth account:", err);
+    }
+  };
+
   const submissionLock = useRef(false);
 
   const showNotification = (message) => {
@@ -77,7 +97,9 @@ function AdminUsersContent() {
     setIsModalOpen(false);
     setEditingUserId(null);
     setError(null);
-    setFormData(createInitialUserForm());
+    if (!pendingAuthAccount) {
+      setFormData(createInitialUserForm());
+    }
   };
 
   const openNewUserModal = () => {
@@ -100,6 +122,13 @@ function AdminUsersContent() {
       setFormData(createInitialUserForm());
     }
     setIsModalOpen(true);
+  };
+
+  const handleDiscardPendingAccount = () => {
+    setPendingAuthAccount(null);
+    setError(null);
+    setFormData(createInitialUserForm());
+    showNotification("Cuenta pendiente descartada. Puedes registrar un nuevo usuario.");
   };
 
   const handleEdit = (user) => {
@@ -293,6 +322,33 @@ function AdminUsersContent() {
             </button>
           </div>
         </div>
+
+        {pendingAuthAccount && !isModalOpen && (
+          <div className="mt-4 p-3 rounded-lg border border-amber-300 bg-amber-50 dark:bg-amber-950/40 text-amber-900 dark:text-amber-200 text-xs flex items-center justify-between gap-3">
+            <div>
+              <p className="font-semibold">Registro pendiente de perfil</p>
+              <p className="text-[11px] text-amber-700 dark:text-amber-300">
+                La cuenta Auth para <strong>{pendingAuthAccount.profile?.correo}</strong> ya fue creada. Falta guardar su perfil en la base de datos.
+              </p>
+            </div>
+            <div className="flex items-center gap-2 shrink-0">
+              <button
+                type="button"
+                onClick={openNewUserModal}
+                className="px-3 py-1.5 bg-[#1E3A8A] text-white rounded-lg font-semibold hover:bg-blue-800 transition-colors cursor-pointer"
+              >
+                Completar Perfil
+              </button>
+              <button
+                type="button"
+                onClick={handleDiscardPendingAccount}
+                className="px-3 py-1.5 border border-slate-300 text-slate-700 dark:text-slate-200 bg-white dark:bg-white/10 rounded-lg hover:bg-slate-50 transition-colors cursor-pointer"
+              >
+                Descartar
+              </button>
+            </div>
+          </div>
+        )}
 
         {/* Solo mostramos el error aquí si el modal está cerrado */}
         {error && !isModalOpen && (

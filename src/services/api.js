@@ -32,13 +32,16 @@ const USER_COLUMNS = [
 
 const normalizeUser = (user) => {
   if (!user) return user;
-  const ciclo = user.cicloVirtual || user.ciclovirtual || "Semestral";
+  const ciclo = user.cicloVirtual || user.ciclovirtual || user.ciclo_virtual || "Semestral";
   const isTeacher = ["docente", "profesor", "profesora"].includes(String(user.rol || "").toLowerCase());
-  const carrera = user.carreraObjetivo || user.carrera || "";
-  const area = user.areaAcademica || "";
+  const carrera = user.carreraObjetivo || user.carrera_objetivo || user.carrera || "";
+  const area = user.areaAcademica || user.area_academica || "";
+  const fechaNac = user.fechaNacimiento || user.fecha_nacimiento || "";
+  const tipoDoc = user.tipoDocumento || user.tipo_documento || "DNI";
   return {
     ...user,
-    tipoDocumento: user.tipoDocumento || "DNI",
+    tipoDocumento: tipoDoc,
+    fechaNacimiento: fechaNac,
     salario: Number(user.salario) > 0 ? Number(user.salario) : (isTeacher ? 3200 : 0),
     cicloVirtual: ciclo,
     ciclovirtual: ciclo,

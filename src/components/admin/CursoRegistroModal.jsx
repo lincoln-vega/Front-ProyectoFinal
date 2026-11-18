@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { X, BookOpen, User, Clock, Video, FolderOpen, AlertTriangle, CheckCircle2, ShieldCheck } from "lucide-react";
-import { ACADEMIC_AREAS, getCareersByArea } from "../../data/academicCatalog";
-import { academicosService } from "../../services/academicosService";
+import { academicosService, DEFAULT_AREAS, DEFAULT_CARRERAS, matchArea, getCareersForArea } from "../../services/academicosService";
 import { userService } from "../../services/api";
 import { courseService } from "../../services/cursosServices";
 
@@ -16,14 +15,27 @@ export default function CursoRegistroModal({
 }) {
   const isEditing = Boolean(courseToEdit && courseToEdit.id);
 
+  const initialTeachers = typeof userService.getStoredUsers === "function"
+    ? (userService.getStoredUsers() || []).filter((u) => {
+        const r = String(u.rol || "").toLowerCase();
+        return r === "docente" || r === "profesor" || r === "profesora";
+      })
+    : [];
+
+  const defaultTeacher = initialTeachers[0];
+  const defaultTeacherName = defaultTeacher
+    ? `${defaultTeacher.nombres || ""} ${defaultTeacher.apellidos || ""}`.trim() || defaultTeacher.correo
+    : "Prof. Carmen Rosa Herrera";
+  const defaultTeacherId = defaultTeacher?.id || "USR-002";
+
   const [formData, setFormData] = useState({
-    id: "",
-    codigo: "",
+    id: `CRS-${Date.now().toString().slice(-4)}`,
+    codigo: `CRS-${Date.now().toString().slice(-4)}`,
     asignatura: "",
-    area: ACADEMIC_AREAS[0] || "Ciencias Exactas e Ingenierías",
-    carrera: "Ingeniería de Sistemas",
-    docenteId: "",
-    docente: "",
+    area: DEFAULT_AREAS[0]?.nombre || "Ciencias Exactas e Ingenierías",
+    carrera: DEFAULT_CARRERAS[0]?.nombre || "Ingeniería de Sistemas",
+    docenteId: defaultTeacherId,
+    docente: defaultTeacherName,
     dias: ["Lunes", "Miércoles"],
     horaInicio: "08:00",
     horaFin: "10:00",
@@ -33,38 +45,53 @@ export default function CursoRegistroModal({
     estado: "Activo"
   });
 
-  const [availableAreas, setAvailableAreas] = useState(ACADEMIC_AREAS);
-  const [availableCareers, setAvailableCareers] = useState([]);
-  const [teachers, setTeachers] = useState([]);
+  const [dbAreas, setDbAreas] = useState(DEFAULT_AREAS);
+  const [dbCarreras, setDbCarreras] = useState(DEFAULT_CARRERAS);
+  const [teachers, setTeachers] = useState(initialTeachers.length > 0 ? initialTeachers : [
+    { id: "USR-002", nombres: "Carmen Rosa", apellidos: "Herrera", rol: "Docente", areaAcademica: "Ciencias Exactas" },
+    { id: "USR-003", nombres: "Miguel Ángel", apellidos: "Paredes", rol: "Docente", areaAcademica: "Humanidades" },
+    { id: "USR-004", nombres: "Elena Sofía", apellidos: "Torres", rol: "Docente", areaAcademica: "Humanidades" },
+    { id: "USR-008", nombres: "Jesus Hector", apellidos: "Torres Sanchez", rol: "Docente", areaAcademica: "Ciencias Exactas" }
+  ]);
+  const [loadingCatalog, setLoadingCatalog] = useState(false);
   const [saveError, setSaveError] = useState("");
   const [warningMessage, setWarningMessage] = useState("");
   const [validating, setValidating] = useState(false);
   const [saving, setSaving] = useState(false);
 
-  // Cargar áreas y docentes disponibles
+  // Cargar áreas, carreras y docentes desde la base de datos
   useEffect(() => {
     let cancelled = false;
 
     async function loadCatalogAndTeachers() {
+      setLoadingCatalog(true);
       try {
-        const [areasData, usersData] = await Promise.all([
+        const [areasData, carrerasData, usersData] = await Promise.all([
           academicosService.getAreas().catch(() => []),
+          academicosService.getCarreras().catch(() => []),
           userService.getUsers().catch(() => [])
         ]);
 
         if (cancelled) return;
 
-        if (areasData && areasData.length > 0) {
-          setAvailableAreas(areasData.map(a => a.nombre));
+        if (Array.isArray(areasData) && areasData.length > 0) {
+          setDbAreas(areasData);
+        }
+        if (Array.isArray(carrerasData) && carrerasData.length > 0) {
+          setDbCarreras(carrerasData);
         }
 
         const teacherList = (usersData || []).filter(u => {
           const r = String(u.rol || "").toLowerCase();
           return r === "docente" || r === "profesor" || r === "profesora";
         });
-        setTeachers(teacherList);
+        if (teacherList.length > 0) {
+          setTeachers(teacherList);
+        }
       } catch (err) {
-        console.warn("[CursoModal] Error al cargar recursos:", err);
+        console.warn("[CursoModal] Error al cargar recursos de la base de datos:", err);
+      } finally {
+        if (!cancelled) setLoadingCatalog(false);
       }
     }
 
@@ -75,14 +102,23 @@ export default function CursoRegistroModal({
     return () => { cancelled = true; };
   }, [isOpen]);
 
-  // Actualizar carreras según el área seleccionada
-  useEffect(() => {
-    const careers = getCareersByArea(formData.area);
-    setAvailableCareers(careers);
-    if (careers.length > 0 && !careers.includes(formData.carrera)) {
-      setFormData(prev => ({ ...prev, carrera: careers[0] }));
-    }
-  }, [formData.area]);
+  // Carreras disponibles según el área seleccionada (con respaldo completo)
+  const availableCareers = getCareersForArea(formData.area, dbCarreras, dbAreas);
+
+  // Manejar cambio de área y actualizar carrera automáticamente
+  const handleAreaChange = (e) => {
+    const newArea = e.target.value;
+    const careersInNewArea = getCareersForArea(newArea, dbCarreras, dbAreas);
+    const isCurrentCareerInNewArea = careersInNewArea.some(c => c.nombre === formData.carrera);
+
+    setFormData((prev) => ({
+      ...prev,
+      area: newArea,
+      carrera: isCurrentCareerInNewArea ? prev.carrera : (careersInNewArea[0]?.nombre || "")
+    }));
+    setSaveError("");
+    setWarningMessage("");
+  };
 
   // Sincronizar datos si es edición o nueva creación
   useEffect(() => {
@@ -91,13 +127,21 @@ export default function CursoRegistroModal({
     if (courseToEdit) {
       const diasArr = Array.isArray(courseToEdit.dias) && courseToEdit.dias.length
         ? courseToEdit.dias
-        : ["Lunes", "Miércoles"];
+        : typeof courseToEdit.dias === "string" && courseToEdit.dias.startsWith("[")
+          ? JSON.parse(courseToEdit.dias)
+          : ["Lunes", "Miércoles"];
+
+      const matchedArea = matchArea(courseToEdit.area, dbAreas);
+      const areaToSet = matchedArea?.nombre || courseToEdit.area || "Ciencias Exactas e Ingenierías";
+      const careersForArea = getCareersForArea(areaToSet, dbCarreras, dbAreas);
+      const carreraToSet = courseToEdit.carrera || careersForArea[0]?.nombre || "Ingeniería de Sistemas";
+
       setFormData({
         id: courseToEdit.id || "",
         codigo: courseToEdit.codigo || courseToEdit.id || "",
         asignatura: courseToEdit.asignatura || "",
-        area: courseToEdit.area || ACADEMIC_AREAS[0],
-        carrera: courseToEdit.carrera || "Ingeniería de Sistemas",
+        area: areaToSet,
+        carrera: carreraToSet,
         docenteId: courseToEdit.docenteId || "",
         docente: courseToEdit.docente || "",
         dias: diasArr,
@@ -109,14 +153,22 @@ export default function CursoRegistroModal({
         estado: courseToEdit.estado || "Activo"
       });
     } else {
+      const activeArea = dbAreas[0]?.nombre || DEFAULT_AREAS[0]?.nombre || "Ciencias Exactas e Ingenierías";
+      const careersForArea = getCareersForArea(activeArea, dbCarreras, dbAreas);
+      const activeCareer = careersForArea[0]?.nombre || "Ingeniería de Sistemas";
+      const curTeacher = teachers[0] || initialTeachers[0];
+      const teacherName = curTeacher
+        ? `${curTeacher.nombres || ""} ${curTeacher.apellidos || ""}`.trim() || curTeacher.correo
+        : "Prof. Carmen Rosa Herrera";
+
       setFormData({
         id: `CRS-${Date.now().toString().slice(-4)}`,
         codigo: `CRS-${Date.now().toString().slice(-4)}`,
         asignatura: "",
-        area: ACADEMIC_AREAS[0] || "Ciencias Exactas e Ingenierías",
-        carrera: "Ingeniería de Sistemas",
-        docenteId: teachers[0]?.id || "",
-        docente: teachers[0] ? `${teachers[0].nombres || ""} ${teachers[0].apellidos || ""}`.trim() : "",
+        area: activeArea,
+        carrera: activeCareer,
+        docenteId: curTeacher?.id || "USR-002",
+        docente: teacherName,
         dias: ["Lunes", "Miércoles"],
         horaInicio: "08:00",
         horaFin: "10:00",
@@ -128,7 +180,29 @@ export default function CursoRegistroModal({
     }
     setSaveError("");
     setWarningMessage("");
-  }, [isOpen, courseToEdit, teachers]);
+  }, [isOpen, courseToEdit]);
+
+  // Si se actualizan las áreas o docentes desde la base de datos, sincronizar los campos vacíos
+  useEffect(() => {
+    if (!isOpen || courseToEdit) return;
+    setFormData((prev) => {
+      const updates = {};
+      if (!prev.area && dbAreas.length > 0) {
+        updates.area = dbAreas[0].nombre;
+      }
+      if (!prev.carrera) {
+        const areaToUse = updates.area || prev.area || dbAreas[0]?.nombre;
+        const careers = getCareersForArea(areaToUse, dbCarreras, dbAreas);
+        updates.carrera = careers[0]?.nombre || "";
+      }
+      if (!prev.docenteId && teachers.length > 0) {
+        const t = teachers[0];
+        updates.docenteId = t.id;
+        updates.docente = `${t.nombres || ""} ${t.apellidos || ""}`.trim() || t.correo;
+      }
+      return Object.keys(updates).length > 0 ? { ...prev, ...updates } : prev;
+    });
+  }, [isOpen, courseToEdit, dbAreas, dbCarreras, teachers]);
 
   if (!isOpen) return null;
 
@@ -194,6 +268,16 @@ export default function CursoRegistroModal({
 
     if (!formData.asignatura.trim()) {
       setSaveError("El nombre de la asignatura es obligatorio.");
+      return;
+    }
+
+    if (!formData.area || !formData.area.trim()) {
+      setSaveError("Debes seleccionar un área académica registrada en la base de datos.");
+      return;
+    }
+
+    if (!formData.carrera || !formData.carrera.trim()) {
+      setSaveError("Debes seleccionar una carrera asociada registrada en la base de datos.");
       return;
     }
 
@@ -342,15 +426,19 @@ export default function CursoRegistroModal({
               <select
                 name="area"
                 value={formData.area}
-                onChange={handleChange}
-                className="w-full px-3 py-2 border border-slate-200 dark:border-white/10 rounded-lg text-xs focus:ring-2 focus:ring-blue-500 focus:outline-hidden bg-white dark:bg-slate-900 dark:text-white"
+                onChange={handleAreaChange}
+                required
+                className="w-full px-3 py-2 border border-slate-200 dark:border-white/10 rounded-lg text-xs focus:ring-2 focus:ring-blue-500 focus:outline-hidden bg-white dark:bg-slate-900 dark:text-white cursor-pointer"
               >
-                {formData.area && !availableAreas.includes(formData.area) && (
+                <option value="">
+                  {loadingCatalog ? "-- Cargando áreas de la BD... --" : "-- Seleccionar Área Académica --"}
+                </option>
+                {formData.area && !dbAreas.some(a => (a.nombre || "").toLowerCase() === formData.area.toLowerCase()) && (
                   <option value={formData.area}>{formData.area}</option>
                 )}
-                {availableAreas.map((area) => (
-                  <option key={area} value={area}>
-                    {area}
+                {dbAreas.map((area) => (
+                  <option key={area.id || area.nombre} value={area.nombre}>
+                    {area.nombre}
                   </option>
                 ))}
               </select>
@@ -363,14 +451,23 @@ export default function CursoRegistroModal({
                 name="carrera"
                 value={formData.carrera}
                 onChange={handleChange}
-                className="w-full px-3 py-2 border border-slate-200 dark:border-white/10 rounded-lg text-xs focus:ring-2 focus:ring-blue-500 focus:outline-hidden bg-white dark:bg-slate-900 dark:text-white"
+                required
+                disabled={!formData.area || availableCareers.length === 0}
+                className="w-full px-3 py-2 border border-slate-200 dark:border-white/10 rounded-lg text-xs focus:ring-2 focus:ring-blue-500 focus:outline-hidden bg-white dark:bg-slate-900 dark:text-white cursor-pointer disabled:opacity-50"
               >
-                {formData.carrera && !availableCareers.includes(formData.carrera) && (
+                <option value="">
+                  {!formData.area
+                    ? "-- Primero selecciona un área académica --"
+                    : availableCareers.length === 0
+                    ? "-- No hay carreras para esta área en la BD --"
+                    : "-- Seleccionar Carrera Asociada --"}
+                </option>
+                {formData.carrera && !availableCareers.some(car => (car.nombre || "").toLowerCase() === formData.carrera.toLowerCase()) && (
                   <option value={formData.carrera}>{formData.carrera}</option>
                 )}
                 {availableCareers.map((car) => (
-                  <option key={car} value={car}>
-                    {car}
+                  <option key={car.id || car.nombre} value={car.nombre}>
+                    {car.nombre}
                   </option>
                 ))}
               </select>

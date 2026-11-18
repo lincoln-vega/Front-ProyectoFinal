@@ -10,11 +10,13 @@ import {
   FolderOpen
 } from "lucide-react";
 import useCurse from "../../hooks/useCurse";
+import { academicosService } from "../../services/academicosService";
 import CursoRegistroModal from "../../components/admin/CursoRegistroModal";
 
 export default function CursoPage() {
   const { courses: initialCourses, loading, error, addCourse, updateCourse, refreshCourses } = useCurse();
   const [coursesList, setCoursesList] = useState([]);
+  const [dbAreas, setDbAreas] = useState([]);
 
   const [searchTerm, setSearchTerm] = useState("");
   const [areaFilter, setAreaFilter] = useState("Todas las Áreas Académicas");
@@ -24,10 +26,31 @@ export default function CursoPage() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingCourse, setEditingCourse] = useState(null);
 
+  // Cargar áreas desde la base de datos
+  useEffect(() => {
+    let isMounted = true;
+    academicosService.getAreas()
+      .then((data) => {
+        if (isMounted && Array.isArray(data)) {
+          setDbAreas(data);
+        }
+      })
+      .catch((err) => console.warn("[CursoPage] Error al cargar áreas de la BD:", err));
+    return () => { isMounted = false; };
+  }, []);
+
   // Inicializar el estado de cursos desde el hook o datos base
   useEffect(() => {
     setCoursesList(initialCourses || []);
   }, [initialCourses]);
+
+  // Sincronizar cursos y áreas
+  const handleRefresh = async () => {
+    await Promise.all([
+      refreshCourses(),
+      academicosService.getAreas().then((data) => Array.isArray(data) && setDbAreas(data)).catch(() => {})
+    ]);
+  };
 
   // Agregar nuevo curso a la lista en tiempo real
   const handleAddCourse = async (newCourse) => {
@@ -51,7 +74,10 @@ export default function CursoPage() {
       (curso.codigo || "").toLowerCase().includes(term) ||
       (curso.aula || "").toLowerCase().includes(term) ||
       (curso.id || "").toLowerCase().includes(term);
-    const matchesArea = areaFilter === "Todas las Áreas Académicas" || (curso.area || "").includes(areaFilter);
+    const matchesArea = areaFilter === "Todas las Áreas Académicas" ||
+      (curso.area || "").toLowerCase().trim() === areaFilter.toLowerCase().trim() ||
+      (curso.area || "").toLowerCase().includes(areaFilter.toLowerCase()) ||
+      areaFilter.toLowerCase().includes((curso.area || "").toLowerCase());
     const matchesStatus = statusFilter === "Todos los Estados" || curso.estado === statusFilter;
 
     return matchesSearch && matchesArea && matchesStatus;
@@ -76,7 +102,7 @@ export default function CursoPage() {
           <div className="flex flex-wrap items-center gap-2">
             <button
               type="button"
-              onClick={() => refreshCourses()}
+              onClick={handleRefresh}
               disabled={loading}
               className="inline-flex items-center space-x-1.5 px-3 py-2 border border-slate-300 dark:border-white/10 text-slate-700 dark:text-slate-300 bg-white dark:bg-white/5 hover:bg-slate-50 dark:hover:bg-white/5 rounded-lg text-xs font-medium shadow-2xs transition-colors cursor-pointer disabled:opacity-50"
             >
@@ -116,10 +142,12 @@ export default function CursoPage() {
               onChange={(e) => setAreaFilter(e.target.value)}
               className="w-full py-2 px-3 text-xs border border-slate-200 dark:border-white/10 rounded-lg bg-slate-50 dark:bg-white/5 dark:text-white focus:bg-white dark:focus:bg-slate-900 focus:outline-hidden focus:border-[#1E3A8A] cursor-pointer"
             >
-              <option value="Todas las Áreas Académicas">Todas las Áreas</option>
-              <option value="Ciencias Exactas">Ciencias Exactas</option>
-              <option value="Ciencias Médicas">Ciencias Médicas</option>
-              <option value="Humanidades y Letras">Humanidades y Letras</option>
+              <option value="Todas las Áreas Académicas">Todas las Áreas Académicas</option>
+              {dbAreas.map((area) => (
+                <option key={area.id || area.nombre} value={area.nombre}>
+                  {area.nombre}
+                </option>
+              ))}
             </select>
           </div>
 
@@ -150,7 +178,7 @@ export default function CursoPage() {
               {/* Encabezado de Tarjeta: Código/Aula y Estado */}
               <div className="flex items-center justify-between mb-4">
                 <span className="text-xs font-bold text-blue-700 dark:text-blue-400 tracking-wide uppercase bg-blue-50 dark:bg-blue-900/30 px-2.5 py-1 rounded">
-                  {curso.codigo} • {curso.aula}
+                {curso.aula}
                 </span>
                 <span
                   className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-bold uppercase tracking-wider border ${curso.estado === "Activo"
