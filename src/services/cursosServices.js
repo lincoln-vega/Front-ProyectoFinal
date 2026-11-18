@@ -130,10 +130,20 @@ export const courseService = {
     if (courses.length === 0) return [];
     const rows = courses.map((course) => {
       const normalized = normalizeCourse(course);
-      const { aula, codigo, horario, tipoSala, created_at, cicloVirtual, ...row } = normalized;
       return {
-        ...row,
-        ciclovirtual: cicloVirtual || row.ciclovirtual || "Semestral"
+        id: normalized.id,
+        asignatura: normalized.asignatura,
+        area: normalized.area,
+        carrera: normalized.carrera,
+        docenteId: normalized.docenteId,
+        docente: normalized.docente,
+        dias: Array.isArray(normalized.dias) ? normalized.dias : [],
+        horaInicio: normalized.horaInicio,
+        horaFin: normalized.horaFin,
+        meetUrl: normalized.meetUrl,
+        repositorio: normalized.repositorio,
+        estado: normalized.estado || "Activo",
+        ciclovirtual: normalized.cicloVirtual || normalized.ciclovirtual || "Semestral"
       };
     });
     const { data, error } = await insforge.database

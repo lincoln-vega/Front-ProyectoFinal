@@ -343,8 +343,11 @@ export default function CursoRegistroModal({
                 name="area"
                 value={formData.area}
                 onChange={handleChange}
-                className="w-full px-3 py-2 border border-slate-200 dark:border-white/10 rounded-lg text-xs bg-slate-50 dark:bg-white/5 dark:text-white focus:bg-white focus:outline-hidden focus:border-[#1E3A8A] cursor-pointer"
+                className="w-full px-3 py-2 border border-slate-200 dark:border-white/10 rounded-lg text-xs focus:ring-2 focus:ring-blue-500 focus:outline-hidden bg-white dark:bg-slate-900 dark:text-white"
               >
+                {formData.area && !availableAreas.includes(formData.area) && (
+                  <option value={formData.area}>{formData.area}</option>
+                )}
                 {availableAreas.map((area) => (
                   <option key={area} value={area}>
                     {area}
@@ -360,8 +363,11 @@ export default function CursoRegistroModal({
                 name="carrera"
                 value={formData.carrera}
                 onChange={handleChange}
-                className="w-full px-3 py-2 border border-slate-200 dark:border-white/10 rounded-lg text-xs bg-slate-50 dark:bg-white/5 dark:text-white focus:bg-white focus:outline-hidden focus:border-[#1E3A8A] cursor-pointer"
+                className="w-full px-3 py-2 border border-slate-200 dark:border-white/10 rounded-lg text-xs focus:ring-2 focus:ring-blue-500 focus:outline-hidden bg-white dark:bg-slate-900 dark:text-white"
               >
+                {formData.carrera && !availableCareers.includes(formData.carrera) && (
+                  <option value={formData.carrera}>{formData.carrera}</option>
+                )}
                 {availableCareers.map((car) => (
                   <option key={car} value={car}>
                     {car}
@@ -380,29 +386,20 @@ export default function CursoRegistroModal({
               <select
                 value={formData.docenteId}
                 onChange={handleTeacherSelect}
-                className="w-full px-3 py-2 border border-slate-200 dark:border-white/10 rounded-lg text-xs bg-slate-50 dark:bg-white/5 dark:text-white focus:bg-white focus:outline-hidden focus:border-[#1E3A8A] cursor-pointer"
+                className="w-full px-3 py-2 border border-slate-200 dark:border-white/10 rounded-lg text-xs focus:ring-2 focus:ring-blue-500 focus:outline-hidden bg-white dark:bg-slate-900 dark:text-white"
               >
                 <option value="">-- Seleccionar de la nómina docente --</option>
+                {formData.docenteId && !teachers.some(t => t.id === formData.docenteId) && (
+                  <option value={formData.docenteId}>
+                    {formData.docente ? `${formData.docente} (${formData.docenteId})` : formData.docenteId}
+                  </option>
+                )}
                 {teachers.map((t) => (
                   <option key={t.id} value={t.id}>
-                    {t.nombres} {t.apellidos} ({t.dni || t.id})
+                    {t.nombres} {t.apellidos} ({t.areaAcademica})
                   </option>
                 ))}
               </select>
-            </div>
-            <div>
-              <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                Nombre Docente Registrado *
-              </label>
-              <input
-                type="text"
-                name="docente"
-                value={formData.docente}
-                onChange={handleChange}
-                placeholder="Nombre del docente"
-                required
-                className="w-full px-3 py-2 border border-slate-200 dark:border-white/10 rounded-lg text-xs bg-slate-50 dark:bg-white/5 dark:text-white focus:bg-white focus:outline-hidden focus:border-[#1E3A8A]"
-              />
             </div>
           </div>
 
@@ -410,7 +407,7 @@ export default function CursoRegistroModal({
           <div className="p-3 bg-slate-50 dark:bg-white/5 rounded-xl border border-slate-100 dark:border-white/10 space-y-3">
             <div>
               <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
-                Días de Clase Semanales (CourseCreate.dias) *
+                Días de Clase Semanales *
               </label>
               <div className="flex flex-wrap gap-1.5">
                 {WEEK_DAYS.map((day) => {
