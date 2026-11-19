@@ -30,6 +30,32 @@ const USER_COLUMNS = [
   "salario"
 ].join(", ");
 
+export const parseCourseList = (value) => {
+  if (!value) return [];
+  if (Array.isArray(value)) {
+    return value
+      .map((item) => (typeof item === "object" && item !== null ? item.id : item))
+      .filter(Boolean)
+      .map((x) => String(x).trim());
+  }
+  if (typeof value === "string") {
+    const trimmed = value.trim();
+    if (!trimmed) return [];
+    if (trimmed.startsWith("[") && trimmed.endsWith("]")) {
+      try {
+        const parsed = JSON.parse(trimmed);
+        if (Array.isArray(parsed)) return parseCourseList(parsed);
+      } catch {}
+    }
+    const cleanStr = trimmed.replace(/^\{|\}$/g, "");
+    return cleanStr
+      .split(",")
+      .map((s) => s.trim().replace(/^["']|["']$/g, ""))
+      .filter(Boolean);
+  }
+  return [];
+};
+
 const normalizeUser = (user) => {
   if (!user) return user;
   const ciclo = user.cicloVirtual || user.ciclovirtual || user.ciclo_virtual || "Semestral";
@@ -38,6 +64,10 @@ const normalizeUser = (user) => {
   const area = user.areaAcademica || user.area_academica || "";
   const fechaNac = user.fechaNacimiento || user.fecha_nacimiento || "";
   const tipoDoc = user.tipoDocumento || user.tipo_documento || "DNI";
+  const rawAsignados = user.cursosAsignados || user.cursos_asignados || user.CursosAsignados;
+  const rawInscritos = user.cursosInscritos || user.cursos_inscritos || user.CursosInscritos;
+  const asignados = parseCourseList(rawAsignados);
+  const inscritos = parseCourseList(rawInscritos);
   return {
     ...user,
     tipoDocumento: tipoDoc,
@@ -46,7 +76,10 @@ const normalizeUser = (user) => {
     cicloVirtual: ciclo,
     ciclovirtual: ciclo,
     carreraObjetivo: carrera,
-    areaAcademica: area
+    areaAcademica: area,
+    cursosAsignados: asignados,
+    cursosInscritos: inscritos,
+    especialidad: user.especialidad || area || carrera || "Docencia General"
   };
 };
 

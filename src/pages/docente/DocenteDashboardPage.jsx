@@ -118,15 +118,48 @@ export default function DocenteDashboardPage() {
 
   // Filtrar los cursos asignados al docente activo con estado 'Activo'
   const cursosAsignados = useMemo(() => {
+    const idsAsignados = new Set(
+      (Array.isArray(docenteData?.cursosAsignados) ? docenteData.cursosAsignados : [])
+        .map((c) => (typeof c === "object" && c !== null ? c.id : c))
+        .filter(Boolean)
+        .map(String)
+    );
+
+    const teacherFullName = docenteData
+      ? `${docenteData.nombres || ""} ${docenteData.apellidos || ""}`.trim()
+      : userName;
+
     return listaCursos.filter((course) => {
       if (course.estado !== 'Activo') return false;
       return (
-        course.docenteId === userId || 
+        idsAsignados.has(String(course.id)) ||
+        (docenteData?.id && course.docenteId === docenteData.id) ||
+        (userId && course.docenteId === userId) ||
+        matchesTeacherName(course.docente, teacherFullName) ||
         matchesTeacherName(course.docente, userName) ||
         Boolean(userEmail && course.docente?.toLowerCase().includes(userEmail.toLowerCase()))
       );
     });
-  }, [listaCursos, userId, userName, userEmail]);
+  }, [listaCursos, userId, userName, userEmail, docenteData]);
+
+  // Sincronizar el conteo de estudiantes con los cursos asignados en tiempo real
+  useEffect(() => {
+    let cancelled = false;
+    async function updateStudents() {
+      if (cursosAsignados.length > 0) {
+        try {
+          const count = await courseService.countStudentsForTeacher(cursosAsignados.map((c) => c.id));
+          if (!cancelled) setTotalEstudiantes(count);
+        } catch {
+          if (!cancelled) setTotalEstudiantes(0);
+        }
+      } else {
+        if (!cancelled) setTotalEstudiantes(0);
+      }
+    }
+    updateStudents();
+    return () => { cancelled = true; };
+  }, [cursosAsignados]);
 
   const handleStartClass = async (course) => {
     if (!course?.meetUrl) {

@@ -204,6 +204,32 @@ export default function CursoRegistroModal({
     });
   }, [isOpen, courseToEdit, dbAreas, dbCarreras, teachers]);
 
+  // Advertencia preventiva en tiempo real al cambiar horario o docente
+  useEffect(() => {
+    if (!isOpen || !formData.docente || !formData.horaInicio || !formData.horaFin || !formData.dias?.length) return;
+    let cancelled = false;
+
+    const timer = setTimeout(async () => {
+      try {
+        const check = await courseService.validarCruce(formData);
+        if (!cancelled) {
+          if (check.cruce) {
+            setWarningMessage(check.mensaje);
+          } else if (warningMessage && warningMessage.includes("Conflicto de horario")) {
+            setWarningMessage("");
+          }
+        }
+      } catch {
+        // Ignorar
+      }
+    }, 250);
+
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
+  }, [isOpen, formData.id, formData.docenteId, formData.docente, formData.dias, formData.horaInicio, formData.horaFin]);
+
   if (!isOpen) return null;
 
   const handleChange = (e) => {
@@ -243,16 +269,23 @@ export default function CursoRegistroModal({
     setWarningMessage("");
     setSaveError("");
     try {
+      const localCheck = await courseService.validarCruce(formData);
+      if (localCheck.cruce) {
+        setSaveError(localCheck.mensaje);
+        setValidating(false);
+        return;
+      }
+
       const res = await courseService.validarCursoConBackend({
         ...formData,
         id: formData.id || "CRS-TEMP"
       });
       if (res && res.cruce) {
-        setWarningMessage(`Advertencia de Cruce: ${res.mensaje || "Se detectó solapamiento horario en el backend."}`);
+        setSaveError(`Conflicto de horario: ${res.mensaje || "Se detectó solapamiento horario en el backend."}`);
       } else if (res && res.valido === false) {
-        setWarningMessage(`Validación del Backend: ${res.mensaje}`);
+        setSaveError(`Validación del Backend: ${res.mensaje}`);
       } else {
-        setWarningMessage("Horario validado sin cruces con el backend (POST /monitoreo/validar-curso).");
+        setWarningMessage("✓ Horario verificado: El docente no presenta cruces de horario en estos días y horas.");
       }
     } catch (err) {
       console.warn("Error al validar con backend:", err);
@@ -321,6 +354,14 @@ export default function CursoRegistroModal({
 
     setSaving(true);
     try {
+      // 1. Validar estrictamente cruce de horario del docente asignado
+      const checkCruce = await courseService.validarCruce(payload);
+      if (checkCruce.cruce) {
+        setSaveError(checkCruce.mensaje);
+        setSaving(false);
+        return; // ¡BLOQUEO TOTAL! No permite guardar si hay cruce
+      }
+
       if (isEditing && onUpdateCourse) {
         await onUpdateCourse(payload);
       } else if (onAddCourse) {

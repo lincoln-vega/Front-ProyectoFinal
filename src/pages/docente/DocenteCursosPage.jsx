@@ -57,9 +57,18 @@ export default function DocenteCursosPage() {
   const cursosFiltrados = useMemo(() => {
     if (!profile) return [];
     const fullName = `${profile.nombres || ""} ${profile.apellidos || ""}`.trim();
+    const idsAsignados = new Set(
+      (Array.isArray(profile.cursosAsignados) ? profile.cursosAsignados : [])
+        .map((c) => (typeof c === "object" && c !== null ? c.id : c))
+        .filter(Boolean)
+        .map(String)
+    );
+
     return listaCursos.filter((course) => (
       course.estado === "Activo" &&
-      (course.docenteId === profile.id || matchesTeacherName(course.docente, fullName))
+      (idsAsignados.has(String(course.id)) ||
+       course.docenteId === profile.id ||
+       matchesTeacherName(course.docente, fullName))
     ));
   }, [listaCursos, profile]);
 

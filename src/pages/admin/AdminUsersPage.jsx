@@ -62,6 +62,8 @@ function AdminUsersContent() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isRolesModalOpen, setIsRolesModalOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [editingUserId, setEditingUserId] = useState(null);
+  const [formData, setFormData] = useState(createInitialUserForm);
   
   const PENDING_AUTH_KEY = "academia_pending_auth_account";
   const [pendingAuthAccount, setPendingAuthAccountState] = useState(() => {

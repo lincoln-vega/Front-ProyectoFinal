@@ -7,11 +7,14 @@ import {
   Clock,
   Video,
   Edit2,
-  FolderOpen
+  FolderOpen,
+  Users
 } from "lucide-react";
 import useCurse from "../../hooks/useCurse";
 import { academicosService } from "../../services/academicosService";
+import { userService, parseCourseList } from "../../services/api";
 import CursoRegistroModal from "../../components/admin/CursoRegistroModal";
+import CursoEstudiantesModal from "../../components/admin/CursoEstudiantesModal";
 
 export default function CursoPage() {
   const { courses: initialCourses, loading, error, addCourse, updateCourse, refreshCourses } = useCurse();
@@ -26,16 +29,29 @@ export default function CursoPage() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingCourse, setEditingCourse] = useState(null);
 
-  // Cargar áreas desde la base de datos
+  // Estado para nómina de estudiantes inscritos
+  const [studentsList, setStudentsList] = useState([]);
+  const [isStudentsModalOpen, setIsStudentsModalOpen] = useState(false);
+  const [selectedCourseForStudents, setSelectedCourseForStudents] = useState(null);
+
+  // Cargar áreas y estudiantes desde la base de datos
   useEffect(() => {
     let isMounted = true;
-    academicosService.getAreas()
-      .then((data) => {
-        if (isMounted && Array.isArray(data)) {
-          setDbAreas(data);
+    Promise.all([
+      academicosService.getAreas().catch(() => []),
+      userService.getUsers().catch(() => [])
+    ])
+      .then(([areasData, usersData]) => {
+        if (!isMounted) return;
+        if (Array.isArray(areasData) && areasData.length > 0) {
+          setDbAreas(areasData);
+        }
+        if (Array.isArray(usersData)) {
+          const onlyStudents = usersData.filter((u) => String(u.rol || "").toLowerCase() === "estudiante");
+          setStudentsList(onlyStudents);
         }
       })
-      .catch((err) => console.warn("[CursoPage] Error al cargar áreas de la BD:", err));
+      .catch((err) => console.warn("[CursoPage] Error al cargar recursos:", err));
     return () => { isMounted = false; };
   }, []);
 
@@ -44,12 +60,53 @@ export default function CursoPage() {
     setCoursesList(initialCourses || []);
   }, [initialCourses]);
 
-  // Sincronizar cursos y áreas
+  // Sincronizar cursos, áreas y estudiantes
   const handleRefresh = async () => {
     await Promise.all([
       refreshCourses(),
-      academicosService.getAreas().then((data) => Array.isArray(data) && setDbAreas(data)).catch(() => {})
+      academicosService.getAreas().then((data) => Array.isArray(data) && setDbAreas(data)).catch(() => {}),
+      userService.getUsers().then((u) => Array.isArray(u) && setStudentsList(u.filter((x) => String(x.rol || "").toLowerCase() === "estudiante"))).catch(() => {})
     ]);
+  };
+
+  // Obtener estrictamente los estudiantes inscritos en este curso desde la BD
+  const getStudentsForCourse = (curso) => {
+    if (!curso) return [];
+    const courseId = String(curso.id || "").trim();
+    const courseCodigo = String(curso.codigo || "").trim();
+
+    const enrolled = [];
+    const addedKeys = new Set();
+
+    (studentsList || []).forEach((student) => {
+      const sKey = String(student.id || student.dni || student.correo);
+      const rawInscritos = student.cursosInscritos || student.cursos_inscritos || student.CursosInscritos;
+      const enrolledCourses = parseCourseList(rawInscritos);
+
+      const hasCourse = enrolledCourses.some((item) => {
+        const clean = String(item || "").trim();
+        return clean === courseId || (courseCodigo && clean === courseCodigo);
+      });
+
+      if (hasCourse && !addedKeys.has(sKey)) {
+        addedKeys.add(sKey);
+        enrolled.push({
+          id: student.id || student.dni,
+          nombres: student.nombres,
+          apellidos: student.apellidos,
+          dni: student.dni,
+          tipoDocumento: student.tipoDocumento || "DNI",
+          correo: student.correo,
+          celular: student.celular,
+          carreraObjetivo: student.carreraObjetivo || curso.carrera,
+          areaAcademica: student.areaAcademica || curso.area,
+          cicloVirtual: student.cicloVirtual || student.ciclovirtual || "Semestral",
+          estado: student.estado || "Activo"
+        });
+      }
+    });
+
+    return enrolled;
   };
 
   // Agregar nuevo curso a la lista en tiempo real
@@ -194,10 +251,31 @@ export default function CursoPage() {
                 </span>
               </div>
 
-              {/* Título de la Materia */}
-              <h3 className="text-xl font-bold text-slate-800 dark:text-white mb-4 leading-tight">
-                {curso.asignatura}
-              </h3>
+              {/* Título de la Materia y Botón de Estudiantes */}
+              {(() => {
+                const enrolled = getStudentsForCourse(curso);
+                return (
+                  <div className="flex items-start justify-between gap-2.5 mb-4">
+                    <h3 className="text-xl font-bold text-slate-800 dark:text-white leading-tight">
+                      {curso.asignatura}
+                    </h3>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setSelectedCourseForStudents(curso);
+                        setIsStudentsModalOpen(true);
+                      }}
+                      className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl text-xs font-semibold shrink-0 border border-slate-300/30 dark:border-white/10 bg-slate-100/60 dark:bg-white/5 hover:bg-blue-50/80 dark:hover:bg-blue-950/40 hover:border-blue-400/30 dark:hover:border-blue-500/30 text-slate-600 dark:text-slate-300 hover:text-blue-600 dark:hover:text-blue-400 transition-all cursor-pointer shadow-2xs group"
+                      title={`Ver nómina de ${enrolled.length} estudiante(s) inscritos`}
+                    >
+                      <Users className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400 group-hover:scale-110 transition-transform" />
+                      <span>
+                        Estudiantes: <strong className="font-bold text-slate-800 dark:text-white group-hover:text-blue-600 dark:group-hover:text-blue-400">{enrolled.length}</strong>
+                      </span>
+                    </button>
+                  </div>
+                );
+              })()}
 
               {/* Información Administrativa */}
               <div className="space-y-2 mb-5">
@@ -275,16 +353,31 @@ export default function CursoPage() {
 
 
       {/* COMPONENTE MODAL MODULARIZADO */}
-      <CursoRegistroModal
-        isOpen={isModalOpen}
-        courseToEdit={editingCourse}
-        onClose={() => {
-          setIsModalOpen(false);
-          setEditingCourse(null);
-        }}
-        onAddCourse={handleAddCourse}
-        onUpdateCourse={handleUpdateCourse}
-      />
+      {isModalOpen && (
+        <CursoRegistroModal
+          isOpen={isModalOpen}
+          courseToEdit={editingCourse}
+          onClose={() => {
+            setIsModalOpen(false);
+            setEditingCourse(null);
+          }}
+          onAddCourse={handleAddCourse}
+          onUpdateCourse={handleUpdateCourse}
+        />
+      )}
+
+      {/* MODAL NÓMINA DE ESTUDIANTES */}
+      {isStudentsModalOpen && selectedCourseForStudents && (
+        <CursoEstudiantesModal
+          isOpen={isStudentsModalOpen}
+          curso={selectedCourseForStudents}
+          estudiantes={getStudentsForCourse(selectedCourseForStudents)}
+          onClose={() => {
+            setIsStudentsModalOpen(false);
+            setSelectedCourseForStudents(null);
+          }}
+        />
+      )}
     </div>
   );
 }
