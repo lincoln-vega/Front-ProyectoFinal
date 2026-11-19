@@ -62,19 +62,6 @@ const ANNOUNCEMENTS_STORAGE_KEY = "academia_pre_anuncios_v2";
 
 const DEFAULT_TASKS = [
   {
-    id: "TSK-001",
-    cursoId: "CRS-001",
-    curso: "Álgebra y Funciones",
-    tipo: "Tarea Calificada",
-    titulo: "Práctica N° 4: Funciones Cuadráticas y Polinomios",
-    estado: "Por entregar",
-    fechaLimite: "Mañana, 11:59 PM",
-    puntos: "20 pts",
-    descripcion: "Desarrollar los 10 ejercicios pares de la separata teórica N° 4 en formato PDF manuscrito o digital.",
-    docente: "Prof. Carmen Rosa Herrera",
-    createdAt: new Date(Date.now() - 86400000).toISOString()
-  },
-  {
     id: "TSK-002",
     cursoId: "CRS-002",
     curso: "Física Fundamental",
@@ -84,23 +71,9 @@ const DEFAULT_TASKS = [
     fechaLimite: "Viernes, 11:59 PM",
     puntos: "20 pts",
     descripcion: "Completar la resolución de los problemas de dinámica lineal con sus diagramas de cuerpo libre.",
-    docente: "Prof. Pedro Chavez",
+    docente: "Prof. Pedro Martlon Chavez Quispe",
     docenteId: "USR-107",
     createdAt: new Date(Date.now() - 172800000).toISOString()
-  },
-  {
-    id: "TSK-004",
-    cursoId: "CRS-004",
-    curso: "Trigonometría",
-    tipo: "Tarea Calificada",
-    titulo: "Práctica Calificada: Identidades Trigonométricas",
-    estado: "Por entregar",
-    fechaLimite: "Lunes, 11:59 PM",
-    puntos: "20 pts",
-    descripcion: "Demostrar las 5 identidades auxiliares de ángulos compuestos detallando el procedimiento paso a paso.",
-    docente: "Prof. Pedro Chavez",
-    docenteId: "USR-107",
-    createdAt: new Date(Date.now() - 86400000 * 2).toISOString()
   },
   {
     id: "TSK-003",
@@ -113,8 +86,79 @@ const DEFAULT_TASKS = [
     nota: "18.5 / 20",
     puntos: "20 pts",
     descripcion: "Cuestionario de 20 preguntas con retroalimentación inmediata sobre bases celulares y herencia genética.",
-    docente: "Dra. Elena Sofía Torres",
+    docente: "Dra. Carmen Rosa Herrera Villanueva",
+    docenteId: "USR-002",
     createdAt: new Date(Date.now() - 259200000).toISOString()
+  },
+  {
+    id: "TSK-004",
+    cursoId: "CRS-004",
+    curso: "Trigonometría",
+    tipo: "Tarea Calificada",
+    titulo: "Práctica Calificada: Identidades Trigonométricas",
+    estado: "Por entregar",
+    fechaLimite: "Lunes, 11:59 PM",
+    puntos: "20 pts",
+    descripcion: "Demostrar las 5 identidades auxiliares de ángulos compuestos detallando el procedimiento paso a paso.",
+    docente: "Prof. Pedro Martlon Chavez Quispe",
+    docenteId: "USR-107",
+    createdAt: new Date(Date.now() - 86400000 * 2).toISOString()
+  },
+  {
+    id: "TSK-006",
+    cursoId: "CRS-006",
+    curso: "Química General",
+    tipo: "Taller Grupal",
+    titulo: "Taller N° 2: Estequiometría y Enlaces Químicos",
+    estado: "Por entregar",
+    fechaLimite: "Sábado, 06:00 PM",
+    puntos: "20 pts",
+    descripcion: "Balancear las ecuaciones redox y calcular el reactivo limitante para las reacciones planteadas.",
+    docente: "Dra. Carmen Rosa Herrera Villanueva",
+    docenteId: "USR-002",
+    createdAt: new Date(Date.now() - 86400000).toISOString()
+  },
+  {
+    id: "TSK-007",
+    cursoId: "CRS-007",
+    curso: "Historia del Perú",
+    tipo: "Ensayo Crítico",
+    titulo: "Ensayo: Reformas Borbónicas y Crisis Virreinal",
+    estado: "Por entregar",
+    fechaLimite: "Próximo Martes, 11:59 PM",
+    puntos: "20 pts",
+    descripcion: "Analizar el impacto económico y social de las reformas borbónicas en las comunidades indígenas del siglo XVIII.",
+    docente: "Prof. Victoria Angelis Raggi Ruiz",
+    docenteId: "USR-109",
+    createdAt: new Date(Date.now() - 86400000 * 2).toISOString()
+  },
+  {
+    id: "TSK-008",
+    cursoId: "CRS-008",
+    curso: "Historia Universal",
+    tipo: "Análisis Documental",
+    titulo: "Análisis: Primera Guerra Mundial y Tratado de Versalles",
+    estado: "Por entregar",
+    fechaLimite: "Jueves, 11:59 PM",
+    puntos: "20 pts",
+    descripcion: "Identificar las causas geopolíticas y las consecuencias territoriales en el mapa europeo de entreguerras.",
+    docente: "Prof. Victoria Angelis Raggi Ruiz",
+    docenteId: "USR-109",
+    createdAt: new Date(Date.now() - 86400000).toISOString()
+  },
+  {
+    id: "TSK-009",
+    cursoId: "CRS-009",
+    curso: "Geografía y Ecología",
+    tipo: "Taller Práctico",
+    titulo: "Taller Cartográfico: Ocho Regiones Naturales del Perú",
+    estado: "Por entregar",
+    fechaLimite: "Viernes, 08:00 PM",
+    puntos: "20 pts",
+    descripcion: "Elaborar el corte altitudinal y caracterizar pisos ecológicos según la tesis de Javier Pulgar Vidal.",
+    docente: "Prof. Victoria Angelis Raggi Ruiz",
+    docenteId: "USR-109",
+    createdAt: new Date().toISOString()
   },
   {
     id: "TSK-SIM",
@@ -133,36 +177,70 @@ const DEFAULT_TASKS = [
 
 const DEFAULT_ANNOUNCEMENTS = [
   {
-    id: "ANN-001",
-    cursoId: "CRS-001",
-    curso: "Álgebra y Funciones",
-    titulo: "Material adicional: Fórmulas de Factorización y Radicación",
-    contenido: "Estimados alumnos, he subido a la biblioteca digital el formulario resumido para resolver con mayor rapidez los problemas del simulacro de este fin de semana. ¡Aprovéchenlo!",
-    prioridad: "Importante",
-    docente: "Prof. Carmen Rosa Herrera",
-    createdAt: new Date(Date.now() - 3600000 * 5).toISOString()
-  },
-  {
     id: "ANN-002",
     cursoId: "CRS-002",
     curso: "Física Fundamental",
-    titulo: "Repaso extraordinario de Estática y Rozamiento",
+    titulo: "Sesión de Repaso de Estática y Dinámica",
     contenido: "Este jueves a las 06:00 PM tendremos una sesión voluntaria de resolución de dudas en Google Meet antes de la práctica calificada.",
     prioridad: "Normal",
-    docente: "Prof. Pedro Chavez",
+    docente: "Prof. Pedro Martlon Chavez Quispe",
     docenteId: "USR-107",
     createdAt: new Date(Date.now() - 86400000 * 2).toISOString()
+  },
+  {
+    id: "ANN-003",
+    cursoId: "CRS-003",
+    curso: "Biología y Anatomía",
+    titulo: "Banco de Preguntas UNMSM: Sistema Circulatorio",
+    contenido: "Alumnos del bloque de Biomédicas, he cargado 40 preguntas tipo DECO con claves justificadas para el examen de admisión.",
+    prioridad: "Alta",
+    docente: "Dra. Carmen Rosa Herrera Villanueva",
+    docenteId: "USR-002",
+    createdAt: new Date(Date.now() - 86400000).toISOString()
   },
   {
     id: "ANN-004",
     cursoId: "CRS-004",
     curso: "Trigonometría",
-    titulo: "Horario de consultas y asesoría de problemas",
-    contenido: "Alumnos, pueden enviar sus dudas del boletín semanal para revisarlas durante los primeros 20 minutos de la próxima clase virtual.",
+    titulo: "Formulario oficial de Identidades Auxiliares",
+    contenido: "Alumnos, pueden descargar el formulario de identidades trigonométricas auxiliares de la biblioteca virtual del curso.",
     prioridad: "Importante",
-    docente: "Prof. Pedro Chavez",
+    docente: "Prof. Pedro Martlon Chavez Quispe",
     docenteId: "USR-107",
     createdAt: new Date(Date.now() - 86400000).toISOString()
+  },
+  {
+    id: "ANN-006",
+    cursoId: "CRS-006",
+    curso: "Química General",
+    titulo: "Tabla Periódica Interactiva y Ejercicios Resueltos",
+    contenido: "Se habilitó el módulo con las masas atómicas y números de oxidación actualizados para la unidad de estequiometría.",
+    prioridad: "Normal",
+    docente: "Dra. Carmen Rosa Herrera Villanueva",
+    docenteId: "USR-002",
+    createdAt: new Date(Date.now() - 86400000 * 3).toISOString()
+  },
+  {
+    id: "ANN-007",
+    cursoId: "CRS-007",
+    curso: "Historia del Perú",
+    titulo: "Lectura obligatoria: Rebeliones Indígenas del Siglo XVIII",
+    contenido: "Revisar los textos seleccionados de Scarlett O'Phelan sobre la rebelión de Túpac Amaru II para el debate de la sesión 8.",
+    prioridad: "Importante",
+    docente: "Prof. Victoria Angelis Raggi Ruiz",
+    docenteId: "USR-109",
+    createdAt: new Date(Date.now() - 86400000).toISOString()
+  },
+  {
+    id: "ANN-008",
+    cursoId: "CRS-008",
+    curso: "Historia Universal",
+    titulo: "Seminario dominical: Periodo de Entreguerras",
+    contenido: "Este domingo a las 10:00 AM analizaremos fuentes históricas sobre el Tratado de Versalles y el surgimiento del fascismo.",
+    prioridad: "Alta",
+    docente: "Prof. Victoria Angelis Raggi Ruiz",
+    docenteId: "USR-109",
+    createdAt: new Date().toISOString()
   }
 ];
 

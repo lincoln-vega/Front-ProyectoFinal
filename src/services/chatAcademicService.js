@@ -7,22 +7,6 @@ const CHAT_STORAGE_KEY = "academia_chat_messages_v2";
 const DEFAULT_MESSAGES = [
   {
     id: "MSG-001",
-    estudianteId: "USR-108",
-    estudianteNombre: "Esteban Torres",
-    estudianteCorreo: "esteban@gmail.com",
-    estudianteCarrera: "Medicina Humana (UNMSM)",
-    docenteId: "USR-107",
-    docenteNombre: "Prof. Pedro Chavez",
-    cursoId: "CRS-002",
-    curso: "Física Fundamental",
-    mensaje: "Profesor Chavez, buenas tardes. Tengo una duda sobre el cálculo de la aceleración centrípeta en el ejercicio 4 del taller. ¿Podría revisarlo en los primeros minutos de la clase?",
-    fecha: "Hoy, 10:15 AM",
-    estado: "Pendiente",
-    respuesta: null,
-    fechaRespuesta: null
-  },
-  {
-    id: "MSG-002",
     estudianteId: "USR-005",
     estudianteNombre: "Juan Carlos Flores Mendoza",
     estudianteCorreo: "estudiante@gmail.com",
@@ -31,11 +15,27 @@ const DEFAULT_MESSAGES = [
     docenteNombre: "Prof. Pedro Chavez",
     cursoId: "CRS-002",
     curso: "Física Fundamental",
-    mensaje: "Profesor, una consulta: ¿hasta qué hora se puede subir el informe de dinámica lineal en formato PDF?",
-    fecha: "Ayer, 04:30 PM",
+    mensaje: "Profesor Chavez, buenas tardes. Tengo una consulta sobre dinámica lineal y el cálculo de la fuerza resultante en el plano inclinado del taller N° 3.",
+    fecha: "Hoy, 10:15 AM",
     estado: "Respondido",
-    respuesta: "Estimado Juan Carlos, el plazo máximo de entrega en el portal es este viernes hasta las 11:59 PM. Saludos.",
-    fechaRespuesta: "Ayer, 05:10 PM"
+    respuesta: "Estimado Juan Carlos, recuerda descomponer el peso en los ejes tangencial y normal; la normal equilibra a P*cos(theta). En la próxima clase resolveremos el ejercicio 4.",
+    fechaRespuesta: "Hoy, 10:45 AM"
+  },
+  {
+    id: "MSG-002",
+    estudianteId: "USR-108",
+    estudianteNombre: "Esteban Torres",
+    estudianteCorreo: "esteban@gmail.com",
+    estudianteCarrera: "Medicina Humana (UNMSM)",
+    docenteId: "USR-002",
+    docenteNombre: "Dra. Carmen Rosa Herrera",
+    cursoId: "CRS-003",
+    curso: "Biología y Anatomía",
+    mensaje: "Doctora Herrera, buenas tardes. En el ciclo de Krebs y la cadena de transporte de electrones, ¿cuántos ATP netos se consideran para el prospecto de admisión de San Marcos?",
+    fecha: "Hoy, 09:20 AM",
+    estado: "Respondido",
+    respuesta: "Hola Esteban. Para el prospecto UNMSM se consideran 36 a 38 ATPs según la lanzadera activa (malato-aspartato vs glicerol-3-fosfato). Te lo detallo en la separata.",
+    fechaRespuesta: "Hoy, 09:55 AM"
   },
   {
     id: "MSG-003",
@@ -43,12 +43,28 @@ const DEFAULT_MESSAGES = [
     estudianteNombre: "Ana Paula Vargas Chavez",
     estudianteCorreo: "anapaula@gmail.com",
     estudianteCarrera: "Derecho y Ciencias Políticas (UNMSM)",
-    docenteId: "USR-107",
-    docenteNombre: "Prof. Pedro Chavez",
+    docenteId: "USR-109",
+    docenteNombre: "Prof. Victoria Raggi",
     cursoId: "CRS-008",
     curso: "Historia Universal",
-    mensaje: "Profesor Pedro, ¿el tema de la Segunda Guerra Mundial y el periodo de entreguerras vendrá en el simulacro de este domingo?",
+    mensaje: "Profesora Victoria, buenas tardes. ¿El tema del periodo de entreguerras y el ascenso de los totalitarismos entrará en el simulacro de este domingo?",
     fecha: "Hoy, 08:45 AM",
+    estado: "Pendiente",
+    respuesta: null,
+    fechaRespuesta: null
+  },
+  {
+    id: "MSG-004",
+    estudianteId: "USR-108",
+    estudianteNombre: "Esteban Torres",
+    estudianteCorreo: "esteban@gmail.com",
+    estudianteCarrera: "Medicina Humana (UNMSM)",
+    docenteId: "USR-002",
+    docenteNombre: "Dra. Carmen Rosa Herrera",
+    cursoId: "CRS-006",
+    curso: "Química General",
+    mensaje: "Doctora Herrera, en el taller de estequiometría: ¿en las reacciones redox debemos balancear por ion-electrón en medio ácido?",
+    fecha: "Ayer, 04:15 PM",
     estado: "Pendiente",
     respuesta: null,
     fechaRespuesta: null
@@ -71,10 +87,20 @@ export const chatAcademicService = {
 
   getMessagesForTeacher(docenteId, docenteNombre = "") {
     const all = this.getMessages();
-    const normName = (docenteNombre || "").toLowerCase();
+    const normName = (docenteNombre || "").toLowerCase().trim();
     return all.filter((m) => {
-      if (docenteId && (m.docenteId === docenteId || m.docenteId === "USR-107")) return true;
-      if (normName && (m.docenteNombre || "").toLowerCase().includes("chavez")) return true;
+      if (docenteId && m.docenteId && m.docenteId === docenteId) return true;
+      if (normName && m.docenteNombre && (
+        m.docenteNombre.toLowerCase().includes(normName) ||
+        normName.includes(m.docenteNombre.toLowerCase())
+      )) {
+        return true;
+      }
+      // Si el docente consultado es Chavez o no especifica y es USR-107
+      if ((docenteId === "USR-107" || normName.includes("chavez")) &&
+          (m.docenteId === "USR-107" || (m.docenteNombre || "").toLowerCase().includes("chavez"))) {
+        return true;
+      }
       return false;
     });
   },
@@ -128,21 +154,21 @@ export const chatAcademicService = {
           docenteNombre: "Prof. Pedro Chavez",
           cursoId: "CRS-002",
           cursoNombre: "Física Fundamental",
-          area: "Ciencias Exactas"
+          area: "Ciencias Exactas e Ingenierías"
         },
         {
-          docenteId: "USR-107",
-          docenteNombre: "Prof. Pedro Chavez",
-          cursoId: "CRS-004",
-          cursoNombre: "Trigonometría",
-          area: "Ciencias Exactas"
+          docenteId: "USR-002",
+          docenteNombre: "Dra. Carmen Rosa Herrera",
+          cursoId: "CRS-003",
+          cursoNombre: "Biología y Anatomía",
+          area: "Ciencias Médicas y de la Salud"
         },
         {
           docenteId: "USR-109",
           docenteNombre: "Prof. Victoria Raggi",
-          cursoId: "CRS-001",
-          cursoNombre: "Álgebra y Funciones",
-          area: "Ciencias"
+          cursoId: "CRS-007",
+          cursoNombre: "Historia del Perú",
+          area: "Humanidades y Ciencias Sociales"
         }
       ];
     }
