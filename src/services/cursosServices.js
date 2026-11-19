@@ -1,4 +1,4 @@
-import { insforge } from "../lib/insforge";
+import { insforge, getApiAccessToken } from "../lib/insforge";
 import { getApiBaseUrl } from "../lib/apiUrl";
 const COURSE_COLUMNS = "id, asignatura, area, carrera, docenteId, docente, dias, horaInicio, horaFin, meetUrl, repositorio, estado, created_at, ciclovirtual";
 
@@ -88,9 +88,16 @@ export const courseService = {
    */
   async validarCursoConBackend(curso) {
     try {
+      const token = getApiAccessToken();
+      const headers = { "Content-Type": "application/json" };
+      if (token) {
+        headers["Authorization"] = `Bearer ${token}`;
+      }
+
       const res = await fetch(`${getApiBaseUrl()}/monitoreo/validar-curso`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers,
+        signal: AbortSignal.timeout(4000),
         body: JSON.stringify({
           id: curso.id,
           asignatura: curso.asignatura,
