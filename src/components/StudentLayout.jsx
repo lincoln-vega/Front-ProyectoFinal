@@ -90,13 +90,15 @@ export default function StudentLayout() {
       }
 
       if (!cancelled) {
+        await chatAcademicService.fetchMessages();
         setStudentMessages(chatAcademicService.getMessagesForStudent(studentEmail));
       }
     }
 
     loadStudentData();
 
-    const handleStorageUpdate = () => {
+    const handleStorageUpdate = async () => {
+      await chatAcademicService.fetchMessages();
       setStudentMessages(chatAcademicService.getMessagesForStudent(studentEmail));
     };
 

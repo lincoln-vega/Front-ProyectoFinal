@@ -22,7 +22,8 @@ export default function DocenteChatModal({ isOpen, onClose, docenteName = "Prof.
   useEffect(() => {
     if (!isOpen) return;
 
-    const loadMessages = () => {
+    const loadMessages = async () => {
+      await chatAcademicService.fetchMessages();
       const teacherMsgs = chatAcademicService.getMessagesForTeacher(docenteId, docenteName);
       setMessages(teacherMsgs);
     };

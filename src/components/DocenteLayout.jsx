@@ -40,7 +40,10 @@ export default function DocenteLayout() {
   const userEmail = localStorage.getItem("userEmail") || "docente@academia.edu.pe";
 
   useEffect(() => {
-    const updateChatCount = () => {
+    let cancelled = false;
+    const updateChatCount = async () => {
+      await chatAcademicService.fetchMessages();
+      if (cancelled) return;
       const msgs = chatAcademicService.getMessagesForTeacher(userId, userName);
       const pending = msgs.filter((m) => m.estado === "Pendiente").length;
       setPendingChatCount(pending);
@@ -48,7 +51,12 @@ export default function DocenteLayout() {
 
     updateChatCount();
     window.addEventListener("storage", updateChatCount);
-    return () => window.removeEventListener("storage", updateChatCount);
+    const interval = setInterval(updateChatCount, 8000);
+    return () => {
+      cancelled = true;
+      window.removeEventListener("storage", updateChatCount);
+      clearInterval(interval);
+    };
   }, [userId, userName]);
 
   const initials = userName
