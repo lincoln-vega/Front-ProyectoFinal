@@ -157,11 +157,18 @@ export default function DocenteCursosDetalles({ cursoId, initialTab = "clase", o
         });
         if (hasDirectEnrollment) return true;
 
-        // 2. Si no tiene lista explícita de cursos pero su área académica coincide con la del curso
-        if (inscritos.length === 0 && foundCourse?.area && u.areaAcademica) {
-          const courseArea = foundCourse.area.toLowerCase().trim();
-          const studentArea = u.areaAcademica.toLowerCase().trim();
-          return courseArea.includes(studentArea) || studentArea.includes(courseArea);
+        // 2. Si no tiene lista explícita de cursos pero su área académica o carrera coincide con la del curso
+        if (inscritos.length === 0) {
+          if (foundCourse?.area && u.areaAcademica) {
+            const courseArea = foundCourse.area.toLowerCase().trim();
+            const studentArea = u.areaAcademica.toLowerCase().trim();
+            if (courseArea.includes(studentArea) || studentArea.includes(courseArea)) return true;
+          }
+          if (foundCourse?.carrera && u.carreraObjetivo) {
+            const courseCarrera = foundCourse.carrera.toLowerCase().trim();
+            const studentCarrera = u.carreraObjetivo.toLowerCase().trim();
+            if (courseCarrera.includes(studentCarrera) || studentCarrera.includes(courseCarrera)) return true;
+          }
         }
 
         return false;

@@ -170,20 +170,9 @@ export const courseService = {
   async countStudentsForTeacher(courseIds) {
     if (!courseIds || courseIds.length === 0) return 0;
     try {
-      const { data, error } = await insforge.database.rpc("get_teacher_student_count", {
-        course_ids: courseIds
-      });
-      if (!error && data !== null && data !== undefined) {
-        return Number(data || 0);
-      }
-    } catch {
-      // Si la función RPC no existe en la BD, calculamos con los usuarios inscritos
-    }
-
-    try {
       const { data: students } = await insforge.database
         .from("users")
-        .select("id, cursosInscritos, rol")
+        .select("id, cursosInscritos, rol, areaAcademica")
         .eq("estado", "Activo");
 
       if (Array.isArray(students)) {
@@ -191,12 +180,41 @@ export const courseService = {
           String(u.rol || "").toLowerCase() === "estudiante"
         );
         const stringIds = courseIds.map(String);
+        const courses = await this.getCourses();
+        const teacherCourses = (courses || []).filter((c) => stringIds.includes(String(c.id)));
+        const teacherAreas = teacherCourses
+          .map((c) => (c.area || "").toLowerCase().trim())
+          .filter(Boolean);
+
         const enrolled = studentList.filter((s) => {
-          const courses = Array.isArray(s.cursosInscritos) ? s.cursosInscritos : [];
-          return courses.some((c) => {
+          const sCourses = Array.isArray(s.cursosInscritos) ? s.cursosInscritos : [];
+          // 1. Inscripción directa
+          const hasDirect = sCourses.some((c) => {
             const cid = typeof c === "object" && c !== null ? c.id : c;
             return stringIds.includes(String(cid));
           });
+          if (hasDirect) return true;
+
+          // 2. Si no tiene cursos explícitos pero su área o carrera coincide
+          if (sCourses.length === 0) {
+            if (s.areaAcademica) {
+              const sArea = s.areaAcademica.toLowerCase().trim();
+              if (teacherAreas.some((tArea) => tArea.includes(sArea) || sArea.includes(tArea))) {
+                return true;
+              }
+            }
+            if (s.carreraObjetivo) {
+              const sCarrera = s.carreraObjetivo.toLowerCase().trim();
+              const teacherCarreras = teacherCourses
+                .map((c) => (c.carrera || "").toLowerCase().trim())
+                .filter(Boolean);
+              if (teacherCarreras.some((tC) => tC.includes(sCarrera) || sCarrera.includes(tC))) {
+                return true;
+              }
+            }
+          }
+
+          return false;
         });
         return enrolled.length;
       }

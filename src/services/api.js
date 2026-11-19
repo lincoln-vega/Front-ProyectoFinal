@@ -410,6 +410,27 @@ export const userService = {
   getStoredUsers,
 
   async getUsers() {
+    try {
+      const base = getApiBaseUrl();
+      if (base) {
+        const token = getApiAccessToken();
+        const res = await fetch(`${base.replace(/\/+$/, "")}/usuarios/`, {
+          headers: token ? { Authorization: `Bearer ${token}` } : {},
+          signal: AbortSignal.timeout(3000)
+        });
+        if (res.ok) {
+          const backUsers = await res.json();
+          if (Array.isArray(backUsers) && backUsers.length > 0) {
+            const users = backUsers.map(normalizeUser);
+            cacheUsers(users);
+            return users;
+          }
+        }
+      }
+    } catch {
+      // Continuar con InsForge PostgREST
+    }
+
     const { data, error } = await insforge.database
       .from("users")
       .select(USER_COLUMNS)

@@ -172,7 +172,7 @@ export const chatAcademicService = {
     return this.getMessages();
   },
 
-  getMessagesForTeacher(docenteId, docenteNombre = "") {
+  getMessagesForTeacher(docenteId, docenteNombre = "", docenteEmail = "") {
     const all = this.getMessages();
     const cleanTokens = (str) =>
       String(str || "")
@@ -182,15 +182,28 @@ export const chatAcademicService = {
         .filter((t) => t.length > 2);
 
     const searchTokens = cleanTokens(docenteNombre);
+    const normEmail = String(docenteEmail || "").toLowerCase().trim();
 
     return all.filter((m) => {
-      // 1. Coincidencia por ID de docente
-      if (docenteId && m.docenteId && String(m.docenteId).trim() === String(docenteId).trim()) {
+      // 1. Coincidencia por ID de docente o destinatario
+      if (docenteId && (
+        (m.docenteId && String(m.docenteId).trim() === String(docenteId).trim()) ||
+        (m.destinatarioId && String(m.destinatarioId).trim() === String(docenteId).trim())
+      )) {
         return true;
       }
 
-      // 2. Coincidencia por tokens de nombre
-      const msgTokens = cleanTokens(m.docenteNombre);
+      // 2. Coincidencia por correo electrónico si está disponible
+      if (normEmail && (
+        (m.docenteCorreo && String(m.docenteCorreo).toLowerCase().trim() === normEmail) ||
+        (m.destinatarioCorreo && String(m.destinatarioCorreo).toLowerCase().trim() === normEmail)
+      )) {
+        return true;
+      }
+
+      // 3. Coincidencia por tokens de nombre
+      const targetName = m.destinatarioNombre || m.docenteNombre;
+      const msgTokens = cleanTokens(targetName);
       if (searchTokens.length > 0 && msgTokens.length > 0) {
         const hasTokenOverlap = searchTokens.some((st) =>
           msgTokens.some((mt) => st.includes(mt) || mt.includes(st))
@@ -198,24 +211,120 @@ export const chatAcademicService = {
         if (hasTokenOverlap) return true;
       }
 
-      // 3. Fallback especial si el docente es Chavez
-      if (
-        (docenteId === "USR-107" || searchTokens.includes("chavez")) &&
-        (m.docenteId === "USR-107" || (m.docenteNombre || "").toLowerCase().includes("chavez"))
-      ) {
-        return true;
-      }
-
       return false;
     });
   },
 
-  getMessagesForStudent(studentEmail) {
+  getMessagesForStudent(studentEmail, studentId = "") {
     const all = this.getMessages();
     const normEmail = (studentEmail || "").toLowerCase().trim();
-    return all.filter(
-      (m) => (m.estudianteCorreo || "").toLowerCase().trim() === normEmail
+    const cleanId = String(studentId || "").trim();
+    return all.filter((m) => {
+      if ((m.estudianteCorreo || "").toLowerCase().trim() === normEmail) return true;
+      if ((m.destinatarioCorreo || "").toLowerCase().trim() === normEmail) return true;
+      if (cleanId && (
+        String(m.estudianteId || "").trim() === cleanId ||
+        String(m.destinatarioId || "").trim() === cleanId
+      )) {
+        return true;
+      }
+      return false;
+    });
+  },
+
+  /**
+   * Obtiene la agenda de contactos disponibles estrictamente para el estudiante:
+   * - Docentes Titulares: profesores de los cursos que el alumno efectivamente cursa.
+   * - Compañeros de Curso: alumnos que comparten los mismos cursos o misma carrera/área.
+   */
+  getContactsForStudent(studentProfile, allCourses = [], allUsers = []) {
+    if (!studentProfile) {
+      return { teachers: [], classmates: [], studentCourses: [] };
+    }
+
+    const inscritos = Array.isArray(studentProfile.cursosInscritos)
+      ? studentProfile.cursosInscritos
+      : [];
+    const directIds = new Set(
+      inscritos.map((c) => (typeof c === "object" && c !== null ? String(c.id) : String(c)))
     );
+
+    const activeCourses = (allCourses || []).filter((c) => c.estado === "Activo");
+    const studentArea = String(studentProfile.areaAcademica || "").toLowerCase().trim();
+    const studentCarrera = String(studentProfile.carreraObjetivo || "").toLowerCase().trim();
+
+    // 1. Cursos que corresponden estrictamente al estudiante según matrícula o carrera/área
+    const studentCourses = activeCourses.filter((course) => {
+      if (directIds.has(String(course.id))) return true;
+      if (directIds.size === 0) {
+        const cArea = String(course.area || "").toLowerCase().trim();
+        const cCarrera = String(course.carrera || "").toLowerCase().trim();
+        if (studentArea && (cArea.includes(studentArea) || studentArea.includes(cArea))) return true;
+        if (studentCarrera && (cCarrera.includes(studentCarrera) || studentCarrera.includes(cCarrera))) return true;
+      }
+      return false;
+    });
+
+    const studentCourseIds = new Set(studentCourses.map((c) => String(c.id)));
+
+    // 2. Docentes titulares de esos cursos
+    const teachersMap = new Map();
+    studentCourses.forEach((c) => {
+      const key = `${c.docenteId || c.docente}-${c.id}`;
+      if (!teachersMap.has(key)) {
+        teachersMap.set(key, {
+          tipo: "docente",
+          id: c.docenteId || "DOC-TITULAR",
+          nombre: c.docente || "Docente Titular",
+          correo: c.docenteCorreo || "",
+          cursoId: c.id,
+          cursoNombre: c.asignatura,
+          area: c.area || "Área General"
+        });
+      }
+    });
+    const teachers = Array.from(teachersMap.values());
+
+    // 3. Compañeros de curso (estudiantes que comparten cursos o misma carrera/área)
+    const classmates = (allUsers || []).filter((u) => {
+      if (String(u.rol || "").toLowerCase() !== "estudiante") return false;
+      if (String(u.id) === String(studentProfile.id)) return false;
+      if (String(u.correo || "").toLowerCase() === String(studentProfile.correo || "").toLowerCase()) return false;
+      if (String(u.estado || "").toLowerCase() !== "activo") return false;
+
+      const peerInscritos = Array.isArray(u.cursosInscritos) ? u.cursosInscritos : [];
+      const peerCourseIds = new Set(
+        peerInscritos.map((c) => (typeof c === "object" && c !== null ? String(c.id) : String(c)))
+      );
+
+      // Si comparte algún curso con el alumno
+      const sharesCourse = Array.from(studentCourseIds).some((cid) => peerCourseIds.has(cid));
+      if (sharesCourse) return true;
+
+      // Si alguno no tiene lista explícita, ver si comparten carrera o área académica
+      if (peerCourseIds.size === 0 || directIds.size === 0) {
+        const peerArea = String(u.areaAcademica || "").toLowerCase().trim();
+        const peerCarrera = String(u.carreraObjetivo || "").toLowerCase().trim();
+        if (studentArea && peerArea && (studentArea.includes(peerArea) || peerArea.includes(studentArea))) {
+          return true;
+        }
+        if (studentCarrera && peerCarrera && (studentCarrera.includes(peerCarrera) || peerCarrera.includes(studentCarrera))) {
+          return true;
+        }
+      }
+
+      return false;
+    }).map((peer) => ({
+      tipo: "companero",
+      id: peer.id,
+      nombre: `${peer.nombres || ""} ${peer.apellidos || ""}`.trim() || peer.correo,
+      correo: peer.correo,
+      carrera: peer.carreraObjetivo || peer.areaAcademica || "Estudiante",
+      cursoId: studentCourses[0]?.id || "CRS-GEN",
+      cursoNombre: studentCourses[0]?.asignatura || "Materia Compartida"
+    }));
+
+    return { teachers, classmates, studentCourses };
   },
 
   async getTeachersForStudent(cursosInscritosIds = []) {
@@ -223,7 +332,6 @@ export const chatAcademicService = {
       const courses = await courseService.getCourses();
       const activeCourses = (courses || []).filter((c) => c.estado === "Activo");
 
-      // Filtrar cursos que lleva el alumno si se pasan IDs
       let relevantCourses = activeCourses;
       if (Array.isArray(cursosInscritosIds) && cursosInscritosIds.length > 0) {
         const idSet = new Set(cursosInscritosIds.map(String));
@@ -231,51 +339,16 @@ export const chatAcademicService = {
         if (filtered.length > 0) relevantCourses = filtered;
       }
 
-      const teachers = relevantCourses.map((c) => ({
-        docenteId: c.docenteId || "USR-107",
-        docenteNombre: c.docente || "Pedro Martlon Chavez Quispe",
+      return relevantCourses.map((c) => ({
+        docenteId: c.docenteId || "DOC-TITULAR",
+        docenteNombre: c.docente || "Docente Titular",
         cursoId: c.id,
         cursoNombre: c.asignatura,
         area: c.area || "General"
       }));
-
-      // Siempre incluir como primer contacto al docente titular del sistema
-      if (!teachers.some((t) => (t.docenteNombre || "").toLowerCase().includes("chavez"))) {
-        teachers.unshift({
-          docenteId: "USR-107",
-          docenteNombre: "Pedro Martlon Chavez Quispe",
-          cursoId: "CRS-002",
-          cursoNombre: "Física Fundamental",
-          area: "Ciencias Exactas e Ingenierías"
-        });
-      }
-
-      return teachers;
     } catch (err) {
       console.warn("[ChatAcademicService] Fallback de docentes:", err);
-      return [
-        {
-          docenteId: "USR-107",
-          docenteNombre: "Pedro Martlon Chavez Quispe",
-          cursoId: "CRS-002",
-          cursoNombre: "Física Fundamental",
-          area: "Ciencias Exactas e Ingenierías"
-        },
-        {
-          docenteId: "USR-002",
-          docenteNombre: "Carmen Rosa Herrera Villanueva",
-          cursoId: "CRS-003",
-          cursoNombre: "Biología y Anatomía",
-          area: "Ciencias Médicas y de la Salud"
-        },
-        {
-          docenteId: "USR-109",
-          docenteNombre: "Victoria Angelis Raggi Ruiz",
-          cursoId: "CRS-007",
-          cursoNombre: "Historia del Perú",
-          area: "Humanidades y Ciencias Sociales"
-        }
-      ];
+      return [];
     }
   },
 
@@ -288,23 +361,31 @@ export const chatAcademicService = {
     docenteNombre,
     cursoId,
     curso,
-    mensaje
+    mensaje,
+    destinatarioTipo = "docente",
+    destinatarioId = null,
+    destinatarioNombre = null,
+    destinatarioCorreo = null
   }) {
     const newMessage = {
       id: `MSG-${Date.now()}`,
-      estudianteId: estudianteId || "USR-108",
-      estudianteNombre: estudianteNombre || "Esteban Torres",
-      estudianteCorreo: estudianteCorreo || "esteban@gmail.com",
-      estudianteCarrera: estudianteCarrera || "Medicina Humana (UNMSM)",
-      docenteId: docenteId || "USR-107",
-      docenteNombre: docenteNombre || "Pedro Martlon Chavez Quispe",
-      cursoId: cursoId || "CRS-002",
-      curso: curso || "Física Fundamental",
+      estudianteId: estudianteId || "USR-ESTUDIANTE",
+      estudianteNombre: estudianteNombre || "Estudiante",
+      estudianteCorreo: estudianteCorreo || "",
+      estudianteCarrera: estudianteCarrera || "",
+      docenteId: docenteId || destinatarioId || "DOC-TITULAR",
+      docenteNombre: docenteNombre || destinatarioNombre || "Docente Titular",
+      cursoId: cursoId || "CRS-GEN",
+      curso: curso || "Asignatura General",
       mensaje: mensaje.trim(),
       fecha: "Hoy, " + new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
       estado: "Pendiente",
       respuesta: null,
-      fechaRespuesta: null
+      fechaRespuesta: null,
+      destinatarioTipo: destinatarioTipo || "docente",
+      destinatarioId: destinatarioId || docenteId || "",
+      destinatarioNombre: destinatarioNombre || docenteNombre || "",
+      destinatarioCorreo: destinatarioCorreo || ""
     };
 
     // 1. Guardar localmente de inmediato para reactividad instantánea

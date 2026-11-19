@@ -13,7 +13,13 @@ import {
 } from "lucide-react";
 import { chatAcademicService } from "../../services/chatAcademicService";
 
-export default function DocenteChatModal({ isOpen, onClose, docenteName = "Prof. Pedro Chavez", docenteId = "USR-107" }) {
+export default function DocenteChatModal({
+  isOpen,
+  onClose,
+  docenteName = "Docente Titular",
+  docenteId = "DOC-TITULAR",
+  docenteEmail = ""
+}) {
   const [filter, setFilter] = useState("todos"); // "todos" | "pendientes" | "respondidos"
   const [messages, setMessages] = useState([]);
   const [replyText, setReplyText] = useState({});
@@ -24,14 +30,18 @@ export default function DocenteChatModal({ isOpen, onClose, docenteName = "Prof.
 
     const loadMessages = async () => {
       await chatAcademicService.fetchMessages();
-      const teacherMsgs = chatAcademicService.getMessagesForTeacher(docenteId, docenteName);
+      const teacherMsgs = chatAcademicService.getMessagesForTeacher(
+        docenteId,
+        docenteName,
+        docenteEmail
+      );
       setMessages(teacherMsgs);
     };
 
     loadMessages();
     window.addEventListener("storage", loadMessages);
     return () => window.removeEventListener("storage", loadMessages);
-  }, [isOpen, docenteId, docenteName]);
+  }, [isOpen, docenteId, docenteName, docenteEmail]);
 
   if (!isOpen) return null;
 
@@ -46,7 +56,11 @@ export default function DocenteChatModal({ isOpen, onClose, docenteName = "Prof.
     try {
       chatAcademicService.replyMessage(messageId, text, docenteName);
       setReplyText((prev) => ({ ...prev, [messageId]: "" }));
-      const updated = chatAcademicService.getMessagesForTeacher(docenteId, docenteName);
+      const updated = chatAcademicService.getMessagesForTeacher(
+        docenteId,
+        docenteName,
+        docenteEmail
+      );
       setMessages(updated);
     } catch (err) {
       alert("Error al enviar respuesta: " + err.message);

@@ -64,8 +64,8 @@ export default function StudentLayout() {
   // Estado y perfil del estudiante
   const [studentProfile, setStudentProfile] = useState(null);
   const [availableCourses, setAvailableCourses] = useState([]);
-  const [teachersList, setTeachersList] = useState([]);
-  const [selectedTeacherIndex, setSelectedTeacherIndex] = useState(0);
+  const [contacts, setContacts] = useState({ teachers: [], classmates: [], studentCourses: [] });
+  const [selectedContactKey, setSelectedContactKey] = useState("");
   const [newQuestionText, setNewQuestionText] = useState("");
   const [studentMessages, setStudentMessages] = useState([]);
   const [isSubmittingQuestion, setIsSubmittingQuestion] = useState(false);
@@ -73,26 +73,36 @@ export default function StudentLayout() {
   // Notificaciones interactivas para el estudiante sincronizadas con Backend/Local
   const [notifications, setNotifications] = useState([]);
 
-  // 1. Cargar perfil, asignaturas y docentes reales del estudiante
+  // 1. Cargar perfil, asignaturas y contactos reales estrictamente de los cursos del estudiante
   useEffect(() => {
     let cancelled = false;
 
     async function loadStudentData() {
       try {
-        const [profile, courses] = await Promise.all([
+        const [profile, courses, users] = await Promise.all([
           userService.getUserByEmail(studentEmail),
-          courseService.getCourses().catch(() => [])
+          courseService.getCourses().catch(() => []),
+          userService.getUsers().catch(() => [])
         ]);
         if (!cancelled) {
           if (profile) setStudentProfile(profile);
           if (courses) setAvailableCourses(courses);
-          const teachers = await chatAcademicService.getTeachersForStudent(profile?.cursosInscritos || []);
-          setTeachersList(teachers);
+          const studentContacts = chatAcademicService.getContactsForStudent(
+            profile,
+            courses || [],
+            users || []
+          );
+          setContacts(studentContacts);
+
+          // Preseleccionar el primer contacto relevante
+          if (studentContacts.teachers.length > 0) {
+            setSelectedContactKey("teacher-0");
+          } else if (studentContacts.classmates.length > 0) {
+            setSelectedContactKey("classmate-0");
+          }
         }
       } catch (err) {
         console.warn("[StudentLayout] Error cargando perfil de estudiante:", err);
-        const teachers = await chatAcademicService.getTeachersForStudent();
-        if (!cancelled) setTeachersList(teachers);
       }
 
       if (!cancelled) {
@@ -219,36 +229,63 @@ export default function StudentLayout() {
 
   const handleSubmitQuestion = () => {
     if (!newQuestionText.trim()) {
-      alert("Por favor redacta tu duda o consulta antes de enviar.");
+      alert("Por favor redacta tu mensaje o consulta antes de enviar.");
       return;
     }
 
-    const targetTeacher = teachersList[selectedTeacherIndex] || {
-      docenteId: "USR-107",
-      docenteNombre: "Prof. Pedro Chavez",
-      cursoId: "CRS-002",
-      cursoNombre: "Física Fundamental"
-    };
+    let target = null;
+    let targetType = "docente";
+
+    if (selectedContactKey.startsWith("teacher-")) {
+      const idx = parseInt(selectedContactKey.replace("teacher-", ""), 10);
+      target = contacts.teachers[idx];
+      targetType = "docente";
+    } else if (selectedContactKey.startsWith("classmate-")) {
+      const idx = parseInt(selectedContactKey.replace("classmate-", ""), 10);
+      target = contacts.classmates[idx];
+      targetType = "companero";
+    }
+
+    if (!target) {
+      if (contacts.teachers.length > 0) {
+        target = contacts.teachers[0];
+        targetType = "docente";
+      } else if (contacts.classmates.length > 0) {
+        target = contacts.classmates[0];
+        targetType = "companero";
+      } else {
+        alert("No tienes docentes o compañeros asignados a tus cursos actualmente.");
+        return;
+      }
+    }
 
     setIsSubmittingQuestion(true);
     try {
       chatAcademicService.sendMessage({
-        estudianteId: studentProfile?.id || "USR-108",
+        estudianteId: studentProfile?.id || "USR-ESTUDIANTE",
         estudianteNombre: studentName,
         estudianteCorreo: studentEmail,
-        estudianteCarrera: studentProfile?.carreraObjetivo || "Medicina Humana (UNMSM)",
-        docenteId: targetTeacher.docenteId,
-        docenteNombre: targetTeacher.docenteNombre,
-        cursoId: targetTeacher.cursoId,
-        curso: targetTeacher.cursoNombre,
+        estudianteCarrera: studentProfile?.carreraObjetivo || "Estudiante",
+        destinatarioTipo: targetType,
+        docenteId: target.id,
+        docenteNombre: target.nombre,
+        destinatarioId: target.id,
+        destinatarioNombre: target.nombre,
+        destinatarioCorreo: target.correo || "",
+        cursoId: target.cursoId || "CRS-GEN",
+        curso: target.cursoNombre || "Materia",
         mensaje: newQuestionText
       });
 
       setNewQuestionText("");
-      setStudentMessages(chatAcademicService.getMessagesForStudent(studentEmail));
-      alert("¡Consulta enviada exitosamente al docente! El profesor podrá verla y responderte desde su panel.");
+      setStudentMessages(chatAcademicService.getMessagesForStudent(studentEmail, studentProfile?.id));
+      alert(
+        targetType === "docente"
+          ? `¡Consulta enviada exitosamente a tu docente ${target.nombre}! Podrá verla y responderte desde su panel.`
+          : `¡Mensaje enviado exitosamente a tu compañero(a) ${target.nombre}!`
+      );
     } catch (err) {
-      alert("Error al enviar la consulta: " + err.message);
+      alert("Error al enviar el mensaje: " + err.message);
     } finally {
       setIsSubmittingQuestion(false);
     }
@@ -670,30 +707,46 @@ export default function StudentLayout() {
 
             <div className="space-y-2 text-xs">
               <label className="font-bold text-slate-700 dark:text-slate-200 block">
-                Selecciona la asignatura o docente titular:
+                Selecciona el destinatario (docente o compañero de tu curso):
               </label>
               <select
-                value={selectedTeacherIndex}
-                onChange={(e) => setSelectedTeacherIndex(Number(e.target.value))}
+                value={selectedContactKey}
+                onChange={(e) => setSelectedContactKey(e.target.value)}
                 className="w-full p-2.5 rounded-xl border border-slate-300 dark:border-white/10 bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200 font-medium cursor-pointer"
               >
-                {teachersList.map((t, idx) => (
-                  <option key={idx} value={idx}>
-                    {t.docenteNombre} — {t.cursoNombre} ({t.area})
-                  </option>
-                ))}
+                {contacts.teachers.length > 0 && (
+                  <optgroup label="👨‍🏫 Mis Docentes Titulares">
+                    {contacts.teachers.map((t, idx) => (
+                      <option key={`teacher-${idx}`} value={`teacher-${idx}`}>
+                        {t.nombre} — {t.cursoNombre} ({t.area})
+                      </option>
+                    ))}
+                  </optgroup>
+                )}
+                {contacts.classmates.length > 0 && (
+                  <optgroup label="👥 Mis Compañeros de Curso">
+                    {contacts.classmates.map((c, idx) => (
+                      <option key={`classmate-${idx}`} value={`classmate-${idx}`}>
+                        {c.nombre} — {c.carrera} ({c.cursoNombre})
+                      </option>
+                    ))}
+                  </optgroup>
+                )}
+                {contacts.teachers.length === 0 && contacts.classmates.length === 0 && (
+                  <option value="">No hay contactos vinculados a tus asignaturas</option>
+                )}
               </select>
             </div>
 
             <div className="space-y-2 text-xs">
               <label className="font-bold text-slate-700 dark:text-slate-200 block">
-                Escribe tu consulta o duda:
+                Escribe tu mensaje o consulta:
               </label>
               <textarea
                 rows={3}
                 value={newQuestionText}
                 onChange={(e) => setNewQuestionText(e.target.value)}
-                placeholder="Hola profesor, tengo una duda sobre el ejercicio del boletín..."
+                placeholder="Hola, tengo una consulta sobre las actividades o temas de clase..."
                 className="w-full p-3 rounded-xl border border-slate-300 dark:border-white/10 bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200 text-xs focus:ring-2 focus:ring-blue-500 focus:outline-hidden"
               />
             </div>
@@ -712,7 +765,11 @@ export default function StudentLayout() {
                 onClick={handleSubmitQuestion}
                 className="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-extrabold shadow-md cursor-pointer disabled:opacity-50"
               >
-                {isSubmittingQuestion ? "Enviando..." : "Enviar Consulta al Docente"}
+                {isSubmittingQuestion
+                  ? "Enviando..."
+                  : selectedContactKey.startsWith("classmate-")
+                  ? "Enviar a Compañero"
+                  : "Enviar Consulta al Docente"}
               </button>
             </div>
 

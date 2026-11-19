@@ -45,7 +45,7 @@ export default function DocenteLayout() {
     const updateChatCount = async () => {
       await chatAcademicService.fetchMessages();
       if (cancelled) return;
-      const msgs = chatAcademicService.getMessagesForTeacher(userId, userName);
+      const msgs = chatAcademicService.getMessagesForTeacher(userId, userName, userEmail);
       const pending = msgs.filter((m) => m.estado === "Pendiente").length;
       setPendingChatCount(pending);
     };
@@ -58,7 +58,7 @@ export default function DocenteLayout() {
       window.removeEventListener("storage", updateChatCount);
       clearInterval(interval);
     };
-  }, [userId, userName]);
+  }, [userId, userName, userEmail]);
 
   const initials = userName
     .split(" ")
@@ -101,33 +101,68 @@ export default function DocenteLayout() {
     let cancelled = false;
 
     const syncNotifications = () => {
-      const tasks = academicActivitiesService.getTasks();
-      const anns = academicActivitiesService.getAnnouncements();
+      // 1. Mensajes / consultas de alumnos dirigidas al docente
+      const myMessages = chatAcademicService.getMessagesForTeacher(userId, userName, userEmail);
+      const pendingMessages = myMessages.filter((m) => m.estado === "Pendiente");
 
-      const combined = [
-        ...tasks.slice(0, 3).map((t) => ({
+      const messageNotifs = pendingMessages.map((m) => ({
+        id: `msg-${m.id}`,
+        title: `Consulta de Alumno: ${m.estudianteNombre}`,
+        course: `${m.curso} • ${m.mensaje?.slice(0, 45) || "Nueva consulta"}...`,
+        time: m.fecha || "Hoy",
+        type: "mensaje",
+        unread: true
+      }));
+
+      // 2. Entregas de tareas por parte de alumnos
+      const tasks = academicActivitiesService.getTasks();
+      const entregas = tasks
+        .filter((t) => t.estado === "Entregado")
+        .slice(0, 3)
+        .map((t) => ({
+          id: `task-entregada-${t.id}`,
+          title: `Tarea Entregada: ${t.titulo}`,
+          course: `${t.curso} • Alumno envió solución`,
+          time: t.fechaLimite || "Reciente",
+          type: "tarea",
+          unread: true
+        }));
+
+      // 3. Tareas activas
+      const activeTasks = tasks
+        .filter((t) => t.estado !== "Entregado")
+        .slice(0, 2)
+        .map((t) => ({
           id: `task-${t.id}`,
           title: `Tarea Activa: ${t.titulo}`,
           course: `${t.curso} • ${t.estado}`,
           time: t.fechaLimite,
           type: "tarea",
-          unread: t.estado === "Por entregar"
-        })),
-        ...anns.slice(0, 2).map((a) => ({
-          id: `ann-${a.id}`,
-          title: `Comunicado: ${a.titulo}`,
-          course: `${a.curso} (${a.prioridad})`,
-          time: "Publicado",
-          type: "anuncio",
           unread: false
-        })),
+        }));
+
+      const anns = academicActivitiesService.getAnnouncements();
+      const annNotifs = anns.slice(0, 2).map((a) => ({
+        id: `ann-${a.id}`,
+        title: `Comunicado: ${a.titulo}`,
+        course: `${a.curso} (${a.prioridad})`,
+        time: "Publicado",
+        type: "anuncio",
+        unread: false
+      }));
+
+      const combined = [
+        ...messageNotifs,
+        ...entregas,
+        ...activeTasks,
+        ...annNotifs,
         {
           id: "meet-audit",
           title: "Asistencia Auditoría Meet",
           course: "Registro automático activo",
           time: "Hoy",
           type: "asistencia",
-          unread: true
+          unread: false
         }
       ];
 
@@ -350,10 +385,16 @@ export default function DocenteLayout() {
                       <div
                         key={notif.id}
                         className="p-3.5 hover:bg-slate-50 dark:hover:bg-white/5 transition-colors cursor-pointer"
-                        onClick={() => setNotificationsOpen(false)}
+                        onClick={() => {
+                          setNotificationsOpen(false);
+                          if (notif.type === "mensaje") {
+                            setIsChatModalOpen(true);
+                          }
+                        }}
                       >
                         <div className="flex items-start gap-2.5">
                           <div className="p-1.5 rounded-lg bg-blue-50 dark:bg-blue-950/50 text-blue-600 dark:text-blue-400 mt-0.5 shrink-0">
+                            {notif.type === "mensaje" && <MessageSquare className="w-4 h-4 text-purple-500" />}
                             {notif.type === "asistencia" && <CheckCircle2 className="w-4 h-4 text-emerald-500" />}
                             {notif.type === "tarea" && <FileText className="w-4 h-4 text-blue-500" />}
                             {notif.type === "anuncio" && <Bell className="w-4 h-4 text-indigo-500" />}
@@ -578,6 +619,7 @@ export default function DocenteLayout() {
         onClose={() => setIsChatModalOpen(false)}
         docenteName={userName}
         docenteId={userId}
+        docenteEmail={userEmail}
       />
     </div>
   );
