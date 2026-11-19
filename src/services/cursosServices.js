@@ -1,5 +1,5 @@
 import { insforge } from "../lib/insforge";
-
+import { getApiBaseUrl } from "../lib/apiUrl";
 const COURSE_COLUMNS = "id, asignatura, area, carrera, docenteId, docente, dias, horaInicio, horaFin, meetUrl, repositorio, estado, created_at, ciclovirtual";
 
 const throwIfError = (error, operation) => {
@@ -32,7 +32,7 @@ const parseSchedule = (schedule = "") => {
   };
 };
 
-const normalizeCourse = (course) => {
+export const normalizeCourse = (course) => {
   if (!course) return course;
   const { created_at, ...storedCourse } = course;
   const parsed = parseSchedule(course.horario);
@@ -47,14 +47,22 @@ const normalizeCourse = (course) => {
 
   return {
     ...storedCourse,
+    id: storedCourse.id || storedCourse.codigo || `CRS-${Date.now().toString().slice(-4)}`,
     codigo: course.codigo || storedCourse.id,
+    asignatura: storedCourse.asignatura || "",
+    area: storedCourse.area || "Ciencias Exactas e Ingenierías",
+    carrera: storedCourse.carrera || "Ingeniería de Sistemas",
+    docenteId: storedCourse.docenteId || "USR-002",
+    docente: storedCourse.docente || "",
     aula: course.aula || `Aula ${storedCourse.id ? String(storedCourse.id).replace('CRS-', 'V-') : 'Virtual'}`,
     horario: horarioTexto,
     dias,
     horaInicio,
     horaFin,
     meetUrl,
+    repositorio: storedCourse.repositorio || "drive.google.com",
     tipoSala,
+    estado: storedCourse.estado || "Activo",
     cicloVirtual: storedCourse.cicloVirtual || storedCourse.ciclovirtual || "Semestral",
     ciclovirtual: storedCourse.ciclovirtual || storedCourse.cicloVirtual || "Semestral"
   };
@@ -75,14 +83,67 @@ export const courseService = {
     return courseService.getCourses();
   },
 
+  /**
+   * Valida un nuevo curso contra el backend FastAPI (/monitoreo/validar-curso)
+   */
+  async validarCursoConBackend(curso) {
+    try {
+      const res = await fetch(`${getApiBaseUrl()}/monitoreo/validar-curso`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          id: curso.id,
+          asignatura: curso.asignatura,
+          area: curso.area,
+          carrera: curso.carrera,
+          docenteId: curso.docenteId,
+          docente: curso.docente,
+          dias: curso.dias,
+          horaInicio: curso.horaInicio,
+          horaFin: curso.horaFin,
+          meetUrl: curso.meetUrl,
+          repositorio: curso.repositorio,
+          estado: curso.estado || "Activo"
+        })
+      });
+
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        if (data?.detail) {
+          const detail = typeof data.detail === "string" ? data.detail : JSON.stringify(data.detail);
+          console.warn("[Backend] Alerta de monitoreo de curso:", detail);
+          return { valido: false, mensaje: detail };
+        }
+      } else {
+        const data = await res.json().catch(() => ({ valido: true }));
+        return data;
+      }
+    } catch (err) {
+      console.warn("[Backend] Validación remota de cruces no disponible, usando validación local:", err.message);
+    }
+
+    // Fallback a validación local si backend no responde
+    return courseService.validarCruce(curso);
+  },
+
   async saveCourses(courses) {
     if (courses.length === 0) return [];
     const rows = courses.map((course) => {
       const normalized = normalizeCourse(course);
-      const { aula, codigo, horario, tipoSala, created_at, cicloVirtual, ...row } = normalized;
       return {
-        ...row,
-        ciclovirtual: cicloVirtual || row.ciclovirtual || "Semestral"
+        id: normalized.id,
+        asignatura: normalized.asignatura,
+        area: normalized.area,
+        carrera: normalized.carrera,
+        docenteId: normalized.docenteId,
+        docente: normalized.docente,
+        dias: Array.isArray(normalized.dias) ? normalized.dias : [],
+        horaInicio: normalized.horaInicio,
+        horaFin: normalized.horaFin,
+        meetUrl: normalized.meetUrl,
+        repositorio: normalized.repositorio,
+        estado: normalized.estado || "Activo",
+        ciclovirtual: normalized.cicloVirtual || normalized.ciclovirtual || "Semestral"
       };
     });
     const { data, error } = await insforge.database
@@ -91,6 +152,11 @@ export const courseService = {
       .select(COURSE_COLUMNS);
     throwIfError(error, "guardar cursos");
     return (data || []).map(normalizeCourse);
+  },
+
+  async saveCourse(course) {
+    const list = await courseService.saveCourses([course]);
+    return list[0] || normalizeCourse(course);
   },
 
   async deleteCourse(id) {
@@ -102,12 +168,30 @@ export const courseService = {
   },
 
   async countStudentsForTeacher(courseIds) {
-    if (courseIds.length === 0) return 0;
-    const { data, error } = await insforge.database.rpc("get_teacher_student_count", {
-      course_ids: courseIds
-    });
-    throwIfError(error, "contar estudiantes matriculados");
-    return Number(data || 0);
+    if (!courseIds || courseIds.length === 0) return 0;
+    try {
+      const { data, error } = await insforge.database.rpc("get_teacher_student_count", {
+        course_ids: courseIds
+      });
+      if (!error && data !== null && data !== undefined) {
+        return Number(data);
+      }
+    } catch {
+      // Fallback a matriculas
+    }
+
+    try {
+      const { data, error } = await insforge.database
+        .from("matriculas")
+        .select("id, estado")
+        .eq("estado", "Activa");
+      if (!error && Array.isArray(data)) {
+        return data.length;
+      }
+    } catch {
+      // Fallback silencioso
+    }
+    return 0;
   },
 
   async validarCruce(nuevoCurso) {
@@ -115,11 +199,17 @@ export const courseService = {
     const newDays = Array.isArray(nuevoCurso.dias) ? nuevoCurso.dias : [];
     const collision = courses.find((course) => {
       if (course.id === nuevoCurso.id) return false;
+      const sameTeacher = nuevoCurso.docenteId && course.docenteId && nuevoCurso.docenteId === course.docenteId;
       const sameDay = course.dias.some((day) => newDays.includes(day));
       const overlaps = nuevoCurso.horaInicio < course.horaFin &&
         nuevoCurso.horaFin > course.horaInicio;
-      return sameDay && overlaps;
+      return (sameTeacher || sameDay) && overlaps;
     });
-    return { cruce: Boolean(collision), curso: collision || null };
+    return {
+      cruce: Boolean(collision),
+      valido: !collision,
+      mensaje: collision ? `Existe cruce con el curso ${collision.asignatura} (${collision.horario || collision.dias?.join(', ')})` : null,
+      curso: collision || null
+    };
   }
 };

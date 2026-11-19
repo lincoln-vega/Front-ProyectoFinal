@@ -26,6 +26,7 @@ import { courseService } from "../../services/cursosServices";
 import { userService } from "../../services/api";
 import { getMeetAttendanceHistory, registerMeetEntry, registerMeetExit } from "../../services/asistencia";
 import { academicActivitiesService } from "../../services/academicActivitiesService";
+import { chatAcademicService } from "../../services/chatAcademicService";
 
 const validMeetUrl = (value) => {
   try {
@@ -65,6 +66,36 @@ export default function DocenteCursosDetalles({ cursoId, onVolver }) {
   const [enrolledStudents, setEnrolledStudents] = useState([]);
   const [isTaskModalOpen, setIsTaskModalOpen] = useState(false);
   const [isAnnModalOpen, setIsAnnModalOpen] = useState(false);
+
+  // Estados para Consultas de Estudiantes del curso
+  const [courseMessages, setCourseMessages] = useState([]);
+  const [replyTexts, setReplyTexts] = useState({});
+
+  useEffect(() => {
+    if (!cursoId) return;
+    const syncCourseMsgs = () => {
+      const all = chatAcademicService.getMessages();
+      const filtered = all.filter(
+        (m) => m.cursoId === cursoId || (curso && m.curso === curso.asignatura)
+      );
+      setCourseMessages(filtered);
+    };
+
+    syncCourseMsgs();
+    window.addEventListener("storage", syncCourseMsgs);
+    return () => window.removeEventListener("storage", syncCourseMsgs);
+  }, [cursoId, curso]);
+
+  const handleReplyInCourse = (messageId) => {
+    const text = replyTexts[messageId];
+    if (!text || !text.trim()) {
+      alert("Por favor escribe una respuesta.");
+      return;
+    }
+    chatAcademicService.replyMessage(messageId, text, curso?.docente || "Prof. Pedro Chavez");
+    setReplyTexts((prev) => ({ ...prev, [messageId]: "" }));
+    setNotice("Respuesta enviada al estudiante con éxito.");
+  };
 
   // Formulario nueva tarea
   const [newTaskData, setNewTaskData] = useState({
@@ -466,6 +497,19 @@ export default function DocenteCursosDetalles({ cursoId, onVolver }) {
           <Users className="w-4 h-4" />
           <span>Alumnos Matriculados ({enrolledStudents.length})</span>
         </button>
+
+        <button
+          type="button"
+          onClick={() => setActiveTab("consultas")}
+          className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs sm:text-sm font-bold transition-all cursor-pointer ${
+            activeTab === "consultas"
+              ? "bg-blue-600 text-white shadow-md shadow-blue-600/30"
+              : "bg-white dark:bg-white/5 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-white/10"
+          }`}
+        >
+          <MessageSquare className="w-4 h-4" />
+          <span>Consultas de Alumnos ({courseMessages.length})</span>
+        </button>
       </div>
 
       {/* CONTENIDO SEGÚN LA PESTAÑA ACTIVA */}
@@ -755,6 +799,97 @@ export default function DocenteCursosDetalles({ cursoId, onVolver }) {
                 </div>
               </div>
             ))}
+          </div>
+        </div>
+      )}
+
+      {/* 5. PESTAÑA: CONSULTAS Y TUTORÍA DEL CURSO */}
+      {activeTab === "consultas" && (
+        <div className="rounded-3xl border border-slate-200/90 dark:border-white/10 bg-white dark:bg-slate-900 p-6 shadow-sm space-y-4">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-100 dark:border-white/10">
+            <div>
+              <h3 className="text-base font-extrabold text-slate-900 dark:text-white flex items-center gap-2">
+                <MessageSquare className="w-5 h-5 text-blue-600" />
+                <span>Consultas de Alumnos en {curso.asignatura}</span>
+              </h3>
+              <p className="text-xs text-slate-500 dark:text-slate-400">
+                Preguntas académicas formuladas por estudiantes matriculados en esta materia
+              </p>
+            </div>
+            <span className="text-xs font-bold px-3 py-1 rounded-full bg-blue-50 dark:bg-blue-950/50 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-900">
+              {courseMessages.length} consultas registradas
+            </span>
+          </div>
+
+          <div className="space-y-3">
+            {courseMessages.length === 0 ? (
+              <div className="p-10 text-center text-slate-400 text-xs">
+                No hay consultas registradas para este curso actualmente.
+              </div>
+            ) : (
+              courseMessages.map((msg) => (
+                <div
+                  key={msg.id}
+                  className="p-4 rounded-2xl border border-slate-200/80 dark:border-white/10 bg-slate-50/60 dark:bg-white/5 space-y-3"
+                >
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="flex items-center space-x-2.5">
+                      <div className="w-8 h-8 rounded-full bg-blue-600 text-white text-xs font-black flex items-center justify-center">
+                        {msg.estudianteNombre.split(" ").slice(0, 2).map((w) => w[0].toUpperCase()).join("")}
+                      </div>
+                      <div>
+                        <h4 className="text-xs font-extrabold text-slate-900 dark:text-white">
+                          {msg.estudianteNombre}
+                        </h4>
+                        <span className="text-[11px] text-indigo-600 dark:text-indigo-400 font-bold block">
+                          {msg.estudianteCarrera}
+                        </span>
+                      </div>
+                    </div>
+                    <span className={`text-[10px] font-extrabold px-2.5 py-0.5 rounded-full border ${
+                      msg.estado === "Pendiente"
+                        ? "bg-amber-100 dark:bg-amber-950/50 text-amber-800 dark:text-amber-300 border-amber-300"
+                        : "bg-emerald-100 dark:bg-emerald-950/50 text-emerald-800 dark:text-emerald-300 border-emerald-300"
+                    }`}>
+                      {msg.estado}
+                    </span>
+                  </div>
+
+                  <p className="text-xs text-slate-700 dark:text-slate-300 bg-white dark:bg-slate-800 p-3 rounded-xl border border-slate-200/50 dark:border-white/5 leading-relaxed">
+                    {msg.mensaje}
+                  </p>
+
+                  {msg.respuesta ? (
+                    <div className="p-2.5 bg-blue-50 dark:bg-blue-950/30 rounded-xl border border-blue-200 dark:border-blue-900/40 text-xs space-y-1">
+                      <span className="font-bold text-blue-700 dark:text-blue-300 text-[10px] flex items-center gap-1">
+                        <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" />
+                        Tu respuesta ({msg.fechaRespuesta}):
+                      </span>
+                      <p className="text-slate-800 dark:text-slate-200">{msg.respuesta}</p>
+                    </div>
+                  ) : (
+                    <div className="space-y-2">
+                      <textarea
+                        rows={2}
+                        value={replyTexts[msg.id] || ""}
+                        onChange={(e) => setReplyTexts({ ...replyTexts, [msg.id]: e.target.value })}
+                        placeholder="Escribe la respuesta al estudiante..."
+                        className="w-full p-2.5 rounded-xl border border-slate-300 dark:border-white/10 bg-white dark:bg-slate-800 text-xs text-slate-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:outline-hidden"
+                      />
+                      <div className="flex justify-end">
+                        <button
+                          type="button"
+                          onClick={() => handleReplyInCourse(msg.id)}
+                          className="px-3.5 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-bold shadow-xs cursor-pointer"
+                        >
+                          Responder al Alumno
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              ))
+            )}
           </div>
         </div>
       )}

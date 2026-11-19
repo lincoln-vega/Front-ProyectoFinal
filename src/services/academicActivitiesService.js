@@ -1,24 +1,66 @@
 // Servicio de gestión de tareas, evaluaciones y anuncios académicos (V2.0)
-// Integra persistencia en Backend FastAPI y PostgreSQL con fallback en localStorage
+// Integra persistencia bidireccional en Backend FastAPI y PostgreSQL con fallback en localStorage
+import { getApiBaseUrl } from "../lib/apiUrl";
+import { getApiAccessToken } from "../lib/insforge";
 
-const API_BASE_URL = import.meta.env.VITE_BACKEND_URL || "http://localhost:8000";
+const getBackendUrls = () => {
+  const urls = [];
+  try {
+    const primary = getApiBaseUrl();
+    if (primary) urls.push(primary.replace(/\/+$/, ""));
+  } catch {
+    // Ignore
+  }
+  const fallbackEnv = import.meta.env.VITE_BACKEND_URL;
+  if (fallbackEnv && !urls.includes(fallbackEnv.replace(/\/+$/, ""))) {
+    urls.push(fallbackEnv.replace(/\/+$/, ""));
+  }
+
+  // Local fallback directo para pruebas de integración continua
+  if (!urls.some((u) => u.includes("localhost:8000") || u.includes("127.0.0.1:8000"))) {
+    urls.push("http://localhost:8000");
+  }
+  return urls;
+};
+
+const getHeaders = () => {
+  const headers = { "Content-Type": "application/json" };
+  const token = getApiAccessToken();
+  if (token) {
+    headers.Authorization = `Bearer ${token}`;
+  }
+  return headers;
+};
+
+async function requestActivities(path, options = {}) {
+  const urls = getBackendUrls();
+  const headers = getHeaders();
+  const opts = {
+    ...options,
+    headers: {
+      ...headers,
+      ...(options.headers || {})
+    }
+  };
+
+  for (const base of urls) {
+    try {
+      const fullUrl = `${base}${path}`;
+      const res = await fetch(fullUrl, opts);
+      if (res.ok) {
+        return await res.json();
+      }
+    } catch {
+      // Intentar con siguiente URL disponible
+    }
+  }
+  return null;
+}
+
 const TASKS_STORAGE_KEY = "academia_pre_tareas_v2";
 const ANNOUNCEMENTS_STORAGE_KEY = "academia_pre_anuncios_v2";
 
 const DEFAULT_TASKS = [
-  {
-    id: "TSK-001",
-    cursoId: "CRS-001",
-    curso: "Álgebra y Funciones",
-    tipo: "Tarea Calificada",
-    titulo: "Práctica N° 4: Funciones Cuadráticas y Polinomios",
-    estado: "Por entregar",
-    fechaLimite: "Mañana, 11:59 PM",
-    puntos: "20 pts",
-    descripcion: "Desarrollar los 10 ejercicios pares de la separata teórica N° 4 en formato PDF manuscrito o digital.",
-    docente: "Prof. Carmen Rosa Herrera",
-    createdAt: new Date(Date.now() - 86400000).toISOString()
-  },
   {
     id: "TSK-002",
     cursoId: "CRS-002",
@@ -29,7 +71,8 @@ const DEFAULT_TASKS = [
     fechaLimite: "Viernes, 11:59 PM",
     puntos: "20 pts",
     descripcion: "Completar la resolución de los problemas de dinámica lineal con sus diagramas de cuerpo libre.",
-    docente: "Prof. Miguel Ángel Paredes",
+    docente: "Prof. Pedro Martlon Chavez Quispe",
+    docenteId: "USR-107",
     createdAt: new Date(Date.now() - 172800000).toISOString()
   },
   {
@@ -43,11 +86,82 @@ const DEFAULT_TASKS = [
     nota: "18.5 / 20",
     puntos: "20 pts",
     descripcion: "Cuestionario de 20 preguntas con retroalimentación inmediata sobre bases celulares y herencia genética.",
-    docente: "Dra. Elena Sofía Torres",
+    docente: "Dra. Carmen Rosa Herrera Villanueva",
+    docenteId: "USR-002",
     createdAt: new Date(Date.now() - 259200000).toISOString()
   },
   {
     id: "TSK-004",
+    cursoId: "CRS-004",
+    curso: "Trigonometría",
+    tipo: "Tarea Calificada",
+    titulo: "Práctica Calificada: Identidades Trigonométricas",
+    estado: "Por entregar",
+    fechaLimite: "Lunes, 11:59 PM",
+    puntos: "20 pts",
+    descripcion: "Demostrar las 5 identidades auxiliares de ángulos compuestos detallando el procedimiento paso a paso.",
+    docente: "Prof. Pedro Martlon Chavez Quispe",
+    docenteId: "USR-107",
+    createdAt: new Date(Date.now() - 86400000 * 2).toISOString()
+  },
+  {
+    id: "TSK-006",
+    cursoId: "CRS-006",
+    curso: "Química General",
+    tipo: "Taller Grupal",
+    titulo: "Taller N° 2: Estequiometría y Enlaces Químicos",
+    estado: "Por entregar",
+    fechaLimite: "Sábado, 06:00 PM",
+    puntos: "20 pts",
+    descripcion: "Balancear las ecuaciones redox y calcular el reactivo limitante para las reacciones planteadas.",
+    docente: "Dra. Carmen Rosa Herrera Villanueva",
+    docenteId: "USR-002",
+    createdAt: new Date(Date.now() - 86400000).toISOString()
+  },
+  {
+    id: "TSK-007",
+    cursoId: "CRS-007",
+    curso: "Historia del Perú",
+    tipo: "Ensayo Crítico",
+    titulo: "Ensayo: Reformas Borbónicas y Crisis Virreinal",
+    estado: "Por entregar",
+    fechaLimite: "Próximo Martes, 11:59 PM",
+    puntos: "20 pts",
+    descripcion: "Analizar el impacto económico y social de las reformas borbónicas en las comunidades indígenas del siglo XVIII.",
+    docente: "Prof. Victoria Angelis Raggi Ruiz",
+    docenteId: "USR-109",
+    createdAt: new Date(Date.now() - 86400000 * 2).toISOString()
+  },
+  {
+    id: "TSK-008",
+    cursoId: "CRS-008",
+    curso: "Historia Universal",
+    tipo: "Análisis Documental",
+    titulo: "Análisis: Primera Guerra Mundial y Tratado de Versalles",
+    estado: "Por entregar",
+    fechaLimite: "Jueves, 11:59 PM",
+    puntos: "20 pts",
+    descripcion: "Identificar las causas geopolíticas y las consecuencias territoriales en el mapa europeo de entreguerras.",
+    docente: "Prof. Victoria Angelis Raggi Ruiz",
+    docenteId: "USR-109",
+    createdAt: new Date(Date.now() - 86400000).toISOString()
+  },
+  {
+    id: "TSK-009",
+    cursoId: "CRS-009",
+    curso: "Geografía y Ecología",
+    tipo: "Taller Práctico",
+    titulo: "Taller Cartográfico: Ocho Regiones Naturales del Perú",
+    estado: "Por entregar",
+    fechaLimite: "Viernes, 08:00 PM",
+    puntos: "20 pts",
+    descripcion: "Elaborar el corte altitudinal y caracterizar pisos ecológicos según la tesis de Javier Pulgar Vidal.",
+    docente: "Prof. Victoria Angelis Raggi Ruiz",
+    docenteId: "USR-109",
+    createdAt: new Date().toISOString()
+  },
+  {
+    id: "TSK-SIM",
     cursoId: "SIM-01",
     curso: "Academia Pre (General)",
     tipo: "Simulacro Tipo Admisión",
@@ -63,24 +177,70 @@ const DEFAULT_TASKS = [
 
 const DEFAULT_ANNOUNCEMENTS = [
   {
-    id: "ANN-001",
-    cursoId: "CRS-001",
-    curso: "Álgebra y Funciones",
-    titulo: "Material adicional: Fórmulas de Factorización y Radicación",
-    contenido: "Estimados alumnos, he subido a la biblioteca digital el formulario resumido para resolver con mayor rapidez los problemas del simulacro de este fin de semana. ¡Aprovéchenlo!",
-    prioridad: "Importante",
-    docente: "Prof. Carmen Rosa Herrera",
-    createdAt: new Date(Date.now() - 3600000 * 5).toISOString()
-  },
-  {
     id: "ANN-002",
     cursoId: "CRS-002",
     curso: "Física Fundamental",
-    titulo: "Repaso extraordinario de Estática y Rozamiento",
+    titulo: "Sesión de Repaso de Estática y Dinámica",
     contenido: "Este jueves a las 06:00 PM tendremos una sesión voluntaria de resolución de dudas en Google Meet antes de la práctica calificada.",
     prioridad: "Normal",
-    docente: "Prof. Miguel Ángel Paredes",
+    docente: "Prof. Pedro Martlon Chavez Quispe",
+    docenteId: "USR-107",
     createdAt: new Date(Date.now() - 86400000 * 2).toISOString()
+  },
+  {
+    id: "ANN-003",
+    cursoId: "CRS-003",
+    curso: "Biología y Anatomía",
+    titulo: "Banco de Preguntas UNMSM: Sistema Circulatorio",
+    contenido: "Alumnos del bloque de Biomédicas, he cargado 40 preguntas tipo DECO con claves justificadas para el examen de admisión.",
+    prioridad: "Alta",
+    docente: "Dra. Carmen Rosa Herrera Villanueva",
+    docenteId: "USR-002",
+    createdAt: new Date(Date.now() - 86400000).toISOString()
+  },
+  {
+    id: "ANN-004",
+    cursoId: "CRS-004",
+    curso: "Trigonometría",
+    titulo: "Formulario oficial de Identidades Auxiliares",
+    contenido: "Alumnos, pueden descargar el formulario de identidades trigonométricas auxiliares de la biblioteca virtual del curso.",
+    prioridad: "Importante",
+    docente: "Prof. Pedro Martlon Chavez Quispe",
+    docenteId: "USR-107",
+    createdAt: new Date(Date.now() - 86400000).toISOString()
+  },
+  {
+    id: "ANN-006",
+    cursoId: "CRS-006",
+    curso: "Química General",
+    titulo: "Tabla Periódica Interactiva y Ejercicios Resueltos",
+    contenido: "Se habilitó el módulo con las masas atómicas y números de oxidación actualizados para la unidad de estequiometría.",
+    prioridad: "Normal",
+    docente: "Dra. Carmen Rosa Herrera Villanueva",
+    docenteId: "USR-002",
+    createdAt: new Date(Date.now() - 86400000 * 3).toISOString()
+  },
+  {
+    id: "ANN-007",
+    cursoId: "CRS-007",
+    curso: "Historia del Perú",
+    titulo: "Lectura obligatoria: Rebeliones Indígenas del Siglo XVIII",
+    contenido: "Revisar los textos seleccionados de Scarlett O'Phelan sobre la rebelión de Túpac Amaru II para el debate de la sesión 8.",
+    prioridad: "Importante",
+    docente: "Prof. Victoria Angelis Raggi Ruiz",
+    docenteId: "USR-109",
+    createdAt: new Date(Date.now() - 86400000).toISOString()
+  },
+  {
+    id: "ANN-008",
+    cursoId: "CRS-008",
+    curso: "Historia Universal",
+    titulo: "Seminario dominical: Periodo de Entreguerras",
+    contenido: "Este domingo a las 10:00 AM analizaremos fuentes históricas sobre el Tratado de Versalles y el surgimiento del fascismo.",
+    prioridad: "Alta",
+    docente: "Prof. Victoria Angelis Raggi Ruiz",
+    docenteId: "USR-109",
+    createdAt: new Date().toISOString()
   }
 ];
 
@@ -107,28 +267,19 @@ export const academicActivitiesService = {
   },
 
   async fetchTasks(cursoId = null) {
-    try {
-      const url = cursoId
-        ? `${API_BASE_URL}/tareas/?curso_id=${encodeURIComponent(cursoId)}`
-        : `${API_BASE_URL}/tareas/`;
-      const res = await fetch(url);
-      if (res.ok) {
-        const data = await res.json();
-        if (Array.isArray(data)) {
-          const normalized = data.map((t) => ({
-            ...t,
-            cursoId: t.cursoId || t.curso_id,
-            fechaLimite: t.fechaLimite || t.fecha_limite,
-            docenteId: t.docenteId || t.docente_id
-          }));
-          if (!cursoId) {
-            localStorage.setItem(TASKS_STORAGE_KEY, JSON.stringify(normalized));
-          }
-          return normalized;
-        }
+    const path = cursoId ? `/tareas/?curso_id=${encodeURIComponent(cursoId)}` : "/tareas/";
+    const data = await requestActivities(path);
+    if (Array.isArray(data)) {
+      const normalized = data.map((t) => ({
+        ...t,
+        cursoId: t.cursoId || t.curso_id,
+        fechaLimite: t.fechaLimite || t.fecha_limite,
+        docenteId: t.docenteId || t.docente_id
+      }));
+      if (!cursoId) {
+        localStorage.setItem(TASKS_STORAGE_KEY, JSON.stringify(normalized));
       }
-    } catch (err) {
-      console.warn("[AcademicService] Fallback local para tareas:", err);
+      return normalized;
     }
     return cursoId ? this.getTasksByCourse(cursoId) : this.getTasks();
   },
@@ -142,24 +293,15 @@ export const academicActivitiesService = {
       descripcion: newTask.descripcion || "",
       fechaLimite: newTask.fechaLimite || newTask.fecha_limite || "Próximamente",
       puntos: newTask.puntos || "20 pts",
-      docenteId: newTask.docenteId || newTask.docente_id,
-      docente: newTask.docente,
+      docenteId: newTask.docenteId || newTask.docente_id || "USR-107",
+      docente: newTask.docente || "Prof. Pedro Chavez",
       estado: "Por entregar"
     };
 
-    let created = null;
-    try {
-      const res = await fetch(`${API_BASE_URL}/tareas/`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload)
-      });
-      if (res.ok) {
-        created = await res.json();
-      }
-    } catch (err) {
-      console.warn("[AcademicService] Error en backend al crear tarea:", err);
-    }
+    let created = await requestActivities("/tareas/", {
+      method: "POST",
+      body: JSON.stringify(payload)
+    });
 
     if (!created) {
       created = {
@@ -177,13 +319,9 @@ export const academicActivitiesService = {
   },
 
   async deleteTask(taskId) {
-    try {
-      await fetch(`${API_BASE_URL}/tareas/${encodeURIComponent(taskId)}`, {
-        method: "DELETE"
-      });
-    } catch (err) {
-      console.warn("[AcademicService] Error eliminando tarea en backend:", err);
-    }
+    await requestActivities(`/tareas/${encodeURIComponent(taskId)}`, {
+      method: "DELETE"
+    });
 
     const all = this.getTasks();
     const updated = all.filter((t) => t.id !== taskId);
@@ -197,15 +335,10 @@ export const academicActivitiesService = {
     const currentTask = all.find((t) => t.id === taskId);
     const nextState = currentTask?.estado === "Por entregar" ? "Entregado" : "Por entregar";
 
-    try {
-      await fetch(`${API_BASE_URL}/tareas/${encodeURIComponent(taskId)}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ estado: nextState })
-      });
-    } catch (err) {
-      console.warn("[AcademicService] Error actualizando estado en backend:", err);
-    }
+    await requestActivities(`/tareas/${encodeURIComponent(taskId)}`, {
+      method: "PATCH",
+      body: JSON.stringify({ estado: nextState })
+    });
 
     const updated = all.map((t) => {
       if (t.id === taskId) {
@@ -240,27 +373,18 @@ export const academicActivitiesService = {
   },
 
   async fetchAnnouncements(cursoId = null) {
-    try {
-      const url = cursoId
-        ? `${API_BASE_URL}/anuncios/?curso_id=${encodeURIComponent(cursoId)}`
-        : `${API_BASE_URL}/anuncios/`;
-      const res = await fetch(url);
-      if (res.ok) {
-        const data = await res.json();
-        if (Array.isArray(data)) {
-          const normalized = data.map((a) => ({
-            ...a,
-            cursoId: a.cursoId || a.curso_id,
-            docenteId: a.docenteId || a.docente_id
-          }));
-          if (!cursoId) {
-            localStorage.setItem(ANNOUNCEMENTS_STORAGE_KEY, JSON.stringify(normalized));
-          }
-          return normalized;
-        }
+    const path = cursoId ? `/anuncios/?curso_id=${encodeURIComponent(cursoId)}` : "/anuncios/";
+    const data = await requestActivities(path);
+    if (Array.isArray(data)) {
+      const normalized = data.map((a) => ({
+        ...a,
+        cursoId: a.cursoId || a.curso_id,
+        docenteId: a.docenteId || a.docente_id
+      }));
+      if (!cursoId) {
+        localStorage.setItem(ANNOUNCEMENTS_STORAGE_KEY, JSON.stringify(normalized));
       }
-    } catch (err) {
-      console.warn("[AcademicService] Fallback local para anuncios:", err);
+      return normalized;
     }
     return cursoId ? this.getAnnouncementsByCourse(cursoId) : this.getAnnouncements();
   },
@@ -272,23 +396,14 @@ export const academicActivitiesService = {
       titulo: newAnn.titulo,
       contenido: newAnn.contenido,
       prioridad: newAnn.prioridad || "Normal",
-      docenteId: newAnn.docenteId || newAnn.docente_id,
-      docente: newAnn.docente
+      docenteId: newAnn.docenteId || newAnn.docente_id || "USR-107",
+      docente: newAnn.docente || "Prof. Pedro Chavez"
     };
 
-    let created = null;
-    try {
-      const res = await fetch(`${API_BASE_URL}/anuncios/`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload)
-      });
-      if (res.ok) {
-        created = await res.json();
-      }
-    } catch (err) {
-      console.warn("[AcademicService] Error en backend al crear anuncio:", err);
-    }
+    let created = await requestActivities("/anuncios/", {
+      method: "POST",
+      body: JSON.stringify(payload)
+    });
 
     if (!created) {
       created = {
@@ -306,13 +421,9 @@ export const academicActivitiesService = {
   },
 
   async deleteAnnouncement(annId) {
-    try {
-      await fetch(`${API_BASE_URL}/anuncios/${encodeURIComponent(annId)}`, {
-        method: "DELETE"
-      });
-    } catch (err) {
-      console.warn("[AcademicService] Error eliminando anuncio en backend:", err);
-    }
+    await requestActivities(`/anuncios/${encodeURIComponent(annId)}`, {
+      method: "DELETE"
+    });
 
     const all = this.getAnnouncements();
     const updated = all.filter((a) => a.id !== annId);

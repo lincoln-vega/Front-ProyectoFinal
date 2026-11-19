@@ -1,31 +1,30 @@
-import { insforge } from "../lib/insforge";
+import {
+  getApiAccessToken,
+  setApiAccessToken
+} from "../lib/insforge";
 import { userService } from "./api";
 
-const SESSION_KEYS = ["userRole", "userName", "userEmail", "userId", "user", "usuarioLogueado"];
+const SESSION_KEYS = [
+  "userRole",
+  "userName",
+  "userEmail",
+  "userId",
+  "user",
+  "usuarioLogueado"
+];
 
 export async function signOutFromApp() {
-  const { error } = await insforge.auth.signOut();
-  if (error) {
-    console.error("[InsForge] Error al cerrar sesión:", error);
-    throw new Error(error.message || "No se pudo cerrar sesión.");
-  }
-
+  setApiAccessToken(null);
   SESSION_KEYS.forEach((key) => localStorage.removeItem(key));
 }
 
 export async function getCurrentSessionProfile() {
-  const { data, error } = await insforge.auth.getCurrentUser();
-  if (error) {
-    console.error("[InsForge] Error al recuperar la sesión:", error);
+  const email = localStorage.getItem("userEmail");
+  if (!email || !getApiAccessToken()) {
     throw new Error("La sesión expiró. Inicia sesión nuevamente.");
   }
 
-  const authUser = data?.user;
-  if (!authUser?.email) {
-    throw new Error("La sesión expiró. Inicia sesión nuevamente.");
-  }
-
-  const profile = await userService.getUserByEmail(authUser.email);
+  const profile = await userService.getUserByEmail(email);
   if (!profile) {
     throw new Error("La cuenta no tiene un perfil docente en InsForge.");
   }
@@ -36,5 +35,18 @@ export async function getCurrentSessionProfile() {
     throw new Error("El usuario autenticado no tiene permisos de docente.");
   }
 
-  return { authUser, profile };
+  return { authUser: { email }, profile };
+}
+
+export async function getAuthenticatedAdminAccessToken() {
+  if (String(localStorage.getItem("userRole") || "").trim().toLowerCase() !== "admin") {
+    throw new Error("Solo un administrador puede registrar usuarios.");
+  }
+
+  const accessToken = getApiAccessToken();
+  if (!accessToken) {
+    throw new Error("La sesión de administrador expiró. Inicia sesión nuevamente.");
+  }
+
+  return accessToken;
 }

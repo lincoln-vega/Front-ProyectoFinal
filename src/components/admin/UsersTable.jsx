@@ -7,26 +7,23 @@ export default function UsersTable({ users, totalUsers, activeUsers, inactiveUse
         <span className="font-semibold text-slate-800 dark:text-slate-300">
           Mostrando {users.length} de {totalUsers} registros cargados
         </span>
-        <span className="text-xs text-slate-400 dark:text-slate-500">
-          * 11 columnas reglamentarias de usuario
-        </span>
       </div>
 
       <div className="overflow-x-auto">
         <table className="w-full text-left border-collapse text-xs">
           <thead>
             <tr className="bg-[#1E3A8A] dark:bg-blue-950/40 text-white border-b border-blue-950 dark:border-white/10 font-semibold tracking-wider uppercase text-xs select-none">
-              <th scope="col" className="py-3 px-3.5 whitespace-nowrap">1. Apellidos</th>
-              <th scope="col" className="py-3 px-3.5 whitespace-nowrap">2. Nombres</th>
-              <th scope="col" className="py-3 px-3.5 whitespace-nowrap">3. DNI</th>
-              <th scope="col" className="py-3 px-3.5 whitespace-nowrap">4. F. Nacimiento</th>
-              <th scope="col" className="py-3 px-3.5 whitespace-nowrap">5. Correo</th>
-              <th scope="col" className="py-3 px-3.5 whitespace-nowrap">6. Celular</th>
-              <th scope="col" className="py-3 px-3.5 whitespace-nowrap">7. Carrera / Objetivo</th>
-              <th scope="col" className="py-3 px-3.5 whitespace-nowrap">8. Ciclo Virtual</th>
-              <th scope="col" className="py-3 px-3.5 whitespace-nowrap text-center">9. Rol</th>
-              <th scope="col" className="py-3 px-3.5 whitespace-nowrap text-center">10. Estado</th>
-              <th scope="col" className="py-3 px-3.5 whitespace-nowrap text-center">11. Acciones</th>
+              <th scope="col" className="py-3 px-3.5 whitespace-nowrap">Apellidos</th>
+              <th scope="col" className="py-3 px-3.5 whitespace-nowrap">Nombres</th>
+              <th scope="col" className="py-3 px-3.5 whitespace-nowrap">DNI</th>
+              <th scope="col" className="py-3 px-3.5 whitespace-nowrap">F. Nacimiento</th>
+              <th scope="col" className="py-3 px-3.5 whitespace-nowrap">Correo</th>
+              <th scope="col" className="py-3 px-3.5 whitespace-nowrap">Celular</th>
+              <th scope="col" className="py-3 px-3.5 whitespace-nowrap">Carrera / Objetivo</th>
+              <th scope="col" className="py-3 px-3.5 whitespace-nowrap">Ciclo Virtual</th>
+              <th scope="col" className="py-3 px-3.5 whitespace-nowrap text-center">Rol</th>
+              <th scope="col" className="py-3 px-3.5 whitespace-nowrap text-center">Estado</th>
+              <th scope="col" className="py-3 px-3.5 whitespace-nowrap text-center">Acciones</th>
             </tr>
           </thead>
 
@@ -63,6 +60,11 @@ export default function UsersTable({ users, totalUsers, activeUsers, inactiveUse
                     <span className="inline-block max-w-[200px] truncate text-slate-800 dark:text-slate-200 font-medium" title={user.carreraObjetivo}>
                       {user.carreraObjetivo}
                     </span>
+                    {user.areaAcademica && (
+                      <span className="block text-[10px] text-slate-400 dark:text-slate-500 truncate max-w-[200px]" title={user.areaAcademica}>
+                        {user.areaAcademica}
+                      </span>
+                    )}
                   </td>
                   <td className="py-2.5 px-3.5 whitespace-nowrap text-slate-600 dark:text-slate-400">
                     <span className="px-2 py-0.5 rounded bg-slate-100 dark:bg-white/10 border border-slate-200 dark:border-white/10 text-xs font-medium">

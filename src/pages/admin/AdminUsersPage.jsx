@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { Navigate } from "react-router-dom";
 import { RotateCcw, UserPlus, ShieldCheck } from "lucide-react";
 import Notification from "../../components/admin/Notification";
 import UserFilters from "../../components/admin/UserFilters";
@@ -6,8 +7,38 @@ import UserFormModal from "../../components/admin/UserFormModal";
 import RolesModal from "../../components/admin/RolesModal";
 import UsersTable from "../../components/admin/UsersTable";
 import useUsers, { createInitialUserForm } from "../../hooks/useUsers";
+import { adminUserRegistrationService } from "../../services/api";
+import { getAuthenticatedAdminAccessToken } from "../../services/session";
 
 export default function AdminUsersPage() {
+  const [accessStatus, setAccessStatus] = useState("checking");
+
+  useEffect(() => {
+    let active = true;
+    getAuthenticatedAdminAccessToken()
+      .then(() => {
+        if (active) setAccessStatus("allowed");
+      })
+      .catch(() => {
+        if (active) setAccessStatus("denied");
+      });
+
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  if (accessStatus === "checking") {
+    return <p className="p-5 text-sm text-slate-500">Verificando la sesión de administrador...</p>;
+  }
+  if (accessStatus === "denied") {
+    return <Navigate to="/login" replace />;
+  }
+
+  return <AdminUsersContent />;
+}
+
+function AdminUsersContent() {
   const {
     users,
     roles,
@@ -17,6 +48,7 @@ export default function AdminUsersPage() {
     resetUsers,
     deleteUser,
     saveUser,
+    addCreatedUser,
     loading,
     error,
     setError
@@ -29,29 +61,83 @@ export default function AdminUsersPage() {
   
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isRolesModalOpen, setIsRolesModalOpen] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   
-  const [editingUserId, setEditingUserId] = useState(null);
-  const [formData, setFormData] = useState(createInitialUserForm);
+  const PENDING_AUTH_KEY = "academia_pending_auth_account";
+  const [pendingAuthAccount, setPendingAuthAccountState] = useState(() => {
+    try {
+      const stored = sessionStorage.getItem(PENDING_AUTH_KEY);
+      return stored ? JSON.parse(stored) : null;
+    } catch {
+      return null;
+    }
+  });
+
+  const setPendingAuthAccount = (pending) => {
+    setPendingAuthAccountState(pending);
+    try {
+      if (pending) {
+        sessionStorage.setItem(PENDING_AUTH_KEY, JSON.stringify(pending));
+      } else {
+        sessionStorage.removeItem(PENDING_AUTH_KEY);
+      }
+    } catch (err) {
+      console.warn("Error persistiendo pending auth account:", err);
+    }
+  };
+
+  const submissionLock = useRef(false);
 
   const showNotification = (message) => {
     setNotification(message);
-    window.setTimeout(() => setNotification(null), 3500);
+    window.setTimeout(() => setNotification(null), 4000);
   };
 
   const closeModal = () => {
     setIsModalOpen(false);
     setEditingUserId(null);
-    setFormData(createInitialUserForm());
+    setError(null);
+    if (!pendingAuthAccount) {
+      setFormData(createInitialUserForm());
+    }
   };
 
   const openNewUserModal = () => {
     setEditingUserId(null);
-    setFormData(createInitialUserForm());
+    if (pendingAuthAccount) {
+      setError("La cuenta de acceso ya existe. Reintenta guardar su perfil para completar el registro.");
+      setFormData({
+        ...pendingAuthAccount.profile,
+        cicloVirtual:
+          pendingAuthAccount.profile.cicloVirtual ||
+          pendingAuthAccount.profile.ciclovirtual ||
+          "Semestral",
+        rol: roles.find(
+          (role) => String(role).toLowerCase() === pendingAuthAccount.profile.rol
+        ) || pendingAuthAccount.profile.rol,
+        password: ""
+      });
+    } else {
+      setError(null);
+      setFormData(createInitialUserForm());
+    }
     setIsModalOpen(true);
   };
 
+  const handleDiscardPendingAccount = () => {
+    setPendingAuthAccount(null);
+    setError(null);
+    setFormData(createInitialUserForm());
+    showNotification("Cuenta pendiente descartada. Puedes registrar un nuevo usuario.");
+  };
+
   const handleEdit = (user) => {
+    if (pendingAuthAccount) {
+      setError("Completa el guardado del perfil pendiente antes de editar otro usuario.");
+      return;
+    }
     setEditingUserId(user.id);
+    setError(null);
     setFormData({ ...user });
     setIsModalOpen(true);
   };
@@ -71,7 +157,7 @@ export default function AdminUsersPage() {
   const handleResetData = async () => {
     try {
       await resetUsers();
-      showNotification("Usuarios actualizados desde InsForge.");
+      showNotification("Usuarios actualizados desde la base de datos.");
     } catch (err) {
       showNotification(`No se pudieron cargar los usuarios: ${err.message}`);
     }
@@ -79,19 +165,93 @@ export default function AdminUsersPage() {
 
   const handleSubmitForm = async (event) => {
     event.preventDefault();
+    if (submissionLock.current) return;
+    setError(null);
+
     if (!formData.apellidos || !formData.nombres || !formData.dni) {
-      showNotification("Por favor complete los campos obligatorios (Nombres, Apellidos, DNI).");
+      setError("Por favor complete los campos obligatorios (Nombres, Apellidos, Documento).");
+      return;
+    }
+
+    if (!formData.fechaNacimiento) {
+      setError("La fecha de nacimiento es obligatoria.");
+      return;
+    }
+
+    if (!formData.carreraObjetivo?.trim()) {
+      setError("Seleccione una carrera objetivo del área académica.");
       return;
     }
 
     const isEditing = Boolean(editingUserId);
+    if (!isEditing && !pendingAuthAccount && (!formData.correo?.trim() || !formData.password)) {
+      setError("El correo y la contraseña son obligatorios para crear la cuenta.");
+      return;
+    }
+
+    setIsSubmitting(true);
+    submissionLock.current = true;
+    let pending = pendingAuthAccount;
     try {
-      await saveUser(formData, editingUserId);
-      showNotification(isEditing ? "Usuario actualizado correctamente." : "Usuario registrado y validado correctamente.");
-      closeModal();
+      if (isEditing) {
+        await saveUser(formData, editingUserId);
+        closeModal();
+        showNotification("Usuario actualizado correctamente.");
+      } else {
+        if (!pending) {
+          const validationToken = await getAuthenticatedAdminAccessToken();
+          await adminUserRegistrationService.validate(formData, validationToken);
+
+          const authAccount = await adminUserRegistrationService.createAuthAccount(formData);
+          pending = {
+            ...authAccount,
+            profile: adminUserRegistrationService.buildProfilePayload(
+              formData,
+              authAccount.authUserId
+            )
+          };
+          setPendingAuthAccount(pending);
+          setFormData((current) => ({ ...current, password: "" }));
+        } else if (
+          String(formData.correo || "").trim().toLowerCase() !== pending.profile.correo
+        ) {
+          throw new Error("No se puede cambiar el correo de una cuenta Auth ya creada.");
+        }
+
+        const profile = adminUserRegistrationService.buildProfilePayload(
+          formData,
+          pending.authUserId
+        );
+        pending = { ...pending, profile };
+        setPendingAuthAccount(pending);
+
+        const adminAccessToken = await getAuthenticatedAdminAccessToken();
+        const savedUser = await adminUserRegistrationService.saveProfile(profile, adminAccessToken);
+        addCreatedUser(savedUser);
+        setPendingAuthAccount(null);
+        closeModal();
+
+        if (pending.requiresEmailVerification) {
+          showNotification("Usuario registrado. Debe verificar su correo antes de iniciar sesión.");
+        } else if (!pending.emailVerified) {
+          showNotification("Usuario registrado; el correo todavía aparece sin verificar.");
+        } else {
+          showNotification("Usuario registrado correctamente.");
+        }
+      }
     } catch (err) {
-      setError(err.message);
-      showNotification(`Error de validación: ${err.message}`);
+      if (!isEditing && pending) {
+        setPendingAuthAccount(pending);
+        setError(
+          `La cuenta de InsForge Auth ya fue creada, pero no se pudo guardar su perfil. ` +
+          `Reintenta para enviar solo el perfil con la misma cuenta. ${err.message}`
+        );
+      } else {
+        setError(err.message || "No se pudo completar el registro.");
+      }
+    } finally {
+      submissionLock.current = false;
+      setIsSubmitting(false);
     }
   };
 
@@ -102,6 +262,7 @@ export default function AdminUsersPage() {
       user.nombres,
       user.dni,
       user.correo,
+      user.areaAcademica,
       user.carreraObjetivo,
       user.cicloVirtual,
       user.ciclovirtual
@@ -129,10 +290,6 @@ export default function AdminUsersPage() {
                 Padrón General de Usuarios de la Academia
               </h2>
             </div>
-            <p className="text-xs text-slate-500 mt-1">
-              Administración de matrículas, docentes y personal académico conectada a InsForge.
-              Administración general de estudiantes, docentes y personal académico.
-            </p>
           </div>
 
           <div className="flex flex-wrap items-center gap-2">
@@ -166,7 +323,35 @@ export default function AdminUsersPage() {
           </div>
         </div>
 
-        {error && (
+        {pendingAuthAccount && !isModalOpen && (
+          <div className="mt-4 p-3 rounded-lg border border-amber-300 bg-amber-50 dark:bg-amber-950/40 text-amber-900 dark:text-amber-200 text-xs flex items-center justify-between gap-3">
+            <div>
+              <p className="font-semibold">Registro pendiente de perfil</p>
+              <p className="text-[11px] text-amber-700 dark:text-amber-300">
+                La cuenta Auth para <strong>{pendingAuthAccount.profile?.correo}</strong> ya fue creada. Falta guardar su perfil en la base de datos.
+              </p>
+            </div>
+            <div className="flex items-center gap-2 shrink-0">
+              <button
+                type="button"
+                onClick={openNewUserModal}
+                className="px-3 py-1.5 bg-[#1E3A8A] text-white rounded-lg font-semibold hover:bg-blue-800 transition-colors cursor-pointer"
+              >
+                Completar Perfil
+              </button>
+              <button
+                type="button"
+                onClick={handleDiscardPendingAccount}
+                className="px-3 py-1.5 border border-slate-300 text-slate-700 dark:text-slate-200 bg-white dark:bg-white/10 rounded-lg hover:bg-slate-50 transition-colors cursor-pointer"
+              >
+                Descartar
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Solo mostramos el error aquí si el modal está cerrado */}
+        {error && !isModalOpen && (
           <p role="alert" className="mt-4 rounded-lg border border-red-300 bg-red-50 p-3 text-sm text-red-700">
             {error}
           </p>
@@ -198,8 +383,12 @@ export default function AdminUsersPage() {
           isEditing={Boolean(editingUserId)}
           formData={formData}
           roles={roles}
+          serverError={error}
+          isSubmitting={isSubmitting}
+          onClearServerError={() => setError(null)}
           onChange={setFormData}
           onSubmit={handleSubmitForm}
+          isPendingProfile={Boolean(pendingAuthAccount)}
           onClose={closeModal}
         />
       )}

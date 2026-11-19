@@ -27,7 +27,7 @@ import {
   Mail,
   ArrowUpRight
 } from "lucide-react";
-import { userService, matriculaService, pagoService } from "../../services/api";
+import { userService, matriculaService, pagoService, validateWithBackend } from "../../services/api";
 import { exportToCSV } from "../../utils/exportUtils";
 
 const STORAGE_KEYS = {
@@ -124,6 +124,38 @@ const INITIAL_MATRICULAS = [
     saldoPendiente: 800,
     estado: "Pendiente",
   },
+  {
+    id: "MAT-2026-108",
+    estudiante: "Esteban Torres",
+    dni: "72345678",
+    correo: "esteban@gmail.com",
+    celular: "987112233",
+    programa: "Semestral San Marcos - Ciencias Médicas",
+    ciclo: "Ciclo 2026-I",
+    turno: "Mañana (08:00 - 13:00)",
+    fechaMatricula: "16/01/2026",
+    modalidadPago: "Contado",
+    montoTotal: 1200,
+    montoPagado: 1200,
+    saldoPendiente: 0,
+    estado: "Al día",
+  },
+  {
+    id: "MAT-2026-3066",
+    estudiante: "Ana Paula Vargas Chavez",
+    dni: "74567890",
+    correo: "anapaula@gmail.com",
+    celular: "984556677",
+    programa: "Semestral PUCP - Letras y Humanidades",
+    ciclo: "Ciclo 2026-I",
+    turno: "Tarde (14:00 - 19:00)",
+    fechaMatricula: "18/01/2026",
+    modalidadPago: "Contado (Descuento 10%)",
+    montoTotal: 1100,
+    montoPagado: 1100,
+    saldoPendiente: 0,
+    estado: "Al día",
+  },
 ];
 
 const INITIAL_PAGOS = [
@@ -161,6 +193,30 @@ const INITIAL_PAGOS = [
     operacion: "VISA-44021",
     comprobante: "B001-00395",
     fecha: "18/01/2026 11:20 AM",
+    estado: "Aprobado",
+  },
+  {
+    id: "PAG-006",
+    matriculaId: "MAT-2026-108",
+    estudiante: "Esteban Torres",
+    concepto: "Pago Completo Semestral San Marcos",
+    monto: 1200,
+    metodo: "Yape / Plin",
+    operacion: "OP-7733221",
+    comprobante: "B001-00450",
+    fecha: "16/01/2026 11:00 AM",
+    estado: "Aprobado",
+  },
+  {
+    id: "PAG-007",
+    matriculaId: "MAT-2026-3066",
+    estudiante: "Ana Paula Vargas Chavez",
+    concepto: "Pago Matrícula y Pensión PUCP",
+    monto: 1100,
+    metodo: "Transferencia BCP",
+    operacion: "BCP-8899112",
+    comprobante: "B001-00465",
+    fecha: "18/01/2026 03:15 PM",
     estado: "Aprobado",
   },
   {
@@ -237,21 +293,24 @@ export default function MatriculasPagosPage({ defaultTab = "matriculas" }) {
   const [modalPagoOpen, setModalPagoOpen] = useState(false);
   const [fichaMatricula, setFichaMatricula] = useState(null);
   const [reciboPago, setReciboPago] = useState(null);
+  const [matriculaFormError, setMatriculaFormError] = useState("");
+  const [pagoFormError, setPagoFormError] = useState("");
 
-  // Formulario Matrícula
+  // Formulario Matrícula (MatriculaCreate)
   const [formMatricula, setFormMatricula] = useState({
     estudiante: "",
     dni: "",
     correo: "",
     celular: "",
     programa: PROGRAMAS_ACADEMICOS[0].nombre,
+    ciclo: "Semestral 2026-I",
     turno: "Mañana (08:00 - 13:00)",
     modalidadPago: "Cuotas (3 cuotas)",
     montoTotal: PROGRAMAS_ACADEMICOS[0].costo,
     primerAbono: 400,
   });
 
-  // Formulario Pago
+  // Formulario Pago (PagoCreate)
   const [formPago, setFormPago] = useState({
     matriculaId: "",
     concepto: "Cuota Regular de Pensión",
@@ -375,103 +434,111 @@ export default function MatriculasPagosPage({ defaultTab = "matriculas" }) {
       .some((field) => String(field || "").toLowerCase().includes(term));
   }).slice(0, 5);
 
-  // Registro de Nueva Matrícula
+  // Registro de Nueva Matrícula (MatriculaCreate)
   const handleGuardarMatricula = async (e) => {
     e.preventDefault();
-    if (!formMatricula.estudiante || !formMatricula.dni) {
-      showNotification("Por favor completa los campos de nombre y DNI.");
+    setMatriculaFormError("");
+
+    if (!formMatricula.estudiante.trim() || !formMatricula.dni.trim()) {
+      setMatriculaFormError("Por favor completa los campos obligatorios de estudiante y documento de identidad (DNI).");
       return;
     }
 
-    let estudianteId = selectedStudentId;
     try {
-    if (isNewStudent) {
-      estudianteId = `USR-${Date.now().toString().slice(-6)}`;
-      const newStudent = {
-        id: estudianteId,
-        ...splitStudentName(formMatricula.estudiante),
+      // Capa 2: Validación contra el Backend FastAPI (POST /usuarios/validar)
+      await validateWithBackend({
+        tipoDocumento: "DNI",
         dni: formMatricula.dni,
+        celular: formMatricula.celular,
+        correo: formMatricula.correo || `${formMatricula.dni}@academia.edu.pe`
+      });
+
+      let estudianteId = selectedStudentId;
+      if (isNewStudent) {
+        estudianteId = `USR-${Date.now().toString().slice(-6)}`;
+        const newStudent = {
+          id: estudianteId,
+          ...splitStudentName(formMatricula.estudiante),
+          dni: formMatricula.dni,
+          correo: formMatricula.correo || `${formMatricula.dni}@academia.edu.pe`,
+          celular: formMatricula.celular || "",
+          carreraObjetivo: formMatricula.programa || "",
+          areaAcademica: "",
+          rol: "estudiante",
+          estado: "Activo"
+        };
+        const updatedStudents = [newStudent, ...students];
+        await userService.saveUser(newStudent);
+        setStudents(updatedStudents);
+      }
+
+      const nuevoId = `MAT-2026-00${matriculas.length + 1}`;
+      const abonoInicial = Number(formMatricula.primerAbono) || 0;
+      const montoTotal = Number(formMatricula.montoTotal);
+      const saldo = Math.max(0, montoTotal - abonoInicial);
+
+      let estado = "Pendiente";
+      if (saldo === 0) estado = "Pagado Total";
+      else if (abonoInicial > 0) estado = "Al día";
+
+      const nuevaMat = {
+        id: nuevoId,
+        estudianteId,
+        estudiante: formMatricula.estudiante.trim(),
+        dni: formMatricula.dni.trim(),
         correo: formMatricula.correo || `${formMatricula.dni}@academia.edu.pe`,
-        celular: formMatricula.celular || "",
-        carreraObjetivo: "",
-        areaAcademica: "",
-        rol: "estudiante",
-        estado: "Activo"
+        celular: formMatricula.celular || "900000000",
+        programa: formMatricula.programa,
+        ciclo: formMatricula.ciclo || "Semestral 2026-I",
+        turno: formMatricula.turno,
+        fechaMatricula: new Date().toISOString().split("T")[0],
+        modalidadPago: formMatricula.modalidadPago,
+        montoTotal: montoTotal,
+        montoPagado: abonoInicial,
+        saldoPendiente: saldo,
+        estado: estado,
       };
-      const updatedStudents = [newStudent, ...students];
-      await userService.saveUser(newStudent);
-      setStudents(updatedStudents);
-    }
 
-    const nuevoId = `MAT-2026-00${matriculas.length + 1}`;
-    const abonoInicial = Number(formMatricula.primerAbono) || 0;
-    const montoTotal = Number(formMatricula.montoTotal);
-    const saldo = Math.max(0, montoTotal - abonoInicial);
+      await matriculaService.saveMatricula(nuevaMat);
+      const nuevasMatriculas = [nuevaMat, ...matriculas];
+      setMatriculas(nuevasMatriculas);
 
-    let estado = "Pendiente";
-    if (saldo === 0) estado = "Pagado Total";
-    else if (abonoInicial > 0) estado = "Al día";
+      // Si hubo abono inicial, generamos su pago automáticamente (PagoCreate)
+      if (abonoInicial > 0) {
+        const nuevoPago = {
+          id: `PAG-00${pagos.length + 1}`,
+          matriculaId: nuevoId,
+          estudiante: nuevaMat.estudiante,
+          concepto: "Matrícula Inicial / Cuota 1",
+          monto: abonoInicial,
+          metodo: "Efectivo en Caja",
+          operacion: `OP-INI-${Date.now().toString().slice(-5)}`,
+          comprobante: `B001-00${450 + pagos.length + 1}`,
+          fecha: new Date().toISOString().split("T")[0],
+          estado: "Aprobado",
+        };
+        await pagoService.savePago(nuevoPago);
+        setPagos((current) => [nuevoPago, ...current]);
+      }
 
-    const nuevaMat = {
-      id: nuevoId,
-      estudianteId,
-      estudiante: formMatricula.estudiante,
-      dni: formMatricula.dni,
-      correo: formMatricula.correo || `${formMatricula.dni}@academia.edu.pe`,
-      celular: formMatricula.celular || "900000000",
-      programa: formMatricula.programa,
-      ciclo: "Ciclo 2026-I",
-      turno: formMatricula.turno,
-      fechaMatricula: new Date().toLocaleDateString("es-PE"),
-      modalidadPago: formMatricula.modalidadPago,
-      montoTotal: montoTotal,
-      montoPagado: abonoInicial,
-      saldoPendiente: saldo,
-      estado: estado,
-    };
-
-    await matriculaService.saveMatricula(nuevaMat);
-    const nuevasMatriculas = [nuevaMat, ...matriculas];
-    setMatriculas(nuevasMatriculas);
-
-    // Si hubo abono inicial, generamos su pago automáticamente
-    if (abonoInicial > 0) {
-      const nuevoPago = {
-        id: `PAG-00${pagos.length + 1}`,
-        matriculaId: nuevoId,
-        estudiante: nuevaMat.estudiante,
-        concepto: "Matrícula Inicial / Cuota 1",
-        monto: abonoInicial,
-        metodo: "Efectivo en Caja",
-        operacion: `OP-INI-${Date.now().toString().slice(-5)}`,
-        comprobante: `B001-00${450 + pagos.length + 1}`,
-        fecha: new Date().toLocaleString("es-PE"),
-        estado: "Aprobado",
-      };
-      await pagoService.savePago(nuevoPago);
-      setPagos((current) => [nuevoPago, ...current]);
-    }
-
-    setModalMatriculaOpen(false);
-    resetStudentSelection();
-    setFormMatricula({
-      estudiante: "",
-      dni: "",
-      correo: "",
-      celular: "",
-      programa: PROGRAMAS_ACADEMICOS[0].nombre,
-      turno: "Mañana (08:00 - 13:00)",
-      modalidadPago: "Cuotas (3 cuotas)",
-      montoTotal: PROGRAMAS_ACADEMICOS[0].costo,
-      primerAbono: 400,
-    });
-    showNotification(`¡Matrícula ${nuevoId} registrada en InsForge!`);
-    if (isNewStudent) {
-      showNotification("Perfil guardado. Crea también la cuenta del estudiante en InsForge Auth para que pueda iniciar sesión.");
-    }
+      setModalMatriculaOpen(false);
+      resetStudentSelection();
+      setFormMatricula({
+        estudiante: "",
+        dni: "",
+        correo: "",
+        celular: "",
+        programa: PROGRAMAS_ACADEMICOS[0].nombre,
+        ciclo: "Semestral 2026-I",
+        turno: "Mañana (08:00 - 13:00)",
+        modalidadPago: "Cuotas (3 cuotas)",
+        montoTotal: PROGRAMAS_ACADEMICOS[0].costo,
+        primerAbono: 400,
+      });
+      showNotification(`¡Matrícula ${nuevoId} registrada exitosamente!`);
     } catch (error) {
       console.error("Error al guardar matrícula:", error);
-      showNotification(`No se pudo guardar la matrícula en InsForge: ${error.message}`);
+      setMatriculaFormError(error.message || "No se pudo guardar la matrícula en el sistema.");
     }
   };
 
@@ -488,18 +555,19 @@ export default function MatriculasPagosPage({ defaultTab = "matriculas" }) {
     setModalPagoOpen(true);
   };
 
-  // Registro de Pago
+  // Registro de Pago (PagoCreate)
   const handleGuardarPago = async (e) => {
     e.preventDefault();
+    setPagoFormError("");
     const montoNum = Number(formPago.monto);
     if (!formPago.matriculaId || !montoNum || montoNum <= 0) {
-      showNotification("Selecciona una matrícula y especifica un monto válido.");
+      setPagoFormError("Selecciona una matrícula y especifica un monto válido mayor a 0.");
       return;
     }
 
     const mat = matriculas.find((m) => m.id === formPago.matriculaId);
     if (!mat) {
-      showNotification("Matrícula no encontrada.");
+      setPagoFormError("Matrícula no encontrada.");
       return;
     }
 
@@ -513,7 +581,7 @@ export default function MatriculasPagosPage({ defaultTab = "matriculas" }) {
       metodo: formPago.metodo,
       operacion: formPago.operacion || `TRANS-${Date.now().toString().slice(-6)}`,
       comprobante: `B001-00${450 + pagos.length + 1}`,
-      fecha: new Date().toLocaleString("es-PE"),
+      fecha: new Date().toISOString().split("T")[0],
       estado: "Aprobado",
     };
 
@@ -530,10 +598,10 @@ export default function MatriculasPagosPage({ defaultTab = "matriculas" }) {
       await saveMatriculasStorage(nuevasMatriculas);
       setPagos((current) => [nuevoPago, ...current]);
       setModalPagoOpen(false);
-      showNotification(`Pago de S/. ${montoNum.toFixed(2)} registrado en InsForge.`);
+      showNotification(`Pago de S/. ${montoNum.toFixed(2)} registrado correctamente.`);
     } catch (error) {
       console.error("Error al guardar pago:", error);
-      showNotification(`No se pudo completar el pago en InsForge: ${error.message}`);
+      setPagoFormError(`No se pudo completar el pago: ${error.message}`);
     }
   };
 
@@ -1037,6 +1105,12 @@ export default function MatriculasPagosPage({ defaultTab = "matriculas" }) {
             </div>
 
             <form onSubmit={handleGuardarMatricula} className="p-6 space-y-4">
+              {matriculaFormError && (
+                <div className="p-3 text-xs bg-rose-50 dark:bg-rose-950/40 text-rose-700 dark:text-rose-300 border border-rose-200 dark:border-rose-800 rounded-lg flex items-center gap-2">
+                  <AlertTriangle className="w-4 h-4 shrink-0" />
+                  <span>{matriculaFormError}</span>
+                </div>
+              )}
               <div className="space-y-3 rounded-xl border border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-white/5 p-4">
                 <div className="flex items-center justify-between gap-3">
                   <div>
@@ -1148,28 +1222,47 @@ export default function MatriculasPagosPage({ defaultTab = "matriculas" }) {
                 </div>}
               </div>
 
-              <div>
-                <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-1">
-                  Programa Académico
-                </label>
-                <select
-                  value={formMatricula.programa}
-                  onChange={(e) => {
-                    const sel = PROGRAMAS_ACADEMICOS.find((p) => p.nombre === e.target.value);
-                    setFormMatricula({
-                      ...formMatricula,
-                      programa: e.target.value,
-                      montoTotal: sel ? sel.costo : formMatricula.montoTotal,
-                    });
-                  }}
-                  className="w-full px-3 py-2 text-xs border border-slate-200 dark:border-white/10 rounded-xl focus:outline-none focus:border-[#1E3A8A] bg-white dark:bg-slate-800 text-slate-800 dark:text-white"
-                >
-                  {PROGRAMAS_ACADEMICOS.map((p) => (
-                    <option key={p.nombre} value={p.nombre}>
-                      {p.nombre} — (S/. {p.costo}.00)
-                    </option>
-                  ))}
-                </select>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-1">
+                    Programa Académico (Carrera) *
+                  </label>
+                  <select
+                    value={formMatricula.programa}
+                    onChange={(e) => {
+                      const sel = PROGRAMAS_ACADEMICOS.find((p) => p.nombre === e.target.value);
+                      setFormMatricula({
+                        ...formMatricula,
+                        programa: e.target.value,
+                        montoTotal: sel ? sel.costo : formMatricula.montoTotal,
+                      });
+                    }}
+                    className="w-full px-3 py-2 text-xs border border-slate-200 dark:border-white/10 rounded-xl focus:outline-none focus:border-[#1E3A8A] bg-white dark:bg-slate-800 text-slate-800 dark:text-white"
+                  >
+                    {PROGRAMAS_ACADEMICOS.map((p) => (
+                      <option key={p.nombre} value={p.nombre}>
+                        {p.nombre} — (S/. {p.costo}.00)
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-1">
+                    Ciclo Académico *
+                  </label>
+                  <select
+                    value={formMatricula.ciclo}
+                    onChange={(e) => setFormMatricula({ ...formMatricula, ciclo: e.target.value })}
+                    className="w-full px-3 py-2 text-xs border border-slate-200 dark:border-white/10 rounded-xl focus:outline-none focus:border-[#1E3A8A] bg-white dark:bg-slate-800 text-slate-800 dark:text-white"
+                  >
+                    <option value="Semestral 2026-I">Semestral 2026-I</option>
+                    <option value="Semestral 2026-II">Semestral 2026-II</option>
+                    <option value="Anual 2026">Anual 2026</option>
+                    <option value="Intensivo 2026-I">Intensivo 2026-I</option>
+                    <option value="Reforzamiento Escolar 2026">Reforzamiento Escolar 2026</option>
+                  </select>
+                </div>
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -1280,6 +1373,12 @@ export default function MatriculasPagosPage({ defaultTab = "matriculas" }) {
             </div>
 
             <form onSubmit={handleGuardarPago} className="p-6 space-y-4">
+              {pagoFormError && (
+                <div className="p-3 text-xs bg-rose-50 dark:bg-rose-950/40 text-rose-700 dark:text-rose-300 border border-rose-200 dark:border-rose-800 rounded-lg flex items-center gap-2">
+                  <AlertTriangle className="w-4 h-4 shrink-0" />
+                  <span>{pagoFormError}</span>
+                </div>
+              )}
               <div>
                 <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-1">
                   Matrícula / Estudiante *

@@ -8,23 +8,28 @@ export const createInitialUserForm = () => ({
   dni: "",
   fechaNacimiento: "",
   correo: "",
+  password: "",
   celular: "",
-  areaAcademica: "",
-  carreraObjetivo: "",
+  areaAcademica: "Ciencias Exactas e Ingenierías",
+  carreraObjetivo: "Ingeniería de Sistemas",
   cicloVirtual: "Semestral",
   rol: "Estudiante",
   estado: "Activo"
 });
 
 export default function useUsers() {
-  const [users, setUsers] = useState([]);
+  const [users, setUsers] = useState(() => (userService.getStoredUsers ? userService.getStoredUsers() : []));
   const [roles, setRoles] = useState(() => roleService.getRoles());
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
   useEffect(() => {
     userService.getUsers()
-      .then(setUsers)
+      .then((data) => {
+        if (data && Array.isArray(data)) {
+          setUsers(data);
+        }
+      })
       .catch((err) => {
         console.error("Error al cargar usuarios:", err);
         setError(err.message);
@@ -65,7 +70,10 @@ export default function useUsers() {
     setLoading(true);
     setError("");
     try {
-      setUsers(await userService.resetUsers());
+      const freshUsers = await userService.getUsers();
+      if (freshUsers && Array.isArray(freshUsers)) {
+        setUsers(freshUsers);
+      }
     } catch (err) {
       setError(err.message);
       throw err;
@@ -86,9 +94,14 @@ export default function useUsers() {
       ? { ...users.find((item) => item.id === editingUserId), ...formData }
       : { id: `USR-${Date.now().toString().slice(-4)}`, ...formData };
     const savedUser = await userService.saveUser(user);
+    const resolvedUser = savedUser || user;
     setUsers((current) => editingUserId
-      ? current.map((item) => item.id === editingUserId ? savedUser : item)
-      : [savedUser, ...current]);
+      ? current.map((item) => item.id === editingUserId ? resolvedUser : item)
+      : [resolvedUser, ...current]);
+  };
+
+  const addCreatedUser = (user) => {
+    setUsers((current) => [user, ...current.filter((item) => item.id !== user.id)]);
   };
 
   return {
@@ -102,6 +115,7 @@ export default function useUsers() {
     deleteRole,
     resetUsers,
     deleteUser,
-    saveUser
+    saveUser,
+    addCreatedUser
   };
 }

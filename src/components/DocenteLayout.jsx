@@ -15,11 +15,15 @@ import {
   CheckCircle2,
   AlertCircle,
   FileText,
-  Clock
+  Clock,
+  MessageSquare
 } from "lucide-react";
 import ThemeToggle from "./ThemeToggle";
 import { signOutFromApp } from "../services/session";
 import SolicitudPermutaModal from "./docente/SolicitudPermutaModal";
+import DocenteChatModal from "./docente/DocenteChatModal";
+import { academicActivitiesService } from "../services/academicActivitiesService";
+import { chatAcademicService } from "../services/chatAcademicService";
 
 export default function DocenteLayout() {
   const navigate = useNavigate();
@@ -27,10 +31,25 @@ export default function DocenteLayout() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
   const [isPermutaModalOpen, setIsPermutaModalOpen] = useState(false);
+  const [isChatModalOpen, setIsChatModalOpen] = useState(false);
+  const [pendingChatCount, setPendingChatCount] = useState(0);
   const notifRef = useRef(null);
 
   const userName = localStorage.getItem("userName") || "Docente";
+  const userId = localStorage.getItem("userId") || "USR-107";
   const userEmail = localStorage.getItem("userEmail") || "docente@academia.edu.pe";
+
+  useEffect(() => {
+    const updateChatCount = () => {
+      const msgs = chatAcademicService.getMessagesForTeacher(userId, userName);
+      const pending = msgs.filter((m) => m.estado === "Pendiente").length;
+      setPendingChatCount(pending);
+    };
+
+    updateChatCount();
+    window.addEventListener("storage", updateChatCount);
+    return () => window.removeEventListener("storage", updateChatCount);
+  }, [userId, userName]);
 
   const initials = userName
     .split(" ")
@@ -65,33 +84,58 @@ export default function DocenteLayout() {
     }
   };
 
-  // Notificaciones interactivas para el docente
-  const notifications = [
-    {
-      id: 1,
-      title: "Asistencia Auditoría Meet",
-      course: "Registro automático activo",
-      time: "Hoy",
-      type: "asistencia",
-      unread: true
-    },
-    {
-      id: 2,
-      title: "Ciclo Académico 2026-I",
-      course: "Semana 4 en curso",
-      time: "Coordinación",
-      type: "info",
-      unread: false
-    },
-    {
-      id: 3,
-      title: "Módulo de Permutas Habilitado",
-      course: "Trámite 100% digitalizado",
-      time: "Dirección",
-      type: "permuta",
-      unread: false
-    }
-  ];
+  // Notificaciones interactivas para el docente sincronizadas con Backend/Local
+  const [notifications, setNotifications] = useState([]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const syncNotifications = () => {
+      const tasks = academicActivitiesService.getTasks();
+      const anns = academicActivitiesService.getAnnouncements();
+
+      const combined = [
+        ...tasks.slice(0, 3).map((t) => ({
+          id: `task-${t.id}`,
+          title: `Tarea Activa: ${t.titulo}`,
+          course: `${t.curso} • ${t.estado}`,
+          time: t.fechaLimite,
+          type: "tarea",
+          unread: t.estado === "Por entregar"
+        })),
+        ...anns.slice(0, 2).map((a) => ({
+          id: `ann-${a.id}`,
+          title: `Comunicado: ${a.titulo}`,
+          course: `${a.curso} (${a.prioridad})`,
+          time: "Publicado",
+          type: "anuncio",
+          unread: false
+        })),
+        {
+          id: "meet-audit",
+          title: "Asistencia Auditoría Meet",
+          course: "Registro automático activo",
+          time: "Hoy",
+          type: "asistencia",
+          unread: true
+        }
+      ];
+
+      if (!cancelled) {
+        setNotifications(combined);
+      }
+    };
+
+    syncNotifications();
+    academicActivitiesService.fetchTasks().then(syncNotifications);
+    academicActivitiesService.fetchAnnouncements().then(syncNotifications);
+
+    window.addEventListener("storage", syncNotifications);
+    return () => {
+      cancelled = true;
+      window.removeEventListener("storage", syncNotifications);
+    };
+  }, []);
 
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-[#0a0a0e] text-slate-900 dark:text-slate-100 flex flex-col font-sans transition-colors duration-500 overflow-x-hidden">
@@ -227,9 +271,25 @@ export default function DocenteLayout() {
             </Link>
           </div>
 
-          {/* Controles de la Derecha: Campana, Modo Oscuro, Perfil Docente */}
+          {/* Controles de la Derecha: Chat Alumnos, Campana, Modo Oscuro, Perfil Docente */}
           <div className="flex items-center space-x-2 sm:space-x-3 shrink-0">
             
+            {/* Botón de Chat con Alumnos */}
+            <button
+              type="button"
+              onClick={() => setIsChatModalOpen(true)}
+              className="relative p-2 rounded-xl text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-white/10 border border-slate-200 dark:border-white/10 transition-colors cursor-pointer"
+              title="Consultas de estudiantes"
+              aria-label="Ver consultas de estudiantes"
+            >
+              <MessageSquare className="w-5 h-5 text-blue-600 dark:text-blue-400" />
+              {pendingChatCount > 0 && (
+                <span className="absolute -top-1 -right-1 px-1.5 py-0.2 bg-amber-500 text-slate-950 text-[10px] font-black rounded-full shadow-sm animate-pulse">
+                  {pendingChatCount}
+                </span>
+              )}
+            </button>
+
             {/* Campana de Notificaciones con Badge */}
             <div className="relative" ref={notifRef}>
               <button
@@ -240,9 +300,11 @@ export default function DocenteLayout() {
                 aria-label="Ver notificaciones"
               >
                 <Bell className="w-5 h-5" />
-                <span className="absolute -top-1 -right-1 px-1.5 py-0.2 bg-blue-600 text-white text-[10px] font-black rounded-full shadow-sm">
-                  1
-                </span>
+                {notifications.filter((n) => n.unread).length > 0 && (
+                  <span className="absolute -top-1 -right-1 px-1.5 py-0.2 bg-blue-600 text-white text-[10px] font-black rounded-full shadow-sm">
+                    {notifications.filter((n) => n.unread).length}
+                  </span>
+                )}
               </button>
 
               {/* Menú Desplegable de Notificaciones */}
@@ -253,7 +315,7 @@ export default function DocenteLayout() {
                       Notificaciones Docentes
                     </span>
                     <span className="text-[10px] bg-blue-100 dark:bg-blue-950/60 text-blue-800 dark:text-blue-300 font-bold px-2 py-0.5 rounded-full">
-                      1 activa
+                      {notifications.filter((n) => n.unread).length} activas
                     </span>
                   </div>
 
@@ -267,6 +329,8 @@ export default function DocenteLayout() {
                         <div className="flex items-start gap-2.5">
                           <div className="p-1.5 rounded-lg bg-blue-50 dark:bg-blue-950/50 text-blue-600 dark:text-blue-400 mt-0.5 shrink-0">
                             {notif.type === "asistencia" && <CheckCircle2 className="w-4 h-4 text-emerald-500" />}
+                            {notif.type === "tarea" && <FileText className="w-4 h-4 text-blue-500" />}
+                            {notif.type === "anuncio" && <Bell className="w-4 h-4 text-indigo-500" />}
                             {notif.type === "info" && <Sparkles className="w-4 h-4 text-amber-400" />}
                             {notif.type === "permuta" && <ArrowRightLeft className="w-4 h-4 text-indigo-500" />}
                           </div>
@@ -463,6 +527,14 @@ export default function DocenteLayout() {
           }}
         />
       )}
+
+      {/* Modal de Consultas de Estudiantes */}
+      <DocenteChatModal
+        isOpen={isChatModalOpen}
+        onClose={() => setIsChatModalOpen(false)}
+        docenteName={userName}
+        docenteId={userId}
+      />
     </div>
   );
 }

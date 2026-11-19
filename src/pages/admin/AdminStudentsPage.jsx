@@ -5,7 +5,7 @@ import UserFormModal from "../../components/admin/UserFormModal";
 import UsersTable from "../../components/admin/UsersTable";
 import useUsers, { createInitialUserForm } from "../../hooks/useUsers";
 
-const STUDENT_ROLE = "estudiante";
+const STUDENT_ROLE = "Estudiante";
 
 export default function AdminStudentsPage() {
   const { users, deleteUser, saveUser, error, loading, setError } = useUsers();
@@ -24,10 +24,12 @@ export default function AdminStudentsPage() {
   const closeModal = () => {
     setIsModalOpen(false);
     setEditingUserId(null);
+    setError("");
     setFormData({ ...createInitialUserForm(), rol: STUDENT_ROLE });
   };
 
   const handleEdit = (student) => {
+    setError("");
     setEditingUserId(student.id);
     setFormData({ ...student, rol: STUDENT_ROLE });
     setIsModalOpen(true);
@@ -47,6 +49,7 @@ export default function AdminStudentsPage() {
 
   const handleSubmit = async (event) => {
     event.preventDefault();
+    setError("");
     if (!formData.apellidos || !formData.nombres || !formData.dni) {
       showNotification("Completa nombres, apellidos y DNI.");
       return;
@@ -62,7 +65,7 @@ export default function AdminStudentsPage() {
     }
   };
 
-  const students = users.filter((user) => String(user.rol).toLowerCase() === STUDENT_ROLE);
+  const students = users.filter((user) => String(user.rol).toLowerCase() === "estudiante");
   const filteredStudents = students.filter((student) => {
     const term = searchTerm.toLowerCase();
     const matchesSearch = [
@@ -117,6 +120,8 @@ export default function AdminStudentsPage() {
           formData={formData}
           roles={[STUDENT_ROLE]}
           showRole={false}
+          serverError={error}
+          onClearServerError={() => setError("")}
           onChange={setFormData}
           onSubmit={handleSubmit}
           onClose={closeModal}
