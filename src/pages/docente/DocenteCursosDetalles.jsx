@@ -23,7 +23,7 @@ import {
   X
 } from "lucide-react";
 import { courseService } from "../../services/cursosServices";
-import { userService } from "../../services/api";
+import { userService, parseCourseList } from "../../services/api";
 import { getMeetAttendanceHistory, registerMeetEntry, registerMeetExit } from "../../services/asistencia";
 import { academicActivitiesService } from "../../services/academicActivitiesService";
 import { chatAcademicService } from "../../services/chatAcademicService";
@@ -150,7 +150,7 @@ export default function DocenteCursosDetalles({ cursoId, initialTab = "clase", o
         if (!isStudent) return false;
         
         // 1. Si tiene el curso explícitamente en cursosInscritos
-        const inscritos = Array.isArray(u.cursosInscritos) ? u.cursosInscritos : [];
+        const inscritos = parseCourseList(u.cursosInscritos || u.cursos_inscritos || u.CursosInscritos);
         const hasDirectEnrollment = inscritos.some((c) => {
           const id = typeof c === "object" && c !== null ? c.id : c;
           return String(id) === String(cursoId);

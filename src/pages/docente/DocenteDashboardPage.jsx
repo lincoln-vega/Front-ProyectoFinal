@@ -472,8 +472,6 @@ export default function DocenteDashboardPage() {
 
       {/* 4. INFORMACIÓN DE PERFIL DOCENTE Y NÓMINA */}
       {docenteData && (
-      {/* 4. INFORMACIÓN DE PERFIL DOCENTE Y NÓMINA */}
-      {docenteData && (
         <section className="bg-white dark:bg-slate-900/90 rounded-2xl border border-slate-200/90 dark:border-white/10 p-6 shadow-xs">
           <div className="flex items-center space-x-2.5 mb-4 pb-3 border-b border-slate-100 dark:border-white/5">
             <GraduationCap className="w-5 h-5 text-blue-600 dark:text-blue-400" />
@@ -501,18 +499,6 @@ export default function DocenteDashboardPage() {
               <span className="text-slate-500 dark:text-slate-400 block font-semibold">Nómina Base (S/)</span>
               <span className="text-sm font-bold text-emerald-600 dark:text-emerald-400 mt-0.5 block">
                 S/ {Number(docenteData.salario || 3200).toFixed(2)}
-              </span>
-            </div>
-          </div>
-        </section>
-      )}
-              </span>
-            </div>
-
-            <div className="p-3.5 rounded-xl bg-slate-50 dark:bg-white/5 border border-slate-100 dark:border-white/5">
-              <span className="text-slate-500 dark:text-slate-400 block font-semibold">Nómina Base Referencial</span>
-              <span className="text-sm font-bold text-emerald-600 dark:text-emerald-400 mt-0.5 block">
-                S/ {(docenteData.salario || 1800).toFixed(2)}
               </span>
             </div>
           </div>

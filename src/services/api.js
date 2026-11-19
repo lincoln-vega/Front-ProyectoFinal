@@ -410,6 +410,24 @@ export const userService = {
   getStoredUsers,
 
   async getUsers() {
+    // 1. Consultar primero la base de datos PostgreSQL de InsForge (contiene cursosInscritos, cursosAsignados, etc.)
+    try {
+      const { data, error } = await insforge.database
+        .from("users")
+        .select(USER_COLUMNS)
+        .order("created_at", { ascending: false })
+        .limit(500);
+
+      if (!error && Array.isArray(data) && data.length > 0) {
+        const users = data.map(normalizeUser);
+        cacheUsers(users);
+        return users;
+      }
+    } catch (dbErr) {
+      console.warn("[userService] Fallback de InsForge DB a backend FastAPI:", dbErr);
+    }
+
+    // 2. Respaldo secundario: endpoint del Backend FastAPI
     try {
       const base = getApiBaseUrl();
       if (base) {
@@ -421,25 +439,26 @@ export const userService = {
         if (res.ok) {
           const backUsers = await res.json();
           if (Array.isArray(backUsers) && backUsers.length > 0) {
-            const users = backUsers.map(normalizeUser);
+            // Preservar cursosInscritos y cursosAsignados del caché local si el backend no los incluye
+            const cachedMap = new Map((getStoredUsers() || []).map((u) => [u.id, u]));
+            const users = backUsers.map((u) => {
+              const cached = cachedMap.get(u.id);
+              return normalizeUser({
+                ...u,
+                cursosInscritos: u.cursosInscritos || u.CursosInscritos || cached?.cursosInscritos || [],
+                cursosAsignados: u.cursosAsignados || u.CursosAsignados || cached?.cursosAsignados || []
+              });
+            });
             cacheUsers(users);
             return users;
           }
         }
       }
-    } catch {
-      // Continuar con InsForge PostgREST
+    } catch (err) {
+      console.warn("[userService] Error al consultar backend FastAPI:", err);
     }
 
-    const { data, error } = await insforge.database
-      .from("users")
-      .select(USER_COLUMNS)
-      .order("created_at", { ascending: false })
-      .limit(500);
-    throwIfError(error, "cargar usuarios");
-    const users = (data || []).map(normalizeUser);
-    cacheUsers(users);
-    return users;
+    return getStoredUsers();
   },
 
   async fetchUsers() {

@@ -1,7 +1,7 @@
 // Servicio de mensajería académica bidireccional entre Docente y Estudiante (V2.0)
 // Integra persistencia en Backend FastAPI y PostgreSQL con fallback en localStorage
 import { courseService } from "./cursosServices";
-import { userService } from "./api";
+import { userService, parseCourseList } from "./api";
 import { getApiBaseUrl } from "../lib/apiUrl";
 import { getApiAccessToken } from "../lib/insforge";
 
@@ -242,9 +242,9 @@ export const chatAcademicService = {
       return { teachers: [], classmates: [], studentCourses: [] };
     }
 
-    const inscritos = Array.isArray(studentProfile.cursosInscritos)
-      ? studentProfile.cursosInscritos
-      : [];
+    const inscritos = parseCourseList(
+      studentProfile.cursosInscritos || studentProfile.cursos_inscritos || studentProfile.CursosInscritos
+    );
     const directIds = new Set(
       inscritos.map((c) => (typeof c === "object" && c !== null ? String(c.id) : String(c)))
     );
@@ -292,7 +292,9 @@ export const chatAcademicService = {
       if (String(u.correo || "").toLowerCase() === String(studentProfile.correo || "").toLowerCase()) return false;
       if (String(u.estado || "").toLowerCase() !== "activo") return false;
 
-      const peerInscritos = Array.isArray(u.cursosInscritos) ? u.cursosInscritos : [];
+      const peerInscritos = parseCourseList(
+        u.cursosInscritos || u.cursos_inscritos || u.CursosInscritos
+      );
       const peerCourseIds = new Set(
         peerInscritos.map((c) => (typeof c === "object" && c !== null ? String(c.id) : String(c)))
       );

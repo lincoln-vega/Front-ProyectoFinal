@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from "react";
 import { courseService } from "../../services/cursosServices";
-import { userService } from "../../services/api";
+import { userService, parseCourseList } from "../../services/api";
 import { saveAttendanceRecord } from "../../services/asistencia";
 import WeeklyActivitiesWidget from "../../components/student/WeeklyActivitiesWidget";
 
@@ -139,13 +139,13 @@ export default function StudentDashboardPage() {
   const misCursosInscritos = useMemo(() => {
     if (!estudianteActivo) return [];
 
-    const inscritos = estudianteActivo.cursosInscritos;
-    if (Array.isArray(inscritos) && inscritos.length > 0) {
+    const inscritos = parseCourseList(estudianteActivo.cursosInscritos || estudianteActivo.cursos_inscritos || estudianteActivo.CursosInscritos);
+    if (inscritos.length > 0) {
       const idsInscritos = new Set(
-        inscritos.map((c) => (typeof c === "object" && c !== null ? c.id : c))
+        inscritos.map((c) => (typeof c === "object" && c !== null ? String(c.id) : String(c)))
       );
       const encontrados = (listaCursosGlobal || []).filter(
-        (curso) => idsInscritos.has(curso.id) && curso.estado === "Activo"
+        (curso) => idsInscritos.has(String(curso.id)) && curso.estado === "Activo"
       );
       if (encontrados.length > 0) return encontrados;
     }

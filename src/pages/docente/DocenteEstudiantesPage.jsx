@@ -16,7 +16,7 @@ import {
 } from "lucide-react";
 import { getCurrentSessionProfile } from "../../services/session";
 import { courseService } from "../../services/cursosServices";
-import { userService } from "../../services/api";
+import { userService, parseCourseList } from "../../services/api";
 
 const normalizeName = (value) =>
   String(value || "")
@@ -113,7 +113,7 @@ export default function DocenteEstudiantesPage() {
 
     return studentList
       .map((student) => {
-        const inscritos = Array.isArray(student.cursosInscritos) ? student.cursosInscritos : [];
+        const inscritos = parseCourseList(student.cursosInscritos || student.cursos_inscritos || student.CursosInscritos);
         const studentCourseIds = new Set(
           inscritos.map((c) => (typeof c === "object" && c !== null ? String(c.id) : String(c)))
         );
