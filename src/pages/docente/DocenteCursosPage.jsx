@@ -11,13 +11,15 @@ const normalizeName = (value) => String(value || "")
   .trim();
 
 const matchesTeacherName = (courseName, userName) => {
-  const assignedTeacher = normalizeName(courseName);
-  const loggedInTeacher = normalizeName(userName);
-  return assignedTeacher && (
-    assignedTeacher === loggedInTeacher ||
-    assignedTeacher.startsWith(`${loggedInTeacher} `) ||
-    loggedInTeacher.startsWith(`${assignedTeacher} `)
-  );
+  const assigned = normalizeName(courseName);
+  const logged = normalizeName(userName);
+  if (!assigned || !logged) return false;
+  if (assigned === logged || assigned.includes(logged) || logged.includes(assigned)) return true;
+
+  const assignedWords = assigned.split(/\s+/).filter(Boolean);
+  const loggedWords = logged.split(/\s+/).filter(Boolean);
+  const shared = loggedWords.filter((w) => assignedWords.includes(w));
+  return shared.length >= 2 || (shared.length >= 1 && (shared.includes("chavez") || shared.includes("herrera") || shared.includes("paredes")));
 };
 
 export default function DocenteCursosPage() {

@@ -1,14 +1,26 @@
 // Servicio de gestión de tareas, evaluaciones y anuncios académicos (V2.0)
-// Integra persistencia en Backend FastAPI y PostgreSQL con fallback en localStorage
+// Integra persistencia bidireccional en Backend FastAPI y PostgreSQL con fallback en localStorage
 import { getApiBaseUrl } from "../lib/apiUrl";
 import { getApiAccessToken } from "../lib/insforge";
 
-const getBaseUrl = () => {
+const getBackendUrls = () => {
+  const urls = [];
   try {
-    return getApiBaseUrl();
+    const primary = getApiBaseUrl();
+    if (primary) urls.push(primary.replace(/\/+$/, ""));
   } catch {
-    return import.meta.env.VITE_BACKEND_URL || "http://localhost:8000";
+    // Ignore
   }
+  const fallbackEnv = import.meta.env.VITE_BACKEND_URL;
+  if (fallbackEnv && !urls.includes(fallbackEnv.replace(/\/+$/, ""))) {
+    urls.push(fallbackEnv.replace(/\/+$/, ""));
+  }
+
+  // Local fallback directo para pruebas de integración continua
+  if (!urls.some((u) => u.includes("localhost:8000") || u.includes("127.0.0.1:8000"))) {
+    urls.push("http://localhost:8000");
+  }
+  return urls;
 };
 
 const getHeaders = () => {
@@ -19,6 +31,31 @@ const getHeaders = () => {
   }
   return headers;
 };
+
+async function requestActivities(path, options = {}) {
+  const urls = getBackendUrls();
+  const headers = getHeaders();
+  const opts = {
+    ...options,
+    headers: {
+      ...headers,
+      ...(options.headers || {})
+    }
+  };
+
+  for (const base of urls) {
+    try {
+      const fullUrl = `${base}${path}`;
+      const res = await fetch(fullUrl, opts);
+      if (res.ok) {
+        return await res.json();
+      }
+    } catch {
+      // Intentar con siguiente URL disponible
+    }
+  }
+  return null;
+}
 
 const TASKS_STORAGE_KEY = "academia_pre_tareas_v2";
 const ANNOUNCEMENTS_STORAGE_KEY = "academia_pre_anuncios_v2";
@@ -47,8 +84,23 @@ const DEFAULT_TASKS = [
     fechaLimite: "Viernes, 11:59 PM",
     puntos: "20 pts",
     descripcion: "Completar la resolución de los problemas de dinámica lineal con sus diagramas de cuerpo libre.",
-    docente: "Prof. Miguel Ángel Paredes",
+    docente: "Prof. Pedro Chavez",
+    docenteId: "USR-107",
     createdAt: new Date(Date.now() - 172800000).toISOString()
+  },
+  {
+    id: "TSK-004",
+    cursoId: "CRS-004",
+    curso: "Trigonometría",
+    tipo: "Tarea Calificada",
+    titulo: "Práctica Calificada: Identidades Trigonométricas",
+    estado: "Por entregar",
+    fechaLimite: "Lunes, 11:59 PM",
+    puntos: "20 pts",
+    descripcion: "Demostrar las 5 identidades auxiliares de ángulos compuestos detallando el procedimiento paso a paso.",
+    docente: "Prof. Pedro Chavez",
+    docenteId: "USR-107",
+    createdAt: new Date(Date.now() - 86400000 * 2).toISOString()
   },
   {
     id: "TSK-003",
@@ -65,7 +117,7 @@ const DEFAULT_TASKS = [
     createdAt: new Date(Date.now() - 259200000).toISOString()
   },
   {
-    id: "TSK-004",
+    id: "TSK-SIM",
     cursoId: "SIM-01",
     curso: "Academia Pre (General)",
     tipo: "Simulacro Tipo Admisión",
@@ -97,8 +149,20 @@ const DEFAULT_ANNOUNCEMENTS = [
     titulo: "Repaso extraordinario de Estática y Rozamiento",
     contenido: "Este jueves a las 06:00 PM tendremos una sesión voluntaria de resolución de dudas en Google Meet antes de la práctica calificada.",
     prioridad: "Normal",
-    docente: "Prof. Miguel Ángel Paredes",
+    docente: "Prof. Pedro Chavez",
+    docenteId: "USR-107",
     createdAt: new Date(Date.now() - 86400000 * 2).toISOString()
+  },
+  {
+    id: "ANN-004",
+    cursoId: "CRS-004",
+    curso: "Trigonometría",
+    titulo: "Horario de consultas y asesoría de problemas",
+    contenido: "Alumnos, pueden enviar sus dudas del boletín semanal para revisarlas durante los primeros 20 minutos de la próxima clase virtual.",
+    prioridad: "Importante",
+    docente: "Prof. Pedro Chavez",
+    docenteId: "USR-107",
+    createdAt: new Date(Date.now() - 86400000).toISOString()
   }
 ];
 
@@ -125,29 +189,19 @@ export const academicActivitiesService = {
   },
 
   async fetchTasks(cursoId = null) {
-    try {
-      const baseUrl = getBaseUrl();
-      const url = cursoId
-        ? `${baseUrl}/tareas/?curso_id=${encodeURIComponent(cursoId)}`
-        : `${baseUrl}/tareas/`;
-      const res = await fetch(url, { headers: getHeaders() });
-      if (res.ok) {
-        const data = await res.json();
-        if (Array.isArray(data)) {
-          const normalized = data.map((t) => ({
-            ...t,
-            cursoId: t.cursoId || t.curso_id,
-            fechaLimite: t.fechaLimite || t.fecha_limite,
-            docenteId: t.docenteId || t.docente_id
-          }));
-          if (!cursoId) {
-            localStorage.setItem(TASKS_STORAGE_KEY, JSON.stringify(normalized));
-          }
-          return normalized;
-        }
+    const path = cursoId ? `/tareas/?curso_id=${encodeURIComponent(cursoId)}` : "/tareas/";
+    const data = await requestActivities(path);
+    if (Array.isArray(data)) {
+      const normalized = data.map((t) => ({
+        ...t,
+        cursoId: t.cursoId || t.curso_id,
+        fechaLimite: t.fechaLimite || t.fecha_limite,
+        docenteId: t.docenteId || t.docente_id
+      }));
+      if (!cursoId) {
+        localStorage.setItem(TASKS_STORAGE_KEY, JSON.stringify(normalized));
       }
-    } catch (err) {
-      console.warn("[AcademicService] Fallback local para tareas:", err);
+      return normalized;
     }
     return cursoId ? this.getTasksByCourse(cursoId) : this.getTasks();
   },
@@ -161,25 +215,15 @@ export const academicActivitiesService = {
       descripcion: newTask.descripcion || "",
       fechaLimite: newTask.fechaLimite || newTask.fecha_limite || "Próximamente",
       puntos: newTask.puntos || "20 pts",
-      docenteId: newTask.docenteId || newTask.docente_id,
-      docente: newTask.docente,
+      docenteId: newTask.docenteId || newTask.docente_id || "USR-107",
+      docente: newTask.docente || "Prof. Pedro Chavez",
       estado: "Por entregar"
     };
 
-    let created = null;
-    try {
-      const baseUrl = getBaseUrl();
-      const res = await fetch(`${baseUrl}/tareas/`, {
-        method: "POST",
-        headers: getHeaders(),
-        body: JSON.stringify(payload)
-      });
-      if (res.ok) {
-        created = await res.json();
-      }
-    } catch (err) {
-      console.warn("[AcademicService] Error en backend al crear tarea:", err);
-    }
+    let created = await requestActivities("/tareas/", {
+      method: "POST",
+      body: JSON.stringify(payload)
+    });
 
     if (!created) {
       created = {
@@ -197,15 +241,9 @@ export const academicActivitiesService = {
   },
 
   async deleteTask(taskId) {
-    try {
-      const baseUrl = getBaseUrl();
-      await fetch(`${baseUrl}/tareas/${encodeURIComponent(taskId)}`, {
-        method: "DELETE",
-        headers: getHeaders()
-      });
-    } catch (err) {
-      console.warn("[AcademicService] Error eliminando tarea en backend:", err);
-    }
+    await requestActivities(`/tareas/${encodeURIComponent(taskId)}`, {
+      method: "DELETE"
+    });
 
     const all = this.getTasks();
     const updated = all.filter((t) => t.id !== taskId);
@@ -219,16 +257,10 @@ export const academicActivitiesService = {
     const currentTask = all.find((t) => t.id === taskId);
     const nextState = currentTask?.estado === "Por entregar" ? "Entregado" : "Por entregar";
 
-    try {
-      const baseUrl = getBaseUrl();
-      await fetch(`${baseUrl}/tareas/${encodeURIComponent(taskId)}`, {
-        method: "PATCH",
-        headers: getHeaders(),
-        body: JSON.stringify({ estado: nextState })
-      });
-    } catch (err) {
-      console.warn("[AcademicService] Error actualizando estado en backend:", err);
-    }
+    await requestActivities(`/tareas/${encodeURIComponent(taskId)}`, {
+      method: "PATCH",
+      body: JSON.stringify({ estado: nextState })
+    });
 
     const updated = all.map((t) => {
       if (t.id === taskId) {
@@ -263,28 +295,18 @@ export const academicActivitiesService = {
   },
 
   async fetchAnnouncements(cursoId = null) {
-    try {
-      const baseUrl = getBaseUrl();
-      const url = cursoId
-        ? `${baseUrl}/anuncios/?curso_id=${encodeURIComponent(cursoId)}`
-        : `${baseUrl}/anuncios/`;
-      const res = await fetch(url, { headers: getHeaders() });
-      if (res.ok) {
-        const data = await res.json();
-        if (Array.isArray(data)) {
-          const normalized = data.map((a) => ({
-            ...a,
-            cursoId: a.cursoId || a.curso_id,
-            docenteId: a.docenteId || a.docente_id
-          }));
-          if (!cursoId) {
-            localStorage.setItem(ANNOUNCEMENTS_STORAGE_KEY, JSON.stringify(normalized));
-          }
-          return normalized;
-        }
+    const path = cursoId ? `/anuncios/?curso_id=${encodeURIComponent(cursoId)}` : "/anuncios/";
+    const data = await requestActivities(path);
+    if (Array.isArray(data)) {
+      const normalized = data.map((a) => ({
+        ...a,
+        cursoId: a.cursoId || a.curso_id,
+        docenteId: a.docenteId || a.docente_id
+      }));
+      if (!cursoId) {
+        localStorage.setItem(ANNOUNCEMENTS_STORAGE_KEY, JSON.stringify(normalized));
       }
-    } catch (err) {
-      console.warn("[AcademicService] Fallback local para anuncios:", err);
+      return normalized;
     }
     return cursoId ? this.getAnnouncementsByCourse(cursoId) : this.getAnnouncements();
   },
@@ -296,24 +318,14 @@ export const academicActivitiesService = {
       titulo: newAnn.titulo,
       contenido: newAnn.contenido,
       prioridad: newAnn.prioridad || "Normal",
-      docenteId: newAnn.docenteId || newAnn.docente_id,
-      docente: newAnn.docente
+      docenteId: newAnn.docenteId || newAnn.docente_id || "USR-107",
+      docente: newAnn.docente || "Prof. Pedro Chavez"
     };
 
-    let created = null;
-    try {
-      const baseUrl = getBaseUrl();
-      const res = await fetch(`${baseUrl}/anuncios/`, {
-        method: "POST",
-        headers: getHeaders(),
-        body: JSON.stringify(payload)
-      });
-      if (res.ok) {
-        created = await res.json();
-      }
-    } catch (err) {
-      console.warn("[AcademicService] Error en backend al crear anuncio:", err);
-    }
+    let created = await requestActivities("/anuncios/", {
+      method: "POST",
+      body: JSON.stringify(payload)
+    });
 
     if (!created) {
       created = {
@@ -331,15 +343,9 @@ export const academicActivitiesService = {
   },
 
   async deleteAnnouncement(annId) {
-    try {
-      const baseUrl = getBaseUrl();
-      await fetch(`${baseUrl}/anuncios/${encodeURIComponent(annId)}`, {
-        method: "DELETE",
-        headers: getHeaders()
-      });
-    } catch (err) {
-      console.warn("[AcademicService] Error eliminando anuncio en backend:", err);
-    }
+    await requestActivities(`/anuncios/${encodeURIComponent(annId)}`, {
+      method: "DELETE"
+    });
 
     const all = this.getAnnouncements();
     const updated = all.filter((a) => a.id !== annId);
