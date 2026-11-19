@@ -215,7 +215,7 @@ export default function CursoRegistroModal({
         if (!cancelled) {
           if (check.cruce) {
             setWarningMessage(check.mensaje);
-          } else if (warningMessage.includes("Conflicto de horario")) {
+          } else if (warningMessage && warningMessage.includes("Conflicto de horario")) {
             setWarningMessage("");
           }
         }

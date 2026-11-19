@@ -1,4 +1,4 @@
-import { insforge } from "../lib/insforge";
+import { insforge, getApiAccessToken } from "../lib/insforge";
 import { getApiBaseUrl } from "../lib/apiUrl";
 const COURSE_COLUMNS = "id, asignatura, area, carrera, docenteId, docente, dias, horaInicio, horaFin, meetUrl, repositorio, estado, created_at, ciclovirtual";
 
@@ -88,9 +88,16 @@ export const courseService = {
    */
   async validarCursoConBackend(curso) {
     try {
+      const token = getApiAccessToken();
+      const headers = { "Content-Type": "application/json" };
+      if (token) {
+        headers["Authorization"] = `Bearer ${token}`;
+      }
+
       const res = await fetch(`${getApiBaseUrl()}/monitoreo/validar-curso`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers,
+        signal: AbortSignal.timeout(4000),
         body: JSON.stringify({
           id: curso.id,
           asignatura: curso.asignatura,
@@ -112,6 +119,13 @@ export const courseService = {
         if (data?.detail) {
           const detail = typeof data.detail === "string" ? data.detail : JSON.stringify(data.detail);
           console.warn("[Backend] Alerta de monitoreo de curso:", detail);
+          // Si el conflicto reportado es con la misma asignatura que se está editando, verificar si es falso positivo
+          if (curso.id && curso.asignatura && detail.includes(curso.asignatura)) {
+            const localCheck = await courseService.validarCruce(curso);
+            if (!localCheck.cruce) {
+              return { valido: true, mensaje: "Horario disponible. Sin cruces para el docente." };
+            }
+          }
           return { valido: false, mensaje: detail };
         }
       } else {
@@ -183,7 +197,7 @@ export const courseService = {
     try {
       const { data: students } = await insforge.database
         .from("users")
-        .select("id, cursosInscritos, rol")
+        .select("id, cursosInscritos, rol, areaAcademica, carreraObjetivo")
         .eq("estado", "Activo");
 
       if (Array.isArray(students)) {
@@ -191,12 +205,17 @@ export const courseService = {
           String(u.rol || "").toLowerCase() === "estudiante"
         );
         const stringIds = courseIds.map(String);
+
         const enrolled = studentList.filter((s) => {
-          const courses = Array.isArray(s.cursosInscritos) ? s.cursosInscritos : [];
-          return courses.some((c) => {
-            const cid = typeof c === "object" && c !== null ? c.id : c;
-            return stringIds.includes(String(cid));
-          });
+          const raw = s.cursosInscritos || s.cursos_inscritos || s.CursosInscritos;
+          let sCourses = [];
+          if (Array.isArray(raw)) {
+            sCourses = raw.map((c) => (typeof c === "object" && c !== null ? c.id : c)).filter(Boolean).map(String);
+          } else if (typeof raw === "string") {
+            sCourses = raw.replace(/^\{|\}$|^\[|\]$/g, "").split(",").map((x) => x.trim().replace(/^["']|["']$/g, "")).filter(Boolean);
+          }
+
+          return sCourses.some((cid) => stringIds.includes(String(cid)));
         });
         return enrolled.length;
       }

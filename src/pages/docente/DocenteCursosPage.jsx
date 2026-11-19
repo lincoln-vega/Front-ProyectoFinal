@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { BookOpen, Loader2, Video, Clock, ExternalLink, Calendar, ChevronRight } from "lucide-react";
+import { useSearchParams } from "react-router-dom";
+import { BookOpen, Loader2, Video, Clock, ExternalLink, Calendar, ChevronRight, Users, FileText, Bell } from "lucide-react";
 import CursoDetalleView from "./DocenteCursosDetalles";
 import { courseService } from "../../services/cursosServices";
 import { getCurrentSessionProfile } from "../../services/session";
@@ -11,16 +12,22 @@ const normalizeName = (value) => String(value || "")
   .trim();
 
 const matchesTeacherName = (courseName, userName) => {
-  const assignedTeacher = normalizeName(courseName);
-  const loggedInTeacher = normalizeName(userName);
-  return assignedTeacher && (
-    assignedTeacher === loggedInTeacher ||
-    assignedTeacher.startsWith(`${loggedInTeacher} `) ||
-    loggedInTeacher.startsWith(`${assignedTeacher} `)
-  );
+  const assigned = normalizeName(courseName);
+  const logged = normalizeName(userName);
+  if (!assigned || !logged) return false;
+  if (assigned === logged || assigned.includes(logged) || logged.includes(assigned)) return true;
+
+  const assignedWords = assigned.split(/\s+/).filter(Boolean);
+  const loggedWords = logged.split(/\s+/).filter(Boolean);
+  const shared = loggedWords.filter((w) => assignedWords.includes(w));
+  return shared.length >= 2 || (shared.length >= 1 && (shared.includes("chavez") || shared.includes("herrera") || shared.includes("paredes")));
 };
 
 export default function DocenteCursosPage() {
+  const [searchParams, setSearchParams] = useSearchParams();
+  const queryCursoId = searchParams.get("cursoId");
+  const queryTab = searchParams.get("tab") || "clase";
+
   const [cursoSeleccionado, setCursoSeleccionado] = useState(null);
   const [listaCursos, setListaCursos] = useState([]);
   const [profile, setProfile] = useState(null);
@@ -70,6 +77,17 @@ export default function DocenteCursosPage() {
     ));
   }, [listaCursos, profile]);
 
+  // Selección automática si viene cursoId por parámetro de URL
+  useEffect(() => {
+    if (queryCursoId && !cursoSeleccionado && (cursosFiltrados.length > 0 || listaCursos.length > 0)) {
+      const match = cursosFiltrados.find((c) => String(c.id) === String(queryCursoId)) ||
+                    listaCursos.find((c) => String(c.id) === String(queryCursoId));
+      if (match) {
+        setCursoSeleccionado(match);
+      }
+    }
+  }, [queryCursoId, cursoSeleccionado, cursosFiltrados, listaCursos]);
+
   const handleStartMeet = async (curso) => {
     if (!curso?.meetUrl) {
       alert("El curso no tiene un enlace de Google Meet configurado.");
@@ -86,8 +104,22 @@ export default function DocenteCursosPage() {
     }
   };
 
+  const handleSelectCursoTab = (curso, tab = "clase") => {
+    setCursoSeleccionado(curso);
+    setSearchParams({ cursoId: curso.id, tab });
+  };
+
   if (cursoSeleccionado) {
-    return <CursoDetalleView cursoId={cursoSeleccionado.id} onVolver={() => setCursoSeleccionado(null)} />;
+    return (
+      <CursoDetalleView
+        cursoId={cursoSeleccionado.id}
+        initialTab={queryTab}
+        onVolver={() => {
+          setCursoSeleccionado(null);
+          setSearchParams({});
+        }}
+      />
+    );
   }
 
   if (loading) {
@@ -176,13 +208,46 @@ export default function DocenteCursosPage() {
                   <span>Iniciar Clase en Google Meet</span>
                 </button>
 
+                {/* Accesos directos a Alumnos, Tareas y Anuncios de este curso */}
+                <div className="grid grid-cols-3 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => handleSelectCursoTab(curso, "alumnos")}
+                    className="py-2 px-1.5 rounded-xl border border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-white/5 hover:bg-indigo-50 dark:hover:bg-indigo-950/40 text-slate-700 dark:text-slate-200 hover:text-indigo-600 dark:hover:text-indigo-400 hover:border-indigo-300 text-[11px] font-extrabold flex flex-col items-center justify-center gap-1 transition-all cursor-pointer shadow-2xs"
+                    title="Ver los alumnos matriculados en esta materia"
+                  >
+                    <Users className="w-4 h-4 text-indigo-500" />
+                    <span>Alumnos</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => handleSelectCursoTab(curso, "tareas")}
+                    className="py-2 px-1.5 rounded-xl border border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-white/5 hover:bg-indigo-50 dark:hover:bg-indigo-950/40 text-slate-700 dark:text-slate-200 hover:text-indigo-600 dark:hover:text-indigo-400 hover:border-indigo-300 text-[11px] font-extrabold flex flex-col items-center justify-center gap-1 transition-all cursor-pointer shadow-2xs"
+                    title="Crear y calificar tareas de este curso"
+                  >
+                    <FileText className="w-4 h-4 text-blue-500" />
+                    <span>Tareas</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => handleSelectCursoTab(curso, "anuncios")}
+                    className="py-2 px-1.5 rounded-xl border border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-white/5 hover:bg-indigo-50 dark:hover:bg-indigo-950/40 text-slate-700 dark:text-slate-200 hover:text-indigo-600 dark:hover:text-indigo-400 hover:border-indigo-300 text-[11px] font-extrabold flex flex-col items-center justify-center gap-1 transition-all cursor-pointer shadow-2xs"
+                    title="Publicar avisos a este curso"
+                  >
+                    <Bell className="w-4 h-4 text-amber-500" />
+                    <span>Anuncios</span>
+                  </button>
+                </div>
+
                 <button
                   type="button"
-                  onClick={() => setCursoSeleccionado(curso)}
-                  className="w-full py-2.5 px-3 rounded-xl border border-slate-200 dark:border-white/10 bg-slate-100/70 dark:bg-white/5 hover:bg-indigo-50 dark:hover:bg-indigo-950/40 text-slate-700 dark:text-slate-200 hover:text-indigo-600 dark:hover:text-indigo-400 hover:border-indigo-300 dark:hover:border-indigo-700 text-sm font-bold flex items-center justify-center gap-2 transition-all shadow-2xs cursor-pointer"
+                  onClick={() => handleSelectCursoTab(curso, "clase")}
+                  className="w-full py-2.5 px-3 rounded-xl border border-slate-200 dark:border-white/10 bg-slate-100/70 dark:bg-white/5 hover:bg-indigo-50 dark:hover:bg-indigo-950/40 text-slate-700 dark:text-slate-200 hover:text-indigo-600 dark:hover:text-indigo-400 hover:border-indigo-300 dark:hover:border-indigo-700 text-xs font-bold flex items-center justify-center gap-2 transition-all shadow-2xs cursor-pointer"
                 >
                   <BookOpen className="w-4 h-4 text-slate-400 group-hover:text-indigo-500" />
-                  <span>Ver Asistencia e Historial</span>
+                  <span>Gestionar Asignatura y Asistencia</span>
                   <ChevronRight className="w-4 h-4 ml-auto text-slate-400" />
                 </button>
               </div>

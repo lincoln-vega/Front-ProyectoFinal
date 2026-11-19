@@ -66,17 +66,73 @@ const normalizeAttendance = (record) => {
 };
 
 export async function registerMeetEntry(cursoId) {
+  const userEmail = localStorage.getItem("userEmail") || "";
+  const userId = localStorage.getItem("userId") || "";
+  try {
+    const { data, error } = await insforge.database
+      .from("meet_attendance")
+      .insert([
+        {
+          curso_id: cursoId,
+          docente_id: userId,
+          docente_email: userEmail,
+          evento: "ENTRADA",
+          hora_entrada: new Date().toISOString(),
+          estado_sesion: "EN_PROGRESO"
+        }
+      ])
+      .select();
+    if (!error && data?.[0]) {
+      return normalizeAttendance(data[0]);
+    }
+  } catch (err) {
+    console.warn("[Asistencia] DB fallback a functions:", err);
+  }
   return normalizeAttendance(unwrapResponse(await invokeMeetFunction(FUNCTION_NAMES.entry, cursoId)));
 }
 
 export async function registerMeetExit(cursoId) {
+  try {
+    const { data, error } = await insforge.database
+      .from("meet_attendance")
+      .update({
+        evento: "SALIDA",
+        hora_salida: new Date().toISOString(),
+        estado_sesion: "FINALIZADA"
+      })
+      .eq("curso_id", cursoId)
+      .eq("estado_sesion", "EN_PROGRESO")
+      .select();
+    if (!error && data?.[0]) {
+      return normalizeAttendance(data[0]);
+    }
+  } catch (err) {
+    console.warn("[Asistencia] DB exit fallback a functions:", err);
+  }
   return normalizeAttendance(unwrapResponse(await invokeMeetFunction(FUNCTION_NAMES.exit, cursoId)));
 }
 
 export async function getMeetAttendanceHistory(cursoId) {
-  const data = await invokeMeetFunction(FUNCTION_NAMES.audit, cursoId);
-  const records = data?.historial || data?.history || data?.rows || data?.items || data?.data || data;
-  return (Array.isArray(records) ? records : [records].filter(Boolean)).map(normalizeAttendance);
+  try {
+    const { data, error } = await insforge.database
+      .from("meet_attendance")
+      .select("*")
+      .eq("curso_id", cursoId)
+      .order("created_at", { ascending: false });
+    if (!error && Array.isArray(data)) {
+      return data.map(normalizeAttendance);
+    }
+  } catch (err) {
+    console.warn("[Asistencia] DB history fallback a functions:", err);
+  }
+
+  try {
+    const data = await invokeMeetFunction(FUNCTION_NAMES.audit, cursoId);
+    const records = data?.historial || data?.history || data?.rows || data?.items || data?.data || data;
+    return (Array.isArray(records) ? records : [records].filter(Boolean)).map(normalizeAttendance);
+  } catch {
+    return [];
+  }
 }
 
 const ATTENDANCE_COLUMNS = "id, cursoId, asignatura, docenteId, docente, fecha, horaApertura, modalidad, asistentesPuntuales, tardanzas, ausentes, created_at";

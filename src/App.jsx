@@ -20,6 +20,7 @@ import AdminReportesPage from "./pages/admin/AdminReportesPage";
 import AdminConfiguracionPage from "./pages/admin/AdminConfiguracionPage";
 import DocenteCursosPage from "./pages/docente/DocenteCursosPage";
 import DocenteHorariosPage from "./pages/docente/DocenteHorariosPage";
+import DocenteEstudiantesPage from "./pages/docente/DocenteEstudiantesPage";
 
 export default function App() {
   return (
@@ -67,6 +68,7 @@ export default function App() {
           <Route index element={<Navigate to="/docente/panel" replace />} />
           <Route path="panel" element={<DocenteDashboardPage />} />
           <Route path="cursos" element={<DocenteCursosPage />} />
+          <Route path="estudiantes" element={<DocenteEstudiantesPage />} />
           <Route path="horarios" element={<DocenteHorariosPage />} />
         </Route>
       </Route>
