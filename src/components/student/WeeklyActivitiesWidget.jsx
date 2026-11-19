@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import {
   ListTodo,
   Clock,
@@ -43,7 +43,37 @@ export default function WeeklyActivitiesWidget({ activeCourses = [], onJoinMeet 
     alert("¡Tarea entregada exitosamente! Tu docente ha sido notificado.");
   };
 
-  const filteredActivities = activities.filter((act) => {
+  // Filtrar estrictamente las actividades según los cursos en los que el estudiante está matriculado
+  const relevantActivities = useMemo(() => {
+    if (!activeCourses || activeCourses.length === 0) {
+      return activities.filter((act) => String(act.cursoId || act.curso_id || "").startsWith("SIM"));
+    }
+
+    const enrolledIds = new Set(
+      activeCourses
+        .map((c) => String(c.id || c.cursoId || ""))
+        .filter(Boolean)
+    );
+
+    const enrolledNames = activeCourses
+      .map((c) => (c.asignatura || c.nombre || "").toLowerCase().trim())
+      .filter(Boolean);
+
+    return activities.filter((act) => {
+      const cid = String(act.cursoId || act.curso_id || "");
+      // Simulacros generales abiertos a todos los estudiantes de la academia
+      if (cid.startsWith("SIM")) return true;
+      if (enrolledIds.has(cid)) return true;
+
+      const cName = (act.curso || "").toLowerCase().trim();
+      if (cName && enrolledNames.some((name) => cName.includes(name) || name.includes(cName))) {
+        return true;
+      }
+      return false;
+    });
+  }, [activities, activeCourses]);
+
+  const filteredActivities = relevantActivities.filter((act) => {
     if (filter === "pendientes") return act.estado === "Por entregar";
     if (filter === "completadas") return act.estado === "Entregado";
     return true;
@@ -148,7 +178,7 @@ export default function WeeklyActivitiesWidget({ activeCourses = [], onJoinMeet 
         <div className="divide-y divide-slate-100 dark:divide-white/5 p-2 space-y-1">
           {filteredActivities.length === 0 ? (
             <div className="p-6 text-center text-xs text-slate-400">
-              No hay actividades en esta sección.
+              No tienes actividades en esta sección para tus cursos matriculados.
             </div>
           ) : (
             filteredActivities.map((act) => {

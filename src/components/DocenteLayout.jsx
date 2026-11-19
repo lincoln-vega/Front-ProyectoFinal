@@ -16,7 +16,8 @@ import {
   AlertCircle,
   FileText,
   Clock,
-  MessageSquare
+  MessageSquare,
+  Users
 } from "lucide-react";
 import ThemeToggle from "./ThemeToggle";
 import { signOutFromApp } from "../services/session";
@@ -79,6 +80,7 @@ export default function DocenteLayout() {
 
   const getPageTitle = () => {
     if (location.pathname.includes("/docente/cursos")) return "Mis Cursos y Asistencia";
+    if (location.pathname.includes("/docente/estudiantes")) return "Mis Alumnos y Nómina";
     if (location.pathname.includes("/docente/horarios")) return "Horario Semanal";
     return "Panel Principal";
   };
@@ -193,6 +195,22 @@ export default function DocenteLayout() {
           >
             <BookOpen className="w-5 h-5 mb-1 group-hover:scale-110 transition-transform" />
             <span>Cursos</span>
+          </NavLink>
+
+          {/* Mis Alumnos */}
+          <NavLink
+            to="/docente/estudiantes"
+            className={({ isActive }) =>
+              `w-16 h-16 rounded-xl flex flex-col items-center justify-center text-[10px] font-bold transition-all group cursor-pointer ${
+                isActive
+                  ? "bg-blue-600 text-white shadow-lg shadow-blue-600/30 ring-2 ring-blue-400/50"
+                  : "text-slate-400 hover:text-white hover:bg-white/5"
+              }`
+            }
+            title="Nómina de Mis Estudiantes"
+          >
+            <Users className="w-5 h-5 mb-1 group-hover:scale-110 transition-transform" />
+            <span>Alumnos</span>
           </NavLink>
 
           {/* Horario Semanal */}
@@ -464,6 +482,24 @@ export default function DocenteLayout() {
                   <div className="flex items-center space-x-3">
                     <BookOpen className="w-4.5 h-4.5 text-amber-300" />
                     <span>Mis Cursos</span>
+                  </div>
+                  <ChevronRight className="w-4 h-4 text-slate-400" />
+                </NavLink>
+
+                <NavLink
+                  to="/docente/estudiantes"
+                  onClick={() => setMobileMenuOpen(false)}
+                  className={({ isActive }) =>
+                    `flex items-center justify-between px-3.5 py-2.5 rounded-xl text-sm font-semibold transition-all ${
+                      isActive
+                        ? "bg-blue-600 text-white shadow-md font-bold"
+                        : "text-slate-300 hover:bg-white/10 hover:text-white"
+                    }`
+                  }
+                >
+                  <div className="flex items-center space-x-3">
+                    <Users className="w-4.5 h-4.5 text-amber-300" />
+                    <span>Mis Alumnos</span>
                   </div>
                   <ChevronRight className="w-4 h-4 text-slate-400" />
                 </NavLink>

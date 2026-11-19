@@ -51,8 +51,14 @@ const formatDateTime = (value) => {
   return Number.isNaN(date.getTime()) ? value : date.toLocaleString("es-PE");
 };
 
-export default function DocenteCursosDetalles({ cursoId, onVolver }) {
-  const [activeTab, setActiveTab] = useState("clase"); // "clase" | "tareas" | "anuncios" | "alumnos"
+export default function DocenteCursosDetalles({ cursoId, initialTab = "clase", onVolver }) {
+  const [activeTab, setActiveTab] = useState(initialTab || "clase"); // "clase" | "tareas" | "anuncios" | "alumnos" | "consultas"
+
+  useEffect(() => {
+    if (initialTab) {
+      setActiveTab(initialTab);
+    }
+  }, [initialTab]);
   const [curso, setCurso] = useState(null);
   const [history, setHistory] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -138,37 +144,30 @@ export default function DocenteCursosDetalles({ cursoId, onVolver }) {
       setTasks(courseTasks);
       setAnnouncements(courseAnnouncements);
 
-      // Filtrar estudiantes matriculados en este curso
+      // Filtrar estrictamente los estudiantes matriculados en este curso (sin mezclar con otras carreras)
       const students = (users || []).filter((u) => {
         const isStudent = String(u.rol || "").toLowerCase() === "estudiante";
         if (!isStudent) return false;
         
-        // Verificar si tiene el curso en cursosInscritos
-        const inscritos = u.cursosInscritos || [];
+        // 1. Si tiene el curso explícitamente en cursosInscritos
+        const inscritos = Array.isArray(u.cursosInscritos) ? u.cursosInscritos : [];
         const hasDirectEnrollment = inscritos.some((c) => {
           const id = typeof c === "object" && c !== null ? c.id : c;
-          return id === cursoId;
+          return String(id) === String(cursoId);
         });
-
         if (hasDirectEnrollment) return true;
 
-        // O si coincide con el área académica del curso
-        if (foundCourse?.area && u.areaAcademica) {
-          return foundCourse.area.includes(u.areaAcademica) || u.areaAcademica.includes(foundCourse.area);
+        // 2. Si no tiene lista explícita de cursos pero su área académica coincide con la del curso
+        if (inscritos.length === 0 && foundCourse?.area && u.areaAcademica) {
+          const courseArea = foundCourse.area.toLowerCase().trim();
+          const studentArea = u.areaAcademica.toLowerCase().trim();
+          return courseArea.includes(studentArea) || studentArea.includes(courseArea);
         }
 
         return false;
       });
 
-      // Si no hay específicos, mostrar una lista representativa de estudiantes del ciclo
-      if (students.length > 0) {
-        setEnrolledStudents(students);
-      } else {
-        const generalStudents = (users || []).filter(
-          (u) => String(u.rol || "").toLowerCase() === "estudiante"
-        );
-        setEnrolledStudents(generalStudents.slice(0, 8));
-      }
+      setEnrolledStudents(students);
 
       await loadAttendance();
     } catch (err) {
@@ -748,7 +747,7 @@ export default function DocenteCursosDetalles({ cursoId, onVolver }) {
       {/* 4. PESTAÑA: ALUMNOS MATRICULADOS */}
       {activeTab === "alumnos" && (
         <div className="space-y-4">
-          <div className="border-b border-slate-200 dark:border-white/10 pb-3 flex items-center justify-between">
+          <div className="border-b border-slate-200 dark:border-white/10 pb-3 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
             <div>
               <h3 className="text-lg font-extrabold text-slate-900 dark:text-white">
                 Lista de Alumnos Matriculados ({enrolledStudents.length})
@@ -757,49 +756,87 @@ export default function DocenteCursosDetalles({ cursoId, onVolver }) {
                 Estudiantes asignados a esta sección para el ciclo intensivo 2026-I.
               </p>
             </div>
-            <span className="text-xs font-bold px-3 py-1 bg-emerald-50 text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-300 rounded-xl border border-emerald-200 dark:border-emerald-800">
-              {enrolledStudents.length} Alumnos Regulares
-            </span>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {enrolledStudents.map((student, idx) => (
-              <div
-                key={student.id || idx}
-                className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-white/10 p-4 shadow-xs flex items-center justify-between gap-3 hover:border-indigo-300 transition-all"
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => {
+                  setActiveTab("tareas");
+                  setIsTaskModalOpen(true);
+                }}
+                className="px-3 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold shadow-xs flex items-center gap-1.5 cursor-pointer transition-colors"
               >
-                <div className="flex items-center space-x-3 min-w-0">
-                  <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-blue-600 to-indigo-600 text-white font-extrabold text-xs flex items-center justify-center shrink-0 shadow-xs">
-                    {(student.nombres || "A").charAt(0)}{(student.apellidos || "E").charAt(0)}
-                  </div>
-                  <div className="min-w-0">
-                    <p className="text-sm font-extrabold text-slate-900 dark:text-white truncate">
-                      {student.nombres} {student.apellidos}
-                    </p>
-                    <p className="text-xs text-slate-500 dark:text-slate-400 truncate font-mono">
-                      {student.correo}
-                    </p>
-                    <p className="text-[11px] text-indigo-600 dark:text-indigo-400 font-semibold truncate mt-0.5">
-                      Meta: {student.carreraObjetivo || "Ingeniería"} ({student.universidad || "UNI/UNMSM"})
-                    </p>
-                  </div>
-                </div>
-
-                <div className="text-right shrink-0">
-                  <span className="text-[10px] font-extrabold px-2 py-0.5 rounded-full bg-emerald-50 dark:bg-emerald-950/50 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800 block mb-1">
-                    95% Asist.
-                  </span>
-                  <a
-                    href={`mailto:${student.correo}`}
-                    className="text-[11px] font-bold text-indigo-600 dark:text-indigo-400 hover:underline flex items-center gap-1 justify-end"
-                  >
-                    <span>Contactar</span>
-                    <ExternalLink className="w-3 h-3" />
-                  </a>
-                </div>
-              </div>
-            ))}
+                <PlusCircle className="w-3.5 h-3.5" />
+                <span>+ Crear Tarea</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setActiveTab("anuncios");
+                  setIsAnnModalOpen(true);
+                }}
+                className="px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-white/10 dark:hover:bg-white/15 text-slate-700 dark:text-slate-200 text-xs font-bold shadow-xs flex items-center gap-1.5 cursor-pointer transition-colors"
+              >
+                <Bell className="w-3.5 h-3.5" />
+                <span>+ Anuncio</span>
+              </button>
+              <span className="text-xs font-bold px-3 py-1 bg-emerald-50 text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-300 rounded-xl border border-emerald-200 dark:border-emerald-800">
+                {enrolledStudents.length} Alumnos
+              </span>
+            </div>
           </div>
+
+          {enrolledStudents.length === 0 ? (
+            <div className="p-12 text-center rounded-2xl border border-dashed border-slate-200 dark:border-white/10 bg-slate-50/50 dark:bg-white/5 space-y-3">
+              <div className="w-12 h-12 rounded-2xl bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 mx-auto flex items-center justify-center">
+                <Users className="w-6 h-6" />
+              </div>
+              <h4 className="text-sm font-extrabold text-slate-800 dark:text-white">
+                No hay alumnos matriculados en esta materia todavía
+              </h4>
+              <p className="text-xs text-slate-500 max-w-sm mx-auto">
+                Los estudiantes aparecerán aquí cuando se matriculen en esta asignatura o pertenezcan al área de {curso?.area || "esta materia"}.
+              </p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {enrolledStudents.map((student, idx) => (
+                <div
+                  key={student.id || idx}
+                  className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-white/10 p-4 shadow-xs flex items-center justify-between gap-3 hover:border-indigo-300 transition-all"
+                >
+                  <div className="flex items-center space-x-3 min-w-0">
+                    <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-blue-600 to-indigo-600 text-white font-extrabold text-xs flex items-center justify-center shrink-0 shadow-xs">
+                      {(student.nombres || "A").charAt(0)}{(student.apellidos || "E").charAt(0)}
+                    </div>
+                    <div className="min-w-0">
+                      <p className="text-sm font-extrabold text-slate-900 dark:text-white truncate">
+                        {student.nombres} {student.apellidos}
+                      </p>
+                      <p className="text-xs text-slate-500 dark:text-slate-400 truncate font-mono">
+                        {student.correo}
+                      </p>
+                      <p className="text-[11px] text-indigo-600 dark:text-indigo-400 font-semibold truncate mt-0.5">
+                        Meta: {student.carreraObjetivo || "Ingeniería"} ({student.universidad || "UNI/UNMSM"})
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="text-right shrink-0">
+                    <span className="text-[10px] font-extrabold px-2 py-0.5 rounded-full bg-emerald-50 dark:bg-emerald-950/50 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800 block mb-1">
+                      95% Asist.
+                    </span>
+                    <a
+                      href={`mailto:${student.correo}`}
+                      className="text-[11px] font-bold text-indigo-600 dark:text-indigo-400 hover:underline flex items-center gap-1 justify-end"
+                    >
+                      <span>Contactar</span>
+                      <ExternalLink className="w-3 h-3" />
+                    </a>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       )}
 

@@ -319,19 +319,23 @@ export default function DocenteDashboardPage() {
         </div>
 
         {/* Total Estudiantes Matriculados */}
-        <div className="bg-white dark:bg-slate-900/90 rounded-2xl border border-slate-200/90 dark:border-white/10 p-5 shadow-xs flex items-center space-x-4">
-          <div className="p-3 bg-emerald-50 dark:bg-emerald-950/60 rounded-xl text-emerald-600 dark:text-emerald-400">
+        <Link
+          to="/docente/estudiantes"
+          className="bg-white dark:bg-slate-900/90 rounded-2xl border border-slate-200/90 dark:border-white/10 p-5 shadow-xs flex items-center space-x-4 hover:border-emerald-300 dark:hover:border-emerald-700 hover:shadow-md transition-all group"
+          title="Ver nómina de todos mis alumnos"
+        >
+          <div className="p-3 bg-emerald-50 dark:bg-emerald-950/60 rounded-xl text-emerald-600 dark:text-emerald-400 group-hover:scale-110 transition-transform">
             <Users className="w-6 h-6" />
           </div>
           <div>
-            <p className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
+            <p className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-colors">
               Alumnos a Cargo
             </p>
             <p className="text-2xl font-black text-slate-900 dark:text-white mt-0.5">
               {totalEstudiantes}
             </p>
           </div>
-        </div>
+        </Link>
 
         {/* Clases con Google Meet */}
         <div className="bg-white dark:bg-slate-900/90 rounded-2xl border border-slate-200/90 dark:border-white/10 p-5 shadow-xs flex items-center space-x-4">
@@ -450,12 +454,32 @@ export default function DocenteDashboardPage() {
                       <span>Iniciar Clase (Google Meet)</span>
                     </button>
 
+                    <div className="grid grid-cols-2 gap-2">
+                      <Link
+                        to={`/docente/cursos?cursoId=${course.id}&tab=alumnos`}
+                        className="text-center text-[11px] font-extrabold py-2 px-2 rounded-xl border border-slate-200 dark:border-white/10 hover:bg-indigo-50 dark:hover:bg-indigo-950/40 text-slate-700 dark:text-slate-200 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors flex items-center justify-center gap-1.5"
+                        title="Ver lista de alumnos matriculados"
+                      >
+                        <Users className="w-3.5 h-3.5 text-indigo-500" />
+                        <span>Ver Alumnos</span>
+                      </Link>
+
+                      <Link
+                        to={`/docente/cursos?cursoId=${course.id}&tab=tareas`}
+                        className="text-center text-[11px] font-extrabold py-2 px-2 rounded-xl border border-slate-200 dark:border-white/10 hover:bg-indigo-50 dark:hover:bg-indigo-950/40 text-slate-700 dark:text-slate-200 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors flex items-center justify-center gap-1.5"
+                        title="Crear tareas y evaluaciones"
+                      >
+                        <FileText className="w-3.5 h-3.5 text-blue-500" />
+                        <span>Crear Tareas</span>
+                      </Link>
+                    </div>
+
                     <Link
-                      to={`/docente/cursos`}
+                      to={`/docente/cursos?cursoId=${course.id}&tab=clase`}
                       className="w-full text-center text-xs font-bold py-2 px-3 rounded-xl border border-slate-200 dark:border-white/10 hover:bg-slate-50 dark:hover:bg-white/5 text-slate-700 dark:text-slate-200 transition-colors flex items-center justify-center gap-1.5"
                     >
                       <BookOpen className="w-3.5 h-3.5 text-slate-400" />
-                      <span>Gestionar Tareas y Nómina</span>
+                      <span>Gestionar Asignatura y Asistencia</span>
                     </Link>
                   </div>
                 </div>

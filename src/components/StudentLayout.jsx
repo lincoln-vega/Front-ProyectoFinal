@@ -28,6 +28,7 @@ import { signOutFromApp } from "../services/session";
 import { academicActivitiesService } from "../services/academicActivitiesService";
 import { chatAcademicService } from "../services/chatAcademicService";
 import { userService } from "../services/api";
+import { courseService } from "../services/cursosServices";
 
 export default function StudentLayout() {
   const navigate = useNavigate();
@@ -62,6 +63,7 @@ export default function StudentLayout() {
 
   // Estado y perfil del estudiante
   const [studentProfile, setStudentProfile] = useState(null);
+  const [availableCourses, setAvailableCourses] = useState([]);
   const [teachersList, setTeachersList] = useState([]);
   const [selectedTeacherIndex, setSelectedTeacherIndex] = useState(0);
   const [newQuestionText, setNewQuestionText] = useState("");
@@ -71,16 +73,20 @@ export default function StudentLayout() {
   // Notificaciones interactivas para el estudiante sincronizadas con Backend/Local
   const [notifications, setNotifications] = useState([]);
 
-  // 1. Cargar perfil y docentes reales del estudiante
+  // 1. Cargar perfil, asignaturas y docentes reales del estudiante
   useEffect(() => {
     let cancelled = false;
 
     async function loadStudentData() {
       try {
-        const profile = await userService.getUserByEmail(studentEmail);
-        if (!cancelled && profile) {
-          setStudentProfile(profile);
-          const teachers = await chatAcademicService.getTeachersForStudent(profile.cursosInscritos || []);
+        const [profile, courses] = await Promise.all([
+          userService.getUserByEmail(studentEmail),
+          courseService.getCourses().catch(() => [])
+        ]);
+        if (!cancelled) {
+          if (profile) setStudentProfile(profile);
+          if (courses) setAvailableCourses(courses);
+          const teachers = await chatAcademicService.getTeachersForStudent(profile?.cursosInscritos || []);
           setTeachersList(teachers);
         }
       } catch (err) {
@@ -114,25 +120,53 @@ export default function StudentLayout() {
     let cancelled = false;
 
     const syncNotifications = () => {
-      const enrolledIds = new Set(
+      let enrolledIds = new Set(
         (studentProfile?.cursosInscritos || []).map((id) =>
           typeof id === "object" && id !== null ? String(id.id) : String(id)
         )
       );
 
+      let enrolledNames = [];
+
+      // Si no tiene lista explícita pero tiene área académica, filtrar los cursos de esa área
+      if (enrolledIds.size === 0 && studentProfile?.areaAcademica && availableCourses.length > 0) {
+        const areaLower = studentProfile.areaAcademica.toLowerCase().trim();
+        const matchedCourses = availableCourses.filter((c) => {
+          const cArea = (c.area || "").toLowerCase().trim();
+          return cArea.includes(areaLower) || areaLower.includes(cArea);
+        });
+        enrolledIds = new Set(matchedCourses.map((c) => String(c.id)));
+        enrolledNames = matchedCourses.map((c) => (c.asignatura || c.nombre || "").toLowerCase().trim());
+      } else if (availableCourses.length > 0) {
+        enrolledNames = availableCourses
+          .filter((c) => enrolledIds.has(String(c.id)))
+          .map((c) => (c.asignatura || c.nombre || "").toLowerCase().trim());
+      }
+
       // Si el alumno tiene cursos matriculados, filtrar por ellos más los simulacros generales
       const allTasks = academicActivitiesService.getTasks().filter((t) => t.estado === "Por entregar");
       const filteredTasks = allTasks.filter((t) => {
-        if (enrolledIds.size === 0) return true;
         const cid = String(t.cursoId || t.curso_id || "");
-        return enrolledIds.has(cid) || cid.startsWith("SIM");
+        if (cid.startsWith("SIM")) return true;
+        if (enrolledIds.has(cid)) return true;
+        const taskCourseName = (t.curso || "").toLowerCase().trim();
+        if (taskCourseName && enrolledNames.some((name) => taskCourseName.includes(name) || name.includes(taskCourseName))) {
+          return true;
+        }
+        return false;
       });
 
       const allAnns = academicActivitiesService.getAnnouncements();
       const filteredAnns = allAnns.filter((a) => {
-        if (enrolledIds.size === 0) return true;
         const cid = String(a.cursoId || a.curso_id || "");
-        return enrolledIds.has(cid) || cid.startsWith("SIM") || (a.prioridad || "").toLowerCase() === "urgente";
+        if (cid.startsWith("SIM")) return true;
+        if (enrolledIds.has(cid)) return true;
+        if ((a.prioridad || "").toLowerCase() === "urgente") return true;
+        const annCourseName = (a.curso || "").toLowerCase().trim();
+        if (annCourseName && enrolledNames.some((name) => annCourseName.includes(name) || name.includes(annCourseName))) {
+          return true;
+        }
+        return false;
       });
 
       const combined = [
@@ -181,7 +215,7 @@ export default function StudentLayout() {
       cancelled = true;
       window.removeEventListener("storage", syncNotifications);
     };
-  }, [studentProfile]);
+  }, [studentProfile, availableCourses]);
 
   const handleSubmitQuestion = () => {
     if (!newQuestionText.trim()) {
