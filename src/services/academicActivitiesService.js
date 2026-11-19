@@ -16,9 +16,11 @@ const getBackendUrls = () => {
     urls.push(fallbackEnv.replace(/\/+$/, ""));
   }
 
-  // Local fallback directo para pruebas de integración continua
-  if (!urls.some((u) => u.includes("localhost:8000") || u.includes("127.0.0.1:8000"))) {
-    urls.push("http://localhost:8000");
+  // Local fallback solo en desarrollo local
+  if (typeof window !== "undefined" && (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1")) {
+    if (!urls.some((u) => u.includes("localhost:8000") || u.includes("127.0.0.1:8000"))) {
+      urls.push("http://localhost:8000");
+    }
   }
   return urls;
 };
@@ -37,6 +39,7 @@ async function requestActivities(path, options = {}) {
   const headers = getHeaders();
   const opts = {
     ...options,
+    signal: options.signal || AbortSignal.timeout(3500),
     headers: {
       ...headers,
       ...(options.headers || {})

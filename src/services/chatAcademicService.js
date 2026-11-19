@@ -17,8 +17,10 @@ const getBackendUrls = () => {
   if (fallbackEnv && !urls.includes(fallbackEnv.replace(/\/+$/, ""))) {
     urls.push(fallbackEnv.replace(/\/+$/, ""));
   }
-  if (!urls.some((u) => u.includes("localhost:8000") || u.includes("127.0.0.1:8000"))) {
-    urls.push("http://localhost:8000");
+  if (typeof window !== "undefined" && (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1")) {
+    if (!urls.some((u) => u.includes("localhost:8000") || u.includes("127.0.0.1:8000"))) {
+      urls.push("http://localhost:8000");
+    }
   }
   return urls;
 };
@@ -37,6 +39,7 @@ async function requestMensajes(path, options = {}) {
   const headers = getHeaders();
   const opts = {
     ...options,
+    signal: options.signal || AbortSignal.timeout(3500),
     headers: {
       ...headers,
       ...(options.headers || {})

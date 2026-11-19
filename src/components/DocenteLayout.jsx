@@ -52,7 +52,7 @@ export default function DocenteLayout() {
 
     updateChatCount();
     window.addEventListener("storage", updateChatCount);
-    const interval = setInterval(updateChatCount, 8000);
+    const interval = setInterval(updateChatCount, 30000);
     return () => {
       cancelled = true;
       window.removeEventListener("storage", updateChatCount);

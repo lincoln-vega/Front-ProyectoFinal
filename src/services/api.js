@@ -27,7 +27,8 @@ const USER_COLUMNS = [
   "cursosInscritos",
   "created_at",
   "ciclovirtual",
-  "salario"
+  "salario",
+  "especialidad"
 ].join(", ");
 
 export const parseCourseList = (value) => {
@@ -313,13 +314,33 @@ export const adminUserRegistrationService = {
 
   async createAuthAccount(formData) {
     const isolatedClient = createIsolatedAuthClient();
+    const email = String(formData.correo || "").trim().toLowerCase();
     const { data, error } = await isolatedClient.auth.signUp({
-      email: String(formData.correo || "").trim().toLowerCase(),
+      email,
       password: formData.password,
       name: `${formData.nombres || ""} ${formData.apellidos || ""}`.trim()
     });
 
     if (error) {
+      const errMsg = String(error.message || "").toLowerCase();
+      if (
+        errMsg.includes("already registered") ||
+        errMsg.includes("already exists") ||
+        errMsg.includes("ya existe")
+      ) {
+        // Si la cuenta Auth ya existe (por ejemplo, usuario eliminado y recreado), recuperar el authUserId
+        const { data: loginData, error: loginErr } = await isolatedClient.auth.signInWithPassword({
+          email,
+          password: formData.password
+        });
+        if (!loginErr && loginData?.user?.id) {
+          return {
+            authUserId: loginData.user.id,
+            emailVerified: loginData.user.emailVerified === true,
+            requiresEmailVerification: false
+          };
+        }
+      }
       throw new Error(formatAuthCreationError(error));
     }
     if (!data?.user?.id) {
@@ -415,12 +436,29 @@ export const userService = {
   },
 
   async saveUsers(users) {
-    const safeUsers = users.map(({ password, created_at, cicloVirtual, universidad, ...user }) => {
-      const ciclo = cicloVirtual || user.ciclovirtual || "Semestral";
-      return {
-        ...user,
-        ciclovirtual: ciclo
+    const safeUsers = users.map(({ password, created_at, cicloVirtual, universidad, ...safeUser }) => {
+      const ciclo = cicloVirtual || safeUser.ciclovirtual || "Semestral";
+      const payload = {
+        id: formatIdForDb(safeUser.id),
+        nombres: safeUser.nombres || "",
+        apellidos: safeUser.apellidos || "",
+        rol: formatRoleForDb(safeUser.rol),
+        estado: formatEstadoForDb(safeUser.estado),
+        tipoDocumento: safeUser.tipoDocumento || "DNI",
+        dni: safeUser.dni ? String(safeUser.dni).trim() : "",
+        celular: safeUser.celular ? String(safeUser.celular).trim() : "",
+        correo: safeUser.correo ? String(safeUser.correo).trim().toLowerCase() : "",
+        fechaNacimiento: safeUser.fechaNacimiento || "",
+        carreraObjetivo: safeUser.carreraObjetivo || "",
+        areaAcademica: safeUser.areaAcademica || "",
+        cursosAsignados: safeUser.cursosAsignados || [],
+        cursosInscritos: safeUser.cursosInscritos || [],
+        ciclovirtual: ciclo,
+        salario: Number(safeUser.salario) || (formatRoleForDb(safeUser.rol) === "Docente" ? 3200 : 0),
+        especialidad: safeUser.especialidad || safeUser.carreraObjetivo || safeUser.areaAcademica || ""
       };
+      if (safeUser.auth_user_id) payload.auth_user_id = safeUser.auth_user_id;
+      return payload;
     });
     if (safeUsers.length === 0) return [];
 
@@ -438,16 +476,25 @@ export const userService = {
     const { password, created_at, cicloVirtual, universidad, ...safeUser } = user;
     const ciclo = cicloVirtual || safeUser.ciclovirtual || "Semestral";
     const payload = {
-      ...safeUser,
       id: formatIdForDb(safeUser.id),
+      nombres: safeUser.nombres || "",
+      apellidos: safeUser.apellidos || "",
       rol: formatRoleForDb(safeUser.rol),
       estado: formatEstadoForDb(safeUser.estado),
       tipoDocumento: safeUser.tipoDocumento || "DNI",
       dni: safeUser.dni ? String(safeUser.dni).trim() : "",
       celular: safeUser.celular ? String(safeUser.celular).trim() : "",
       correo: safeUser.correo ? String(safeUser.correo).trim().toLowerCase() : "",
-      ciclovirtual: ciclo
+      fechaNacimiento: safeUser.fechaNacimiento || "",
+      carreraObjetivo: safeUser.carreraObjetivo || "",
+      areaAcademica: safeUser.areaAcademica || "",
+      cursosAsignados: safeUser.cursosAsignados || [],
+      cursosInscritos: safeUser.cursosInscritos || [],
+      ciclovirtual: ciclo,
+      salario: Number(safeUser.salario) || (formatRoleForDb(safeUser.rol) === "Docente" ? 3200 : 0),
+      especialidad: safeUser.especialidad || safeUser.carreraObjetivo || safeUser.areaAcademica || ""
     };
+    if (safeUser.auth_user_id) payload.auth_user_id = safeUser.auth_user_id;
 
     // Validación Capa 2 (FastAPI Backend)
     await validateWithBackend({
@@ -475,6 +522,26 @@ export const userService = {
   },
 
   async deleteUser(id) {
+    // 1. Intentar borrado seguro vía Backend FastAPI para limpiar public.users y auth.users
+    try {
+      const token = getApiAccessToken();
+      const base = getApiBaseUrl();
+      if (base) {
+        const res = await fetch(`${base.replace(/\/+$/, "")}/usuarios/${encodeURIComponent(id)}`, {
+          method: "DELETE",
+          headers: token ? { Authorization: `Bearer ${token}` } : {},
+          signal: AbortSignal.timeout(4000)
+        });
+        if (res.ok) {
+          cacheUsers(getStoredUsers().filter((user) => user.id !== id));
+          return;
+        }
+      }
+    } catch (e) {
+      console.warn("[userService] Fallback delete a PostgREST:", e);
+    }
+
+    // 2. Eliminación directa en PostgREST como respaldo
     const { error } = await insforge.database
       .from("users")
       .delete()
