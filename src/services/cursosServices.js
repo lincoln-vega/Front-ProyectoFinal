@@ -119,6 +119,13 @@ export const courseService = {
         if (data?.detail) {
           const detail = typeof data.detail === "string" ? data.detail : JSON.stringify(data.detail);
           console.warn("[Backend] Alerta de monitoreo de curso:", detail);
+          // Si el conflicto reportado es con la misma asignatura que se está editando, verificar si es falso positivo
+          if (curso.id && curso.asignatura && detail.includes(curso.asignatura)) {
+            const localCheck = await courseService.validarCruce(curso);
+            if (!localCheck.cruce) {
+              return { valido: true, mensaje: "Horario disponible. Sin cruces para el docente." };
+            }
+          }
           return { valido: false, mensaje: detail };
         }
       } else {
