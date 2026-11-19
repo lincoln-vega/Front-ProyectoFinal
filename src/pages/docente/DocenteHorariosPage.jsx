@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { courseService } from '../../services/cursosServices';
+import { userService } from '../../services/api';
 import { Clock, Video, Calendar, Sparkles, BookOpen } from 'lucide-react';
 import { registerMeetEntry } from '../../services/asistencia';
 
@@ -38,6 +39,7 @@ const matchesTeacherName = (courseName, userName) => {
 
 export default function HorariosView() {
   const [listaCursos, setListaCursos] = useState([]);
+  const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [selectedMobileDay, setSelectedMobileDay] = useState("Lunes");
@@ -54,9 +56,13 @@ export default function HorariosView() {
       try {
         setLoading(true);
         setError("");
-        const data = await courseService.getCourses();
+        const [data, userProf] = await Promise.all([
+          courseService.getCourses(),
+          userEmail ? userService.getUserByEmail(userEmail).catch(() => null) : Promise.resolve(null)
+        ]);
         if (!cancelled) {
           setListaCursos(data || []);
+          if (userProf) setProfile(userProf);
         }
       } catch (err) {
         if (!cancelled) {
@@ -72,18 +78,31 @@ export default function HorariosView() {
 
     cargarCursos();
     return () => { cancelled = true; };
-  }, []);
+  }, [userEmail]);
 
   const cursosFiltrados = useMemo(() => {
+    const idsAsignados = new Set(
+      (Array.isArray(profile?.cursosAsignados) ? profile.cursosAsignados : [])
+        .map((c) => (typeof c === "object" && c !== null ? c.id : c))
+        .filter(Boolean)
+        .map(String)
+    );
+    const teacherFullName = profile
+      ? `${profile.nombres || ""} ${profile.apellidos || ""}`.trim()
+      : userName;
+
     return listaCursos.filter((course) => {
       if (course.estado !== 'Activo') return false;
       return (
-        course.docenteId === userId || 
+        idsAsignados.has(String(course.id)) ||
+        (profile?.id && course.docenteId === profile.id) ||
+        (userId && course.docenteId === userId) ||
+        matchesTeacherName(course.docente, teacherFullName) ||
         matchesTeacherName(course.docente, userName) ||
         Boolean(userEmail && course.docente?.toLowerCase().includes(userEmail.toLowerCase()))
       );
     });
-  }, [listaCursos, userId, userName, userEmail]);
+  }, [listaCursos, userId, userName, userEmail, profile]);
 
   const handleStartClass = async (curso) => {
     if (!curso?.meetUrl) {

@@ -52,12 +52,22 @@ export default function useCurse() {
       id: cleanId
     };
 
+    const check = await courseService.validarCruce(newCourse, courses);
+    if (check.cruce) {
+      throw new Error(check.mensaje);
+    }
+
     const savedCourses = await courseService.saveCourses([newCourse]);
     setCourses((current) => [savedCourses[0] || newCourse, ...current]);
     return newCourse;
   };
 
   const updateCourse = async (updatedCourse) => {
+    const check = await courseService.validarCruce(updatedCourse, courses);
+    if (check.cruce) {
+      throw new Error(check.mensaje);
+    }
+
     const savedCourses = await courseService.saveCourses([updatedCourse]);
     setCourses((current) => current.map((course) => (
       course.id === updatedCourse.id ? savedCourses[0] || updatedCourse : course

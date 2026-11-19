@@ -50,25 +50,6 @@ export default function DocenteDashboardPage() {
         if (cancelled) return;
 
         setListaCursos(cursos || []);
-        const assigned = (cursos || []).filter((course) =>
-          course.estado === "Activo" &&
-          (course.docenteId === userId ||
-           matchesTeacherName(course.docente, userName) ||
-           Boolean(userEmail && (course.docente || "").toLowerCase().includes(userEmail.toLowerCase())))
-        );
-
-        let studentCount = 0;
-        try {
-          if (assigned.length > 0) {
-            studentCount = await courseService.countStudentsForTeacher(assigned.map((course) => course.id));
-          }
-        } catch (rpcErr) {
-          console.warn("[DocenteDashboard] Conteo vía RPC no disponible o sin permisos:", rpcErr);
-        }
-
-        if (!cancelled) {
-          setTotalEstudiantes(studentCount);
-        }
 
         // 2. Consultar datos de perfil desde InsForge
         if (userEmail && !cancelled) {
@@ -97,15 +78,48 @@ export default function DocenteDashboardPage() {
 
   // Filtrar los cursos asignados al docente activo con estado 'Activo'
   const cursosAsignados = useMemo(() => {
+    const idsAsignados = new Set(
+      (Array.isArray(docenteData?.cursosAsignados) ? docenteData.cursosAsignados : [])
+        .map((c) => (typeof c === "object" && c !== null ? c.id : c))
+        .filter(Boolean)
+        .map(String)
+    );
+
+    const teacherFullName = docenteData
+      ? `${docenteData.nombres || ""} ${docenteData.apellidos || ""}`.trim()
+      : userName;
+
     return listaCursos.filter((course) => {
       if (course.estado !== 'Activo') return false;
       return (
-        course.docenteId === userId || 
+        idsAsignados.has(String(course.id)) ||
+        (docenteData?.id && course.docenteId === docenteData.id) ||
+        (userId && course.docenteId === userId) ||
+        matchesTeacherName(course.docente, teacherFullName) ||
         matchesTeacherName(course.docente, userName) ||
         Boolean(userEmail && course.docente?.toLowerCase().includes(userEmail.toLowerCase()))
       );
     });
-  }, [listaCursos, userId, userName, userEmail]);
+  }, [listaCursos, userId, userName, userEmail, docenteData]);
+
+  // Sincronizar el conteo de estudiantes con los cursos asignados en tiempo real
+  useEffect(() => {
+    let cancelled = false;
+    async function updateStudents() {
+      if (cursosAsignados.length > 0) {
+        try {
+          const count = await courseService.countStudentsForTeacher(cursosAsignados.map((c) => c.id));
+          if (!cancelled) setTotalEstudiantes(count);
+        } catch {
+          if (!cancelled) setTotalEstudiantes(0);
+        }
+      } else {
+        if (!cancelled) setTotalEstudiantes(0);
+      }
+    }
+    updateStudents();
+    return () => { cancelled = true; };
+  }, [cursosAsignados]);
 
   const handleStartClass = async (course) => {
     if (!course?.meetUrl) {
@@ -168,7 +182,9 @@ export default function DocenteDashboardPage() {
       {/* BANNER PRINCIPAL CON ACCIÓN RÁPIDA DE PERMUTA */}
       <div className="bg-white/60 dark:bg-white/5 backdrop-blur-2xl p-6 rounded-2xl border border-slate-200 dark:border-white/10 shadow-2xs flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h2 className="text-2xl font-bold text-slate-800 dark:text-white">¡Bienvenido(a), {userName}!</h2>
+          <h2 className="text-2xl font-bold text-slate-800 dark:text-white">
+            ¡Bienvenido(a), {docenteData ? `${docenteData.nombres || ""} ${docenteData.apellidos || ""}`.trim() || userName : userName}!
+          </h2>
           <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
             Este es tu panel de control principal. Aquí podrás ver un resumen de tus clases, nómina e incidencias.
           </p>
@@ -304,11 +320,15 @@ export default function DocenteDashboardPage() {
           <div className="space-y-4">
             <div className="flex justify-between items-center py-2 border-b border-slate-100 dark:border-white/5">
               <span className="text-slate-600 dark:text-slate-400 font-medium">Especialidad</span>
-              <span className="font-semibold dark:text-slate-200">{docenteData.especialidad}</span>
+              <span className="font-semibold dark:text-slate-200">
+                {docenteData.especialidad || docenteData.areaAcademica || docenteData.carreraObjetivo || "Docencia General"}
+              </span>
             </div>
             <div className="flex justify-between items-center py-2 border-b border-slate-100 dark:border-white/5">
               <span className="text-slate-600 dark:text-slate-400 font-medium">Nómina Base (S/)</span>
-              <span className="font-bold text-emerald-600 dark:text-emerald-400">S/ {docenteData.salario.toFixed(2)}</span>
+              <span className="font-bold text-emerald-600 dark:text-emerald-400">
+                S/ {Number(docenteData.salario || 3200).toFixed(2)}
+              </span>
             </div>
             <div className="py-2">
               <span className="text-slate-600 dark:text-slate-400 font-medium mb-2 block">Historial de Incidencias:</span>

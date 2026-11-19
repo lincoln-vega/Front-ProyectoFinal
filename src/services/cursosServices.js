@@ -168,30 +168,125 @@ export const courseService = {
   },
 
   async countStudentsForTeacher(courseIds) {
-    if (courseIds.length === 0) return 0;
-    const { data, error } = await insforge.database.rpc("get_teacher_student_count", {
-      course_ids: courseIds
-    });
-    throwIfError(error, "contar estudiantes matriculados");
-    return Number(data || 0);
+    if (!courseIds || courseIds.length === 0) return 0;
+    try {
+      const { data, error } = await insforge.database.rpc("get_teacher_student_count", {
+        course_ids: courseIds
+      });
+      if (!error && data !== null && data !== undefined) {
+        return Number(data || 0);
+      }
+    } catch {
+      // Si la función RPC no existe en la BD, calculamos con los usuarios inscritos
+    }
+
+    try {
+      const { data: students } = await insforge.database
+        .from("users")
+        .select("id, cursosInscritos, rol")
+        .eq("estado", "Activo");
+
+      if (Array.isArray(students)) {
+        const studentList = students.filter((u) =>
+          String(u.rol || "").toLowerCase() === "estudiante"
+        );
+        const stringIds = courseIds.map(String);
+        const enrolled = studentList.filter((s) => {
+          const courses = Array.isArray(s.cursosInscritos) ? s.cursosInscritos : [];
+          return courses.some((c) => {
+            const cid = typeof c === "object" && c !== null ? c.id : c;
+            return stringIds.includes(String(cid));
+          });
+        });
+        return enrolled.length;
+      }
+    } catch (e) {
+      console.warn("Fallback count students error:", e);
+    }
+    return 0;
   },
 
-  async validarCruce(nuevoCurso) {
-    const courses = await courseService.getCourses();
+  async validarCruce(nuevoCurso, existingCourses = null) {
+    const courses = existingCourses || await courseService.getCourses();
     const newDays = Array.isArray(nuevoCurso.dias) ? nuevoCurso.dias : [];
-    const collision = courses.find((course) => {
-      if (course.id === nuevoCurso.id) return false;
-      const sameTeacher = nuevoCurso.docenteId && course.docenteId && nuevoCurso.docenteId === course.docenteId;
-      const sameDay = course.dias.some((day) => newDays.includes(day));
-      const overlaps = nuevoCurso.horaInicio < course.horaFin &&
-        nuevoCurso.horaFin > course.horaInicio;
-      return (sameTeacher || sameDay) && overlaps;
+    const newStart = String(nuevoCurso.horaInicio || "").trim();
+    const newEnd = String(nuevoCurso.horaFin || "").trim();
+
+    if (!newStart || !newEnd || newDays.length === 0) {
+      return { cruce: false, valido: true, mensaje: null, curso: null };
+    }
+
+    const cleanName = (val) => String(val || "")
+      .toLowerCase()
+      .replace(/^(prof\.|dra\.|dr\.|ing\.|lic\.)\s*/i, "")
+      .trim();
+
+    const targetDocName = cleanName(nuevoCurso.docente);
+    const targetDocId = nuevoCurso.docenteId ? String(nuevoCurso.docenteId).trim() : "";
+    const cleanCurrentId = nuevoCurso.id ? String(nuevoCurso.id).trim() : "";
+    const cleanCurrentCodigo = nuevoCurso.codigo ? String(nuevoCurso.codigo).trim() : "";
+
+    const collision = (courses || []).find((course) => {
+      // Ignorar el mismo curso cuando estamos editando
+      const courseId = course.id ? String(course.id).trim() : "";
+      const courseCodigo = course.codigo ? String(course.codigo).trim() : "";
+      if (cleanCurrentId && courseId && cleanCurrentId === courseId) return false;
+      if (cleanCurrentCodigo && courseCodigo && cleanCurrentCodigo === courseCodigo) return false;
+
+      // Solo comparar con cursos con estado Activo
+      if (course.estado && String(course.estado).toLowerCase() !== "activo") {
+        return false;
+      }
+
+      // 1. ¿Es el mismo docente? (por docenteId o por nombre completo)
+      const courseDocId = course.docenteId ? String(course.docenteId).trim() : "";
+      const courseDocName = cleanName(course.docente);
+
+      const isSameTeacher =
+        (targetDocId && courseDocId && targetDocId === courseDocId) ||
+        (targetDocName && courseDocName && (
+          targetDocName === courseDocName ||
+          targetDocName.startsWith(courseDocName) ||
+          courseDocName.startsWith(targetDocName)
+        ));
+
+      if (!isSameTeacher) return false;
+
+      // 2. ¿Coincide al menos un día de clase en la semana?
+      const courseDays = Array.isArray(course.dias) ? course.dias : [];
+      const commonDays = courseDays.filter((d) => newDays.includes(d));
+      if (commonDays.length === 0) return false;
+
+      // 3. ¿Existe solapamiento en el rango de horas?
+      const cStart = String(course.horaInicio || "").trim();
+      const cEnd = String(course.horaFin || "").trim();
+      if (!cStart || !cEnd) return false;
+
+      // Dos intervalos [A, B] y [C, D] se solapan si A < D && B > C
+      const overlaps = newStart < cEnd && newEnd > cStart;
+      if (overlaps) {
+        course._commonDays = commonDays;
+        return true;
+      }
+      return false;
     });
+
+    if (collision) {
+      const diasCoincidentes = (collision._commonDays || []).join(", ");
+      const docNombre = collision.docente || nuevoCurso.docente || "seleccionado";
+      return {
+        cruce: true,
+        valido: false,
+        mensaje: `Conflicto de horario: El docente ${docNombre} ya tiene asignado el curso "${collision.asignatura}" (${diasCoincidentes} de ${collision.horaInicio} a ${collision.horaFin}). Un docente no puede dictar 2 cursos al mismo tiempo.`,
+        curso: collision
+      };
+    }
+
     return {
-      cruce: Boolean(collision),
-      valido: !collision,
-      mensaje: collision ? `Existe cruce con el curso ${collision.asignatura} (${collision.horario || collision.dias?.join(', ')})` : null,
-      curso: collision || null
+      cruce: false,
+      valido: true,
+      mensaje: null,
+      curso: null
     };
   }
 };
