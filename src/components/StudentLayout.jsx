@@ -26,6 +26,8 @@ import {
 import ThemeToggle from "./ThemeToggle";
 import { signOutFromApp } from "../services/session";
 import { academicActivitiesService } from "../services/academicActivitiesService";
+import { chatAcademicService } from "../services/chatAcademicService";
+import { userService } from "../services/api";
 
 export default function StudentLayout() {
   const navigate = useNavigate();
@@ -58,18 +60,81 @@ export default function StudentLayout() {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
+  // Estado y perfil del estudiante
+  const [studentProfile, setStudentProfile] = useState(null);
+  const [teachersList, setTeachersList] = useState([]);
+  const [selectedTeacherIndex, setSelectedTeacherIndex] = useState(0);
+  const [newQuestionText, setNewQuestionText] = useState("");
+  const [studentMessages, setStudentMessages] = useState([]);
+  const [isSubmittingQuestion, setIsSubmittingQuestion] = useState(false);
+
   // Notificaciones interactivas para el estudiante sincronizadas con Backend/Local
   const [notifications, setNotifications] = useState([]);
 
+  // 1. Cargar perfil y docentes reales del estudiante
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadStudentData() {
+      try {
+        const profile = await userService.getUserByEmail(studentEmail);
+        if (!cancelled && profile) {
+          setStudentProfile(profile);
+          const teachers = await chatAcademicService.getTeachersForStudent(profile.cursosInscritos || []);
+          setTeachersList(teachers);
+        }
+      } catch (err) {
+        console.warn("[StudentLayout] Error cargando perfil de estudiante:", err);
+        const teachers = await chatAcademicService.getTeachersForStudent();
+        if (!cancelled) setTeachersList(teachers);
+      }
+
+      if (!cancelled) {
+        setStudentMessages(chatAcademicService.getMessagesForStudent(studentEmail));
+      }
+    }
+
+    loadStudentData();
+
+    const handleStorageUpdate = () => {
+      setStudentMessages(chatAcademicService.getMessagesForStudent(studentEmail));
+    };
+
+    window.addEventListener("storage", handleStorageUpdate);
+    return () => {
+      cancelled = true;
+      window.removeEventListener("storage", handleStorageUpdate);
+    };
+  }, [studentEmail]);
+
+  // 2. Sincronizar notificaciones acotadas a los cursos del estudiante
   useEffect(() => {
     let cancelled = false;
 
     const syncNotifications = () => {
-      const tasks = academicActivitiesService.getTasks().filter((t) => t.estado === "Por entregar");
-      const anns = academicActivitiesService.getAnnouncements();
+      const enrolledIds = new Set(
+        (studentProfile?.cursosInscritos || []).map((id) =>
+          typeof id === "object" && id !== null ? String(id.id) : String(id)
+        )
+      );
+
+      // Si el alumno tiene cursos matriculados, filtrar por ellos más los simulacros generales
+      const allTasks = academicActivitiesService.getTasks().filter((t) => t.estado === "Por entregar");
+      const filteredTasks = allTasks.filter((t) => {
+        if (enrolledIds.size === 0) return true;
+        const cid = String(t.cursoId || t.curso_id || "");
+        return enrolledIds.has(cid) || cid.startsWith("SIM");
+      });
+
+      const allAnns = academicActivitiesService.getAnnouncements();
+      const filteredAnns = allAnns.filter((a) => {
+        if (enrolledIds.size === 0) return true;
+        const cid = String(a.cursoId || a.curso_id || "");
+        return enrolledIds.has(cid) || cid.startsWith("SIM") || (a.prioridad || "").toLowerCase() === "urgente";
+      });
 
       const combined = [
-        ...tasks.map((t) => ({
+        ...filteredTasks.map((t) => ({
           id: `task-${t.id}`,
           title: `Nueva Tarea: ${t.titulo}`,
           course: `${t.curso} • Límite: ${t.fechaLimite}`,
@@ -77,7 +142,7 @@ export default function StudentLayout() {
           type: "task",
           unread: true
         })),
-        ...anns.map((a) => ({
+        ...filteredAnns.map((a) => ({
           id: `ann-${a.id}`,
           title: `Aviso: ${a.titulo}`,
           course: `${a.curso} (${a.docente})`,
@@ -114,7 +179,44 @@ export default function StudentLayout() {
       cancelled = true;
       window.removeEventListener("storage", syncNotifications);
     };
-  }, []);
+  }, [studentProfile]);
+
+  const handleSubmitQuestion = () => {
+    if (!newQuestionText.trim()) {
+      alert("Por favor redacta tu duda o consulta antes de enviar.");
+      return;
+    }
+
+    const targetTeacher = teachersList[selectedTeacherIndex] || {
+      docenteId: "USR-107",
+      docenteNombre: "Prof. Pedro Chavez",
+      cursoId: "CRS-002",
+      cursoNombre: "Física Fundamental"
+    };
+
+    setIsSubmittingQuestion(true);
+    try {
+      chatAcademicService.sendMessage({
+        estudianteId: studentProfile?.id || "USR-108",
+        estudianteNombre: studentName,
+        estudianteCorreo: studentEmail,
+        estudianteCarrera: studentProfile?.carreraObjetivo || "Medicina Humana (UNMSM)",
+        docenteId: targetTeacher.docenteId,
+        docenteNombre: targetTeacher.docenteNombre,
+        cursoId: targetTeacher.cursoId,
+        curso: targetTeacher.cursoNombre,
+        mensaje: newQuestionText
+      });
+
+      setNewQuestionText("");
+      setStudentMessages(chatAcademicService.getMessagesForStudent(studentEmail));
+      alert("¡Consulta enviada exitosamente al docente! El profesor podrá verla y responderte desde su panel.");
+    } catch (err) {
+      alert("Error al enviar la consulta: " + err.message);
+    } finally {
+      setIsSubmittingQuestion(false);
+    }
+  };
 
   const handleLogout = async () => {
     try {
@@ -532,13 +634,18 @@ export default function StudentLayout() {
 
             <div className="space-y-2 text-xs">
               <label className="font-bold text-slate-700 dark:text-slate-200 block">
-                Selecciona la asignatura o docente:
+                Selecciona la asignatura o docente titular:
               </label>
-              <select className="w-full p-2.5 rounded-xl border border-slate-300 dark:border-white/10 bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200 font-medium">
-                <option>Prof. Carmen Rosa Herrera — Álgebra y Funciones</option>
-                <option>Prof. Miguel Ángel Paredes — Física Fundamental</option>
-                <option>Dra. Elena Sofía Torres — Biología y Anatomía</option>
-                <option>Tutoría y Orientación Vocacional</option>
+              <select
+                value={selectedTeacherIndex}
+                onChange={(e) => setSelectedTeacherIndex(Number(e.target.value))}
+                className="w-full p-2.5 rounded-xl border border-slate-300 dark:border-white/10 bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200 font-medium cursor-pointer"
+              >
+                {teachersList.map((t, idx) => (
+                  <option key={idx} value={idx}>
+                    {t.docenteNombre} — {t.cursoNombre} ({t.area})
+                  </option>
+                ))}
               </select>
             </div>
 
@@ -548,8 +655,10 @@ export default function StudentLayout() {
               </label>
               <textarea
                 rows={3}
-                placeholder="Hola profesor(a), tengo una duda sobre el ejercicio 7 de la separata..."
-                className="w-full p-3 rounded-xl border border-slate-300 dark:border-white/10 bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200 text-xs focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                value={newQuestionText}
+                onChange={(e) => setNewQuestionText(e.target.value)}
+                placeholder="Hola profesor, tengo una duda sobre el ejercicio del boletín..."
+                className="w-full p-3 rounded-xl border border-slate-300 dark:border-white/10 bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200 text-xs focus:ring-2 focus:ring-blue-500 focus:outline-hidden"
               />
             </div>
 
@@ -559,19 +668,64 @@ export default function StudentLayout() {
                 onClick={() => setChatModalOpen(false)}
                 className="px-4 py-2 rounded-xl border border-slate-200 dark:border-white/10 text-xs font-bold text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-white/5 cursor-pointer"
               >
-                Cancelar
+                Cerrar
               </button>
               <button
                 type="button"
-                onClick={() => {
-                  alert("¡Consulta enviada exitosamente al docente! Recibirás la respuesta en tu panel.");
-                  setChatModalOpen(false);
-                }}
-                className="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-extrabold shadow-md cursor-pointer"
+                disabled={isSubmittingQuestion}
+                onClick={handleSubmitQuestion}
+                className="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-extrabold shadow-md cursor-pointer disabled:opacity-50"
               >
-                Enviar Consulta
+                {isSubmittingQuestion ? "Enviando..." : "Enviar Consulta al Docente"}
               </button>
             </div>
+
+            {/* HISTORIAL DE CONSULTAS Y RESPUESTAS DEL DOCENTE */}
+            {studentMessages.length > 0 && (
+              <div className="pt-3 border-t border-slate-100 dark:border-white/10 space-y-2.5 max-h-56 overflow-y-auto">
+                <span className="text-[11px] font-extrabold uppercase text-slate-500 tracking-wider block">
+                  Tus Consultas Enviadas ({studentMessages.length})
+                </span>
+                {studentMessages.map((msg) => (
+                  <div
+                    key={msg.id}
+                    className="p-3 bg-slate-50 dark:bg-white/5 rounded-xl border border-slate-200/70 dark:border-white/5 space-y-2 text-xs"
+                  >
+                    <div className="flex items-center justify-between text-[11px]">
+                      <span className="font-extrabold text-slate-800 dark:text-white truncate">
+                        Para: {msg.docenteNombre} ({msg.curso})
+                      </span>
+                      <span className={`px-2 py-0.5 rounded-full text-[10px] font-extrabold ${
+                        msg.estado === "Pendiente"
+                          ? "bg-amber-100 dark:bg-amber-950/50 text-amber-800 dark:text-amber-300"
+                          : "bg-emerald-100 dark:bg-emerald-950/50 text-emerald-800 dark:text-emerald-300"
+                      }`}>
+                        {msg.estado}
+                      </span>
+                    </div>
+
+                    <p className="text-slate-600 dark:text-slate-300 text-xs">
+                      {msg.mensaje}
+                    </p>
+
+                    {msg.respuesta && (
+                      <div className="p-2.5 bg-blue-50 dark:bg-blue-950/40 rounded-lg border border-blue-200/60 dark:border-blue-900/40 text-xs space-y-1">
+                        <div className="flex items-center justify-between font-bold text-blue-700 dark:text-blue-300 text-[10px]">
+                          <span className="flex items-center gap-1">
+                            <CheckCircle2 className="w-3 h-3 text-emerald-500" />
+                            Respuesta del Docente:
+                          </span>
+                          <span className="font-mono text-slate-400">{msg.fechaRespuesta}</span>
+                        </div>
+                        <p className="text-slate-800 dark:text-slate-200 text-xs font-medium">
+                          {msg.respuesta}
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         </div>
       )}

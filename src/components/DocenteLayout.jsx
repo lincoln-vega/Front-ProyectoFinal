@@ -15,12 +15,15 @@ import {
   CheckCircle2,
   AlertCircle,
   FileText,
-  Clock
+  Clock,
+  MessageSquare
 } from "lucide-react";
 import ThemeToggle from "./ThemeToggle";
 import { signOutFromApp } from "../services/session";
 import SolicitudPermutaModal from "./docente/SolicitudPermutaModal";
+import DocenteChatModal from "./docente/DocenteChatModal";
 import { academicActivitiesService } from "../services/academicActivitiesService";
+import { chatAcademicService } from "../services/chatAcademicService";
 
 export default function DocenteLayout() {
   const navigate = useNavigate();
@@ -28,10 +31,25 @@ export default function DocenteLayout() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
   const [isPermutaModalOpen, setIsPermutaModalOpen] = useState(false);
+  const [isChatModalOpen, setIsChatModalOpen] = useState(false);
+  const [pendingChatCount, setPendingChatCount] = useState(0);
   const notifRef = useRef(null);
 
   const userName = localStorage.getItem("userName") || "Docente";
+  const userId = localStorage.getItem("userId") || "USR-107";
   const userEmail = localStorage.getItem("userEmail") || "docente@academia.edu.pe";
+
+  useEffect(() => {
+    const updateChatCount = () => {
+      const msgs = chatAcademicService.getMessagesForTeacher(userId, userName);
+      const pending = msgs.filter((m) => m.estado === "Pendiente").length;
+      setPendingChatCount(pending);
+    };
+
+    updateChatCount();
+    window.addEventListener("storage", updateChatCount);
+    return () => window.removeEventListener("storage", updateChatCount);
+  }, [userId, userName]);
 
   const initials = userName
     .split(" ")
@@ -253,9 +271,25 @@ export default function DocenteLayout() {
             </Link>
           </div>
 
-          {/* Controles de la Derecha: Campana, Modo Oscuro, Perfil Docente */}
+          {/* Controles de la Derecha: Chat Alumnos, Campana, Modo Oscuro, Perfil Docente */}
           <div className="flex items-center space-x-2 sm:space-x-3 shrink-0">
             
+            {/* Botón de Chat con Alumnos */}
+            <button
+              type="button"
+              onClick={() => setIsChatModalOpen(true)}
+              className="relative p-2 rounded-xl text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-white/10 border border-slate-200 dark:border-white/10 transition-colors cursor-pointer"
+              title="Consultas de estudiantes"
+              aria-label="Ver consultas de estudiantes"
+            >
+              <MessageSquare className="w-5 h-5 text-blue-600 dark:text-blue-400" />
+              {pendingChatCount > 0 && (
+                <span className="absolute -top-1 -right-1 px-1.5 py-0.2 bg-amber-500 text-slate-950 text-[10px] font-black rounded-full shadow-sm animate-pulse">
+                  {pendingChatCount}
+                </span>
+              )}
+            </button>
+
             {/* Campana de Notificaciones con Badge */}
             <div className="relative" ref={notifRef}>
               <button
@@ -493,6 +527,14 @@ export default function DocenteLayout() {
           }}
         />
       )}
+
+      {/* Modal de Consultas de Estudiantes */}
+      <DocenteChatModal
+        isOpen={isChatModalOpen}
+        onClose={() => setIsChatModalOpen(false)}
+        docenteName={userName}
+        docenteId={userId}
+      />
     </div>
   );
 }

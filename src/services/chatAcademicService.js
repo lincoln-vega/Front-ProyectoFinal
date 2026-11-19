@@ -1,0 +1,205 @@
+// Servicio de mensajería académica bidireccional entre Docente y Estudiante (V2.0)
+import { courseService } from "./cursosServices";
+import { userService } from "./api";
+
+const CHAT_STORAGE_KEY = "academia_chat_messages_v2";
+
+const DEFAULT_MESSAGES = [
+  {
+    id: "MSG-001",
+    estudianteId: "USR-108",
+    estudianteNombre: "Esteban Torres",
+    estudianteCorreo: "esteban@gmail.com",
+    estudianteCarrera: "Medicina Humana (UNMSM)",
+    docenteId: "USR-107",
+    docenteNombre: "Prof. Pedro Chavez",
+    cursoId: "CRS-002",
+    curso: "Física Fundamental",
+    mensaje: "Profesor Chavez, buenas tardes. Tengo una duda sobre el cálculo de la aceleración centrípeta en el ejercicio 4 del taller. ¿Podría revisarlo en los primeros minutos de la clase?",
+    fecha: "Hoy, 10:15 AM",
+    estado: "Pendiente",
+    respuesta: null,
+    fechaRespuesta: null
+  },
+  {
+    id: "MSG-002",
+    estudianteId: "USR-005",
+    estudianteNombre: "Juan Carlos Flores Mendoza",
+    estudianteCorreo: "estudiante@gmail.com",
+    estudianteCarrera: "Ingeniería de Sistemas (UNI)",
+    docenteId: "USR-107",
+    docenteNombre: "Prof. Pedro Chavez",
+    cursoId: "CRS-002",
+    curso: "Física Fundamental",
+    mensaje: "Profesor, una consulta: ¿hasta qué hora se puede subir el informe de dinámica lineal en formato PDF?",
+    fecha: "Ayer, 04:30 PM",
+    estado: "Respondido",
+    respuesta: "Estimado Juan Carlos, el plazo máximo de entrega en el portal es este viernes hasta las 11:59 PM. Saludos.",
+    fechaRespuesta: "Ayer, 05:10 PM"
+  },
+  {
+    id: "MSG-003",
+    estudianteId: "USR-3066",
+    estudianteNombre: "Ana Paula Vargas Chavez",
+    estudianteCorreo: "anapaula@gmail.com",
+    estudianteCarrera: "Derecho y Ciencias Políticas (UNMSM)",
+    docenteId: "USR-107",
+    docenteNombre: "Prof. Pedro Chavez",
+    cursoId: "CRS-008",
+    curso: "Historia Universal",
+    mensaje: "Profesor Pedro, ¿el tema de la Segunda Guerra Mundial y el periodo de entreguerras vendrá en el simulacro de este domingo?",
+    fecha: "Hoy, 08:45 AM",
+    estado: "Pendiente",
+    respuesta: null,
+    fechaRespuesta: null
+  }
+];
+
+export const chatAcademicService = {
+  getMessages() {
+    try {
+      const stored = localStorage.getItem(CHAT_STORAGE_KEY);
+      if (stored) {
+        return JSON.parse(stored);
+      }
+    } catch (e) {
+      console.warn("[ChatAcademicService] Error leyendo mensajes locales:", e);
+    }
+    localStorage.setItem(CHAT_STORAGE_KEY, JSON.stringify(DEFAULT_MESSAGES));
+    return DEFAULT_MESSAGES;
+  },
+
+  getMessagesForTeacher(docenteId, docenteNombre = "") {
+    const all = this.getMessages();
+    const normName = (docenteNombre || "").toLowerCase();
+    return all.filter((m) => {
+      if (docenteId && (m.docenteId === docenteId || m.docenteId === "USR-107")) return true;
+      if (normName && (m.docenteNombre || "").toLowerCase().includes("chavez")) return true;
+      return false;
+    });
+  },
+
+  getMessagesForStudent(studentEmail) {
+    const all = this.getMessages();
+    const normEmail = (studentEmail || "").toLowerCase().trim();
+    return all.filter(
+      (m) => (m.estudianteCorreo || "").toLowerCase().trim() === normEmail
+    );
+  },
+
+  async getTeachersForStudent(cursosInscritosIds = []) {
+    try {
+      const courses = await courseService.getCourses();
+      const activeCourses = (courses || []).filter((c) => c.estado === "Activo");
+
+      // Filtrar cursos que lleva el alumno si se pasan IDs
+      let relevantCourses = activeCourses;
+      if (Array.isArray(cursosInscritosIds) && cursosInscritosIds.length > 0) {
+        const idSet = new Set(cursosInscritosIds.map(String));
+        const filtered = activeCourses.filter((c) => idSet.has(String(c.id)));
+        if (filtered.length > 0) relevantCourses = filtered;
+      }
+
+      const teachers = relevantCourses.map((c) => ({
+        docenteId: c.docenteId || "USR-107",
+        docenteNombre: c.docente || "Prof. Pedro Chavez",
+        cursoId: c.id,
+        cursoNombre: c.asignatura,
+        area: c.area || "General"
+      }));
+
+      // Siempre incluir como primer contacto al docente titular del sistema
+      if (!teachers.some((t) => (t.docenteNombre || "").toLowerCase().includes("chavez"))) {
+        teachers.unshift({
+          docenteId: "USR-107",
+          docenteNombre: "Prof. Pedro Chavez",
+          cursoId: "CRS-002",
+          cursoNombre: "Física Fundamental",
+          area: "Ciencias Exactas"
+        });
+      }
+
+      return teachers;
+    } catch (err) {
+      console.warn("[ChatAcademicService] Fallback de docentes:", err);
+      return [
+        {
+          docenteId: "USR-107",
+          docenteNombre: "Prof. Pedro Chavez",
+          cursoId: "CRS-002",
+          cursoNombre: "Física Fundamental",
+          area: "Ciencias Exactas"
+        },
+        {
+          docenteId: "USR-107",
+          docenteNombre: "Prof. Pedro Chavez",
+          cursoId: "CRS-004",
+          cursoNombre: "Trigonometría",
+          area: "Ciencias Exactas"
+        },
+        {
+          docenteId: "USR-109",
+          docenteNombre: "Prof. Victoria Raggi",
+          cursoId: "CRS-001",
+          cursoNombre: "Álgebra y Funciones",
+          area: "Ciencias"
+        }
+      ];
+    }
+  },
+
+  sendMessage({
+    estudianteId,
+    estudianteNombre,
+    estudianteCorreo,
+    estudianteCarrera,
+    docenteId,
+    docenteNombre,
+    cursoId,
+    curso,
+    mensaje
+  }) {
+    const newMessage = {
+      id: `MSG-${Date.now()}`,
+      estudianteId: estudianteId || "USR-108",
+      estudianteNombre: estudianteNombre || "Esteban Torres",
+      estudianteCorreo: estudianteCorreo || "esteban@gmail.com",
+      estudianteCarrera: estudianteCarrera || "Medicina Humana (UNMSM)",
+      docenteId: docenteId || "USR-107",
+      docenteNombre: docenteNombre || "Prof. Pedro Chavez",
+      cursoId: cursoId || "CRS-002",
+      curso: curso || "Física Fundamental",
+      mensaje: mensaje.trim(),
+      fecha: "Hoy, " + new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+      estado: "Pendiente",
+      respuesta: null,
+      fechaRespuesta: null
+    };
+
+    const all = this.getMessages();
+    const updated = [newMessage, ...all];
+    localStorage.setItem(CHAT_STORAGE_KEY, JSON.stringify(updated));
+    window.dispatchEvent(new Event("storage"));
+    return newMessage;
+  },
+
+  replyMessage(messageId, respuestaTexto, docenteNombre = "Prof. Pedro Chavez") {
+    const all = this.getMessages();
+    const updated = all.map((m) => {
+      if (m.id === messageId) {
+        return {
+          ...m,
+          estado: "Respondido",
+          respuesta: respuestaTexto.trim(),
+          fechaRespuesta: "Hoy, " + new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+          docenteNombre: docenteNombre || m.docenteNombre
+        };
+      }
+      return m;
+    });
+
+    localStorage.setItem(CHAT_STORAGE_KEY, JSON.stringify(updated));
+    window.dispatchEvent(new Event("storage"));
+    return updated;
+  }
+};
