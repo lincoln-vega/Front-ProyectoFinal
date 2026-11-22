@@ -197,6 +197,7 @@ function AdminUsersContent() {
     try {
       if (isEditing) {
         await saveUser(formData, editingUserId);
+        await resetUsers().catch(() => {});
         closeModal();
         showNotification("Usuario actualizado correctamente.");
       } else {
@@ -230,6 +231,7 @@ function AdminUsersContent() {
         const adminAccessToken = await getAuthenticatedAdminAccessToken();
         const savedUser = await adminUserRegistrationService.saveProfile(profile, adminAccessToken);
         addCreatedUser(savedUser);
+        await resetUsers().catch(() => {});
         setPendingAuthAccount(null);
         closeModal();
 
@@ -298,19 +300,19 @@ function AdminUsersContent() {
             <button
               type="button"
               onClick={handleResetData}
-              className="inline-flex items-center space-x-1.5 px-3 py-2 border border-slate-300 text-slate-700 bg-white hover:bg-slate-50 rounded-lg text-xs font-medium shadow-2xs transition-colors cursor-pointer"
+              className="inline-flex items-center space-x-1.5 px-3 py-2 border border-slate-300 dark:border-white/10 text-slate-700 dark:text-slate-200 bg-white dark:bg-white/5 hover:bg-slate-50 dark:hover:bg-white/10 rounded-lg text-xs font-medium shadow-2xs transition-colors cursor-pointer"
               title="Volver a consultar usuarios en InsForge"
             >
-              <RotateCcw className="w-3.5 h-3.5 text-slate-500" />
+              <RotateCcw className="w-3.5 h-3.5 text-slate-500 dark:text-slate-400" />
               <span>Actualizar usuarios</span>
             </button>
 
             <button
               type="button"
               onClick={() => setIsRolesModalOpen(true)}
-              className="inline-flex items-center space-x-1.5 px-3 py-2 border border-slate-300 text-slate-700 bg-white hover:bg-slate-50 rounded-lg text-xs font-medium shadow-2xs transition-colors cursor-pointer"
+              className="inline-flex items-center space-x-1.5 px-3 py-2 border border-slate-300 dark:border-white/10 text-slate-700 dark:text-slate-200 bg-white dark:bg-white/5 hover:bg-slate-50 dark:hover:bg-white/10 rounded-lg text-xs font-medium shadow-2xs transition-colors cursor-pointer"
             >
-              <ShieldCheck className="w-4 h-4 text-slate-600" />
+              <ShieldCheck className="w-4 h-4 text-slate-600 dark:text-slate-400" />
               <span>Gestionar Roles</span>
             </button>
 

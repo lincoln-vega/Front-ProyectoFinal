@@ -101,7 +101,11 @@ export default function useUsers() {
   };
 
   const addCreatedUser = (user) => {
-    setUsers((current) => [user, ...current.filter((item) => item.id !== user.id)]);
+    if (!user) return;
+    setUsers((current) => [
+      user,
+      ...current.filter((item) => item.id !== user.id && item.correo !== user.correo)
+    ]);
   };
 
   return {

@@ -400,9 +400,19 @@ export const adminUserRegistrationService = {
       body: JSON.stringify(safeProfile)
     });
 
-    return normalizeUser(
-      savedProfile && typeof savedProfile === "object" ? savedProfile : safeProfile
-    );
+    const returnedUser =
+      savedProfile?.user ||
+      savedProfile?.data ||
+      savedProfile?.usuario ||
+      (savedProfile && typeof savedProfile === "object" ? savedProfile : {});
+
+    return normalizeUser({
+      ...safeProfile,
+      ...(returnedUser && typeof returnedUser === "object" ? returnedUser : {}),
+      id: returnedUser?.id || safeProfile.id || formatIdForDb(safeProfile.id),
+      rol: formatRoleForDb(returnedUser?.rol || safeProfile.rol),
+      estado: formatEstadoForDb(returnedUser?.estado || safeProfile.estado)
+    });
   }
 };
 
@@ -605,11 +615,18 @@ export const incidentService = {
   async getIncidents() {
     const { data, error } = await insforge.database
       .from("incidents")
-      .select("id, docente, dni, correo, tipo, fechaPresentacion, materia, horario, motivo, archivoNombre, estado, created_at")
+      .select("id, docente, docenteid, cursoid, dni, correo, tipo, fechaPresentacion, materia, horario, motivo, archivoNombre, estado, docentepropuesto, docentereemplazo, horarioactualizado, created_at")
       .order("created_at", { ascending: false })
       .limit(500);
     throwIfError(error, "cargar incidencias");
-    return data || [];
+    return (data || []).map((row) => ({
+      ...row,
+      docenteId: row.docenteid || row.docenteId || null,
+      cursoId: row.cursoid || row.cursoId || null,
+      docentePropuesto: row.docentepropuesto || row.docentePropuesto || null,
+      docenteReemplazo: row.docentereemplazo || row.docenteReemplazo || null,
+      horarioActualizado: row.horarioactualizado || row.horarioActualizado || null
+    }));
   },
 
   async updateIncidentStatus(id, estado) {

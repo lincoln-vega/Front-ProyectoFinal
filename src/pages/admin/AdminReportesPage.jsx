@@ -70,18 +70,26 @@ export default function AdminReportesPage() {
 
         const calculated = teachers.map((teacher) => {
           const teacherName = `${teacher.nombres || ""} ${teacher.apellidos || ""}`.trim() || teacher.name || "Docente";
+          const assignedIds = new Set(Array.isArray(teacher.cursosAsignados) ? teacher.cursosAsignados.map(String) : []);
           
-          // Cursos dictados
+          // Cursos dictados (cruce por ID de docente, lista cursosAsignados o apellidos)
           const teacherCourses = safeCourses.filter(
-            c => c.docenteId === teacher.id || (teacher.apellidos && c.docente?.toLowerCase().includes(teacher.apellidos.toLowerCase()))
+            (c) =>
+              c.docenteId === teacher.id ||
+              assignedIds.has(String(c.id)) ||
+              (teacher.apellidos && c.docente?.toLowerCase().includes(teacher.apellidos.toLowerCase()))
           );
 
           // Horas programadas (16h mensuales por curso o mínimo 16h)
           const horasProgramadas = teacherCourses.length > 0 ? teacherCourses.length * 16 : 16;
 
-          // Incidencias del docente
+          // Incidencias del docente (cruce por docenteId, DNI o apellidos)
           const teacherIncidents = safeIncidents.filter(
-            i => i.docenteId === teacher.id || (teacher.apellidos && i.docente?.toLowerCase().includes(teacher.apellidos.toLowerCase()))
+            (i) =>
+              (i.docenteId && String(i.docenteId) === String(teacher.id)) ||
+              (i.docenteid && String(i.docenteid) === String(teacher.id)) ||
+              (i.dni && teacher.dni && String(i.dni) === String(teacher.dni)) ||
+              (teacher.apellidos && i.docente?.toLowerCase().includes(teacher.apellidos.toLowerCase()))
           );
 
           let horasDescontadas = 0;
@@ -112,9 +120,12 @@ export default function AdminReportesPage() {
           });
 
           const horasEfectivas = Math.max(0, horasProgramadas - horasDescontadas);
-          const montoBruto = horasProgramadas * TARIFA_HORA;
-          const descuentoPEN = horasDescontadas * TARIFA_HORA;
-          const montoNeto = horasEfectivas * TARIFA_HORA;
+          // Usar el salario real configurado en la BD si existe (> 0), o el cálculo base por tarifa horaria
+          const salarioConfigurado = Number(teacher.salario);
+          const montoBruto = salarioConfigurado > 0 ? salarioConfigurado : horasProgramadas * TARIFA_HORA;
+          const tarifaHoraEfectiva = Number((montoBruto / horasProgramadas).toFixed(2));
+          const descuentoPEN = Math.min(montoBruto, horasDescontadas * tarifaHoraEfectiva);
+          const montoNeto = Math.max(0, montoBruto - descuentoPEN);
 
           let estadoAuditoria = "100% Efectivo";
           if (horasDescontadas > 0) {
@@ -139,7 +150,7 @@ export default function AdminReportesPage() {
             tardanzasMin,
             horasDescontadas: Number(horasDescontadas.toFixed(2)),
             horasEfectivas: Number(horasEfectivas.toFixed(2)),
-            tarifaHora: TARIFA_HORA,
+            tarifaHora: tarifaHoraEfectiva,
             montoBruto: Number(montoBruto.toFixed(2)),
             descuentoPEN: Number(descuentoPEN.toFixed(2)),
             montoNeto: Number(montoNeto.toFixed(2)),
@@ -264,7 +275,9 @@ export default function AdminReportesPage() {
               </span>
               <DollarSign className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
             </div>
-            <span className="text-xs text-emerald-600 dark:text-emerald-400 font-medium mt-1 block">Periodo: Octubre 2026</span>
+            <span className="text-xs text-emerald-600 dark:text-emerald-400 font-medium mt-1 block capitalize">
+              Periodo: {new Date().toLocaleDateString("es-PE", { month: "long", year: "numeric" })}
+            </span>
           </div>
 
           <div className="bg-white/60 dark:bg-white/5 backdrop-blur-2xl p-4 rounded-xl border border-slate-200/80 dark:border-white/10">

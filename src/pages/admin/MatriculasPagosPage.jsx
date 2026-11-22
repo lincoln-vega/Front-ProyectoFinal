@@ -27,7 +27,7 @@ import {
   Mail,
   ArrowUpRight
 } from "lucide-react";
-import { userService, matriculaService, pagoService, validateWithBackend } from "../../services/api";
+import { userService, matriculaService, pagoService, courseService, parseCourseList, validateWithBackend } from "../../services/api";
 import { exportToCSV } from "../../utils/exportUtils";
 
 const STORAGE_KEYS = {
@@ -244,7 +244,7 @@ const INITIAL_PAGOS = [
     estado: "Aprobado",
   },
   {
-    id: "PAG-006",
+    id: "PAG-008",
     matriculaId: "MAT-2026-004",
     estudiante: "Diego Flores Mendoza",
     concepto: "Pago Único Intensivo Verano",
@@ -256,7 +256,7 @@ const INITIAL_PAGOS = [
     estado: "Aprobado",
   },
   {
-    id: "PAG-007",
+    id: "PAG-009",
     matriculaId: "MAT-2026-005",
     estudiante: "Elena Morales Ruiz",
     concepto: "Matrícula + Cuota 1 (Febrero)",
@@ -278,6 +278,8 @@ export default function MatriculasPagosPage({ defaultTab = "matriculas" }) {
   const [matriculas, setMatriculas] = useState([]);
   const [pagos, setPagos] = useState([]);
   const [students, setStudents] = useState([]);
+  const [availableCourses, setAvailableCourses] = useState([]);
+  const [cursosSeleccionados, setCursosSeleccionados] = useState([]);
   const [selectedStudentId, setSelectedStudentId] = useState("");
   const [studentSearch, setStudentSearch] = useState("");
   const [isNewStudent, setIsNewStudent] = useState(false);
@@ -328,10 +330,11 @@ export default function MatriculasPagosPage({ defaultTab = "matriculas" }) {
         setLoadingData(true);
         setError("");
 
-        const [users, remoteMatriculas, remotePagos] = await Promise.all([
+        const [users, remoteMatriculas, remotePagos, remoteCourses] = await Promise.all([
           userService.getUsers(),
           matriculaService.getMatriculas(),
-          pagoService.getPagos()
+          pagoService.getPagos(),
+          courseService.getCourses().catch(() => [])
         ]);
 
         if (cancelled) return;
@@ -339,6 +342,7 @@ export default function MatriculasPagosPage({ defaultTab = "matriculas" }) {
         setStudents((users || []).filter((user) => String(user.rol).toLowerCase() === "estudiante"));
         setMatriculas(remoteMatriculas || []);
         setPagos(remotePagos || []);
+        setAvailableCourses((remoteCourses || []).filter((c) => c.estado === "Activo"));
       } catch (err) {
         if (!cancelled) {
           console.error("Error al cargar matrículas y pagos desde InsForge:", err);
@@ -360,6 +364,7 @@ export default function MatriculasPagosPage({ defaultTab = "matriculas" }) {
     setSelectedStudentId("");
     setStudentSearch("");
     setIsNewStudent(false);
+    setCursosSeleccionados([]);
     setFormMatricula((current) => ({
       ...current,
       estudiante: "",
@@ -373,6 +378,8 @@ export default function MatriculasPagosPage({ defaultTab = "matriculas" }) {
     setSelectedStudentId(student.id);
     setStudentSearch(`${student.nombres} ${student.apellidos}`.trim());
     setIsNewStudent(false);
+    const currentEnrolled = parseCourseList(student.cursosInscritos || student.CursosInscritos);
+    setCursosSeleccionados(currentEnrolled);
     setFormMatricula((current) => ({
       ...current,
       estudiante: `${student.nombres} ${student.apellidos}`.trim(),
@@ -463,13 +470,30 @@ export default function MatriculasPagosPage({ defaultTab = "matriculas" }) {
           correo: formMatricula.correo || `${formMatricula.dni}@academia.edu.pe`,
           celular: formMatricula.celular || "",
           carreraObjetivo: formMatricula.programa || "",
-          areaAcademica: "",
+          areaAcademica: formMatricula.programa || "",
+          cursosInscritos: cursosSeleccionados,
           rol: "estudiante",
           estado: "Activo"
         };
-        const updatedStudents = [newStudent, ...students];
-        await userService.saveUser(newStudent);
-        setStudents(updatedStudents);
+        const savedStudent = await userService.saveUser(newStudent);
+        setStudents((prev) => [savedStudent || newStudent, ...prev]);
+      } else if (selectedStudentId) {
+        const existingStudent = students.find((s) => s.id === selectedStudentId);
+        if (existingStudent) {
+          const mergedCourses = Array.from(
+            new Set([
+              ...parseCourseList(existingStudent.cursosInscritos || existingStudent.CursosInscritos),
+              ...cursosSeleccionados
+            ])
+          );
+          const updatedStudent = await userService.saveUser({
+            ...existingStudent,
+            cursosInscritos: mergedCourses
+          });
+          setStudents((prev) =>
+            prev.map((s) => (s.id === selectedStudentId ? (updatedStudent || { ...s, cursosInscritos: mergedCourses }) : s))
+          );
+        }
       }
 
       const nuevoId = `MAT-2026-00${matriculas.length + 1}`;
@@ -1297,6 +1321,61 @@ export default function MatriculasPagosPage({ defaultTab = "matriculas" }) {
                   </select>
                 </div>
               </div>
+
+              {/* Selector de Cursos a Inscribir en la tabla users (cursosInscritos) */}
+              {availableCourses.length > 0 && (
+                <div className="space-y-2 rounded-xl border border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-white/5 p-3.5">
+                  <div className="flex items-center justify-between">
+                    <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider">
+                      Cursos a Inscribir ({cursosSeleccionados.length} seleccionados)
+                    </label>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (cursosSeleccionados.length === availableCourses.length) {
+                          setCursosSeleccionados([]);
+                        } else {
+                          setCursosSeleccionados(availableCourses.map((c) => c.id));
+                        }
+                      }}
+                      className="text-[11px] font-semibold text-[#1E3A8A] dark:text-blue-400 hover:underline cursor-pointer"
+                    >
+                      {cursosSeleccionados.length === availableCourses.length ? "Desmarcar todos" : "Seleccionar todos"}
+                    </button>
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5 max-h-32 overflow-y-auto pr-1">
+                    {availableCourses.map((course) => {
+                      const isChecked = cursosSeleccionados.includes(course.id);
+                      return (
+                        <label
+                          key={course.id}
+                          className={`flex items-center gap-2 px-2.5 py-1.5 rounded-lg border text-xs cursor-pointer transition-colors ${
+                            isChecked
+                              ? "border-blue-400 bg-blue-50 dark:bg-blue-900/30 text-blue-900 dark:text-blue-200 font-semibold"
+                              : "border-slate-200 dark:border-white/10 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300"
+                          }`}
+                        >
+                          <input
+                            type="checkbox"
+                            checked={isChecked}
+                            onChange={() => {
+                              setCursosSeleccionados((prev) =>
+                                prev.includes(course.id)
+                                  ? prev.filter((id) => id !== course.id)
+                                  : [...prev, course.id]
+                              );
+                            }}
+                            className="rounded border-slate-300 text-[#1E3A8A] focus:ring-blue-500"
+                          />
+                          <span className="truncate" title={`${course.asignatura} (${course.id})`}>
+                            {course.asignatura} <span className="text-[10px] opacity-70">({course.id})</span>
+                          </span>
+                        </label>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 bg-slate-50 dark:bg-white/5 p-3.5 rounded-xl border border-slate-200 dark:border-white/10">
                 <div>

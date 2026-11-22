@@ -1,26 +1,18 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { 
   Search, 
   Plus, 
   User, 
   Briefcase, 
-  CreditCard,
   AlertTriangle,
   Edit2, 
   Trash2,
-  DollarSign
+  DollarSign,
+  Mail,
+  Lock
 } from "lucide-react";
-import { userService } from "../../services/api";
-
-// Persistencia directa en InsForge (users.salario)
-
-const splitFullName = (fullName) => {
-  const parts = fullName.trim().split(/\s+/);
-  return {
-    nombres: parts.slice(0, -1).join(" ") || parts[0] || "",
-    apellidos: parts.at(-1) || ""
-  };
-};
+import { userService, incidentService, adminUserRegistrationService } from "../../services/api";
+import { getAuthenticatedAdminAccessToken } from "../../services/session";
 
 export default function DocentesPage() {
   const [docentes, setDocentes] = useState([]);
@@ -29,78 +21,102 @@ export default function DocentesPage() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [currentDocente, setCurrentDocente] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState("");
   const [feedback, setFeedback] = useState({ message: "", type: "" });
   
-  // Form states
-  const [nombre, setNombre] = useState("");
+  // Form states separados (sin perder apellidos compuestos)
+  const [nombres, setNombres] = useState("");
+  const [apellidos, setApellidos] = useState("");
+  const [correo, setCorreo] = useState("");
+  const [password, setPassword] = useState("");
+  const [celular, setCelular] = useState("");
   const [documento, setDocumento] = useState("");
   const [especialidad, setEspecialidad] = useState("");
-  const [salario, setSalario] = useState("");
+  const [salario, setSalario] = useState("3200");
   const [incidenciaDesc, setIncidenciaDesc] = useState("");
 
-  useEffect(() => {
-    let cancelled = false;
+  const loadTeachers = useCallback(async () => {
+    try {
+      setLoading(true);
+      setError("");
+      const [allUsers, allIncidents] = await Promise.all([
+        userService.getUsers(),
+        incidentService.getIncidents().catch(() => [])
+      ]);
 
-    async function loadTeachers() {
-      try {
-        setLoading(true);
-        setError("");
-        const allUsers = await userService.getUsers();
+      const teacherUsers = (allUsers || []).filter((user) => {
+        const r = String(user.rol || "").toLowerCase();
+        return r === "docente" || r === "profesor" || r === "profesora";
+      });
 
-        if (cancelled) return;
+      const initialData = teacherUsers.map((user) => {
+        const fullName = `${user.nombres || ""} ${user.apellidos || ""}`.trim() || user.correo || "Docente";
+        const userIncidents = (allIncidents || [])
+          .filter((inc) =>
+            (inc.docenteId && String(inc.docenteId) === String(user.id)) ||
+            (inc.dni && user.dni && String(inc.dni) === String(user.dni)) ||
+            (user.apellidos && String(inc.docente || "").toLowerCase().includes(String(user.apellidos).toLowerCase()))
+          )
+          .map((inc) => ({
+            id: inc.id,
+            fecha: inc.fechaPresentacion || (inc.created_at ? new Date(inc.created_at).toLocaleDateString("es-PE") : new Date().toLocaleDateString("es-PE")),
+            descripcion: inc.motivo ? `${inc.tipo ? `[${inc.tipo}] ` : ""}${inc.motivo}` : (inc.tipo || "Incidencia registrada")
+          }));
 
-        const teacherUsers = (allUsers || []).filter((user) => {
-          const r = String(user.rol || "").toLowerCase();
-          return r === "docente" || r === "profesor" || r === "profesora";
-        });
-
-        const initialData = teacherUsers.map((user) => ({
+        return {
           id: user.id,
           userId: user.id,
-          nombre: `${user.nombres || ""} ${user.apellidos || ""}`.trim() || user.correo || "Docente",
+          nombres: user.nombres || "",
+          apellidos: user.apellidos || "",
+          nombre: fullName,
+          correo: user.correo || "",
+          celular: user.celular || "",
           documento: user.dni || "N/A",
-          especialidad: user.carreraObjetivo || user.areaAcademica || "Sin especialidad asignada",
-          salario: Number(user.salario || 0),
-          incidencias: [],
+          especialidad: user.especialidad || user.carreraObjetivo || user.areaAcademica || "Sin especialidad asignada",
+          salario: Number(user.salario || 3200),
+          incidencias: userIncidents,
           estado: user.estado || "Activo"
-        }));
+        };
+      });
 
-        setUsers(allUsers || []);
-        setDocentes(initialData);
-        // Sincronizado con InsForge
-      } catch (err) {
-        if (!cancelled) {
-          console.error("Error al cargar docentes desde InsForge:", err);
-          setError(err.message || "No se pudieron cargar los docentes desde InsForge.");
-        }
-      } finally {
-        if (!cancelled) {
-          setLoading(false);
-        }
-      }
+      setUsers(allUsers || []);
+      setDocentes(initialData);
+    } catch (err) {
+      console.error("Error al cargar docentes desde InsForge:", err);
+      setError(err.message || "No se pudieron cargar los docentes desde InsForge.");
+    } finally {
+      setLoading(false);
     }
-
-    loadTeachers();
-    return () => { cancelled = true; };
   }, []);
 
-  const saveToStorage = (data) => { setDocentes(data); };
+  useEffect(() => {
+    loadTeachers();
+  }, [loadTeachers]);
 
   const handleOpenModal = (docente = null) => {
+    setError("");
     if (docente) {
       setCurrentDocente(docente);
-      setNombre(docente.nombre);
-      setDocumento(docente.documento);
-      setEspecialidad(docente.especialidad);
-      setSalario(docente.salario);
+      setNombres(docente.nombres || docente.nombre || "");
+      setApellidos(docente.apellidos || "");
+      setCorreo(docente.correo || "");
+      setPassword("");
+      setCelular(docente.celular === "N/A" ? "" : (docente.celular || ""));
+      setDocumento(docente.documento === "N/A" ? "" : (docente.documento || ""));
+      setEspecialidad(docente.especialidad === "Sin especialidad asignada" ? "" : (docente.especialidad || ""));
+      setSalario(String(docente.salario ?? 3200));
       setIncidenciaDesc("");
     } else {
       setCurrentDocente(null);
-      setNombre("");
+      setNombres("");
+      setApellidos("");
+      setCorreo("");
+      setPassword("");
+      setCelular("");
       setDocumento("");
-      setEspecialidad("");
-      setSalario("");
+      setEspecialidad("Ciencias Exactas e Ingenierías");
+      setSalario("3200");
       setIncidenciaDesc("");
     }
     setIsModalOpen(true);
@@ -113,82 +129,95 @@ export default function DocentesPage() {
 
   const handleSaveDocente = async (e) => {
     e.preventDefault();
-    let updatedDocentes;
-    try {
-      if (currentDocente) {
-        const original = docentes.find((item) => item.id === currentDocente.id);
-        const user = users.find((item) => item.id === original?.userId);
-        if (user) {
-          const name = splitFullName(nombre);
-          const savedUser = await userService.saveUser({
-            ...user,
-            nombres: name.nombres,
-            apellidos: name.apellidos,
-            dni: documento,
-            carreraObjetivo: especialidad,
-            salario: Number(salario) || 0,
-            estado: currentDocente.estado
-          });
-          setUsers((current) => current.map((item) => item.id === savedUser.id ? savedUser : item));
-        }
+    if (isSubmitting) return;
+    setError("");
+    setIsSubmitting(true);
 
-        updatedDocentes = docentes.map((docente) => {
-          if (docente.id !== currentDocente.id) return docente;
-          const nuevasIncidencias = [...docente.incidencias];
-          if (incidenciaDesc.trim()) {
-            nuevasIncidencias.push({
-              id: Date.now().toString(),
-              fecha: new Date().toLocaleDateString(),
-              descripcion: incidenciaDesc
-            });
-          }
-          return {
-            ...docente,
-            nombre,
-            documento,
-            especialidad,
-            salario: Number(salario),
-            incidencias: nuevasIncidencias
-          };
+    try {
+      let targetUser = null;
+      const cleanNombres = nombres.trim();
+      const cleanApellidos = apellidos.trim();
+      const fullName = `${cleanNombres} ${cleanApellidos}`.trim();
+
+      if (currentDocente) {
+        const user = users.find((item) => item.id === currentDocente.userId) || currentDocente;
+        targetUser = await userService.saveUser({
+          ...user,
+          nombres: cleanNombres,
+          apellidos: cleanApellidos,
+          dni: documento.trim(),
+          celular: celular.trim() || user.celular || "",
+          carreraObjetivo: especialidad.trim(),
+          areaAcademica: especialidad.trim(),
+          especialidad: especialidad.trim(),
+          salario: Number(salario) || 3200,
+          estado: currentDocente.estado || "Activo"
         });
       } else {
-      const newUserId = `USR-${Date.now().toString().slice(-6)}`;
-      const name = splitFullName(nombre);
-      const newUser = {
-        id: newUserId,
-        ...name,
-        dni: documento,
-        correo: `${newUserId.toLowerCase().replace(/[^a-z0-9]/g, "")}@academia.edu.pe`,
-        celular: "",
-        carreraObjetivo: especialidad,
-        salario: Number(salario) || 0,
-        rol: "Docente",
-        estado: "Activo"
-      };
-      const savedUser = await userService.saveUser(newUser);
-      setUsers((current) => [savedUser, ...current]);
-      const nuevoDocente = {
-        id: newUserId,
-        userId: newUserId,
-        nombre,
-        documento,
-        especialidad,
-        salario: Number(salario),
-        incidencias: incidenciaDesc.trim() !== "" ? [{
-          id: Date.now().toString(),
-          fecha: new Date().toLocaleDateString(),
-          descripcion: incidenciaDesc
-        }] : [],
-        estado: "Activo"
-      };
-      updatedDocentes = [nuevoDocente, ...docentes];
+        if (!correo.trim() || !password) {
+          throw new Error("El correo electrónico y la contraseña son obligatorios para crear la cuenta del docente.");
+        }
+        const adminToken = await getAuthenticatedAdminAccessToken();
+        const registrationData = {
+          nombres: cleanNombres,
+          apellidos: cleanApellidos,
+          tipoDocumento: "DNI",
+          dni: documento.trim(),
+          correo: correo.trim().toLowerCase(),
+          password,
+          celular: celular.trim() || "987654321",
+          fechaNacimiento: "1985-05-15",
+          areaAcademica: especialidad.trim() || "Ciencias Exactas e Ingenierías",
+          carreraObjetivo: especialidad.trim() || "Ingeniería de Sistemas",
+          cicloVirtual: "Semestral",
+          rol: "Docente",
+          estado: "Activo",
+          salario: Number(salario) || 3200
+        };
+
+        await adminUserRegistrationService.validate(registrationData, adminToken);
+        const authAccount = await adminUserRegistrationService.createAuthAccount(registrationData);
+        const profilePayload = adminUserRegistrationService.buildProfilePayload(
+          registrationData,
+          authAccount.authUserId
+        );
+        const createdProfile = await adminUserRegistrationService.saveProfile(profilePayload, adminToken);
+        targetUser = await userService.saveUser({
+          ...createdProfile,
+          ...registrationData,
+          id: createdProfile.id,
+          auth_user_id: authAccount.authUserId,
+          especialidad: especialidad.trim(),
+          salario: Number(salario) || 3200
+        });
       }
 
-      saveToStorage(updatedDocentes);
+      // Si se escribió una incidencia, persistirla realmente en la tabla incidents de InsForge
+      if (incidenciaDesc.trim()) {
+        await incidentService.saveIncident({
+          id: `INC-${Date.now().toString().slice(-6)}`,
+          docenteId: targetUser?.id || currentDocente?.userId || null,
+          docente: fullName,
+          dni: documento.trim(),
+          correo: targetUser?.correo || correo.trim().toLowerCase(),
+          tipo: "Observación / Nómina",
+          fechaPresentacion: new Date().toISOString().split("T")[0],
+          materia: especialidad.trim() || "General",
+          horario: "General",
+          motivo: incidenciaDesc.trim(),
+          estado: "Pendiente"
+        });
+      }
+
+      await loadTeachers();
       handleCloseModal();
-      setFeedback({ message: "Docente y nómina guardados correctamente en InsForge.", type: "success" }); setTimeout(() => setFeedback({ message: "", type: "" }), 4000);
-    } catch (error) {
-      console.error("Error al guardar docente:", error); setError(error.message || "No se pudo guardar el docente.");
+      setFeedback({ message: "Docente, nómina e incidencias guardados correctamente en InsForge.", type: "success" });
+      setTimeout(() => setFeedback({ message: "", type: "" }), 4000);
+    } catch (err) {
+      console.error("Error al guardar docente:", err);
+      setError(err.message || "No se pudo guardar el docente.");
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -201,7 +230,7 @@ export default function DocentesPage() {
           await userService.deleteUser(docente.userId);
           setUsers((current) => current.filter((user) => user.id !== docente.userId));
         }
-        saveToStorage(updated);
+        setDocentes(updated);
       } catch (error) {
         console.error("Error al eliminar docente:", error); setError(error.message || "No se pudo eliminar el docente.");
       }
@@ -375,36 +404,63 @@ export default function DocentesPage() {
             
             <div className="p-5 overflow-y-auto flex-1">
               <form id="docente-form" onSubmit={handleSaveDocente} className="space-y-4">
-                <div>
-                  <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">Nombre Completo</label>
-                  <input required type="text" value={nombre} onChange={e => setNombre(e.target.value)} className="w-full px-3 py-2 text-sm border border-slate-200 dark:border-white/10 rounded-lg focus:ring-1 focus:ring-blue-500 focus:border-blue-500 outline-hidden bg-white/60 dark:bg-white/5 backdrop-blur-2xl/50 dark:text-white" />
-                </div>
-                
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">Documento</label>
-                    <input required type="text" value={documento} onChange={e => setDocumento(e.target.value)} className="w-full px-3 py-2 text-sm border border-slate-200 dark:border-white/10 rounded-lg focus:ring-1 focus:ring-blue-500 focus:border-blue-500 outline-hidden bg-white/60 dark:bg-white/5 backdrop-blur-2xl/50 dark:text-white" />
+                    <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">Nombres *</label>
+                    <input required type="text" value={nombres} onChange={e => setNombres(e.target.value)} placeholder="Ej. Carmen Rosa" className="w-full px-3 py-2 text-sm border border-slate-200 dark:border-white/10 rounded-lg focus:ring-1 focus:ring-blue-500 focus:border-blue-500 outline-hidden bg-white/60 dark:bg-white/5 backdrop-blur-2xl/50 dark:text-white" />
                   </div>
                   <div>
-                    <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">Salario (S/)</label>
+                    <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">Apellidos *</label>
+                    <input required type="text" value={apellidos} onChange={e => setApellidos(e.target.value)} placeholder="Ej. Herrera Villanueva" className="w-full px-3 py-2 text-sm border border-slate-200 dark:border-white/10 rounded-lg focus:ring-1 focus:ring-blue-500 focus:border-blue-500 outline-hidden bg-white/60 dark:bg-white/5 backdrop-blur-2xl/50 dark:text-white" />
+                  </div>
+                </div>
+
+                {!currentDocente && (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1 flex items-center gap-1">
+                        <Mail className="w-3 h-3 text-slate-400" /> Correo Electrónico *
+                      </label>
+                      <input required type="email" value={correo} onChange={e => setCorreo(e.target.value)} placeholder="docente@academia.edu.pe" className="w-full px-3 py-2 text-sm border border-slate-200 dark:border-white/10 rounded-lg focus:ring-1 focus:ring-blue-500 focus:border-blue-500 outline-hidden bg-white/60 dark:bg-white/5 backdrop-blur-2xl/50 dark:text-white" />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1 flex items-center gap-1">
+                        <Lock className="w-3 h-3 text-slate-400" /> Contraseña de Acceso *
+                      </label>
+                      <input required type="password" value={password} onChange={e => setPassword(e.target.value)} placeholder="••••••••" className="w-full px-3 py-2 text-sm border border-slate-200 dark:border-white/10 rounded-lg focus:ring-1 focus:ring-blue-500 focus:border-blue-500 outline-hidden bg-white/60 dark:bg-white/5 backdrop-blur-2xl/50 dark:text-white" />
+                    </div>
+                  </div>
+                )}
+
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">DNI / Documento *</label>
+                    <input required type="text" maxLength={8} value={documento} onChange={e => setDocumento(e.target.value.replace(/\D/g, "").slice(0, 8))} placeholder="8 dígitos" className="w-full px-3 py-2 text-sm border border-slate-200 dark:border-white/10 rounded-lg focus:ring-1 focus:ring-blue-500 focus:border-blue-500 outline-hidden bg-white/60 dark:bg-white/5 backdrop-blur-2xl/50 dark:text-white" />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">Celular</label>
+                    <input type="text" maxLength={9} value={celular} onChange={e => setCelular(e.target.value.replace(/\D/g, "").slice(0, 9))} placeholder="987654321" className="w-full px-3 py-2 text-sm border border-slate-200 dark:border-white/10 rounded-lg focus:ring-1 focus:ring-blue-500 focus:border-blue-500 outline-hidden bg-white/60 dark:bg-white/5 backdrop-blur-2xl/50 dark:text-white" />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">Salario (S/) *</label>
                     <input required type="number" step="0.01" min="0" value={salario} onChange={e => setSalario(e.target.value)} className="w-full px-3 py-2 text-sm border border-slate-200 dark:border-white/10 rounded-lg focus:ring-1 focus:ring-blue-500 focus:border-blue-500 outline-hidden bg-white/60 dark:bg-white/5 backdrop-blur-2xl/50 dark:text-white" />
                   </div>
                 </div>
 
                 <div>
-                  <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">Especialidad</label>
+                  <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">Especialidad *</label>
                   <input required type="text" value={especialidad} onChange={e => setEspecialidad(e.target.value)} className="w-full px-3 py-2 text-sm border border-slate-200 dark:border-white/10 rounded-lg focus:ring-1 focus:ring-blue-500 focus:border-blue-500 outline-hidden bg-white/60 dark:bg-white/5 backdrop-blur-2xl/50 dark:text-white" />
                 </div>
 
                 <div className="border-t border-slate-100 dark:border-white/10 pt-4 mt-4">
                   <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1 flex items-center">
                     <AlertTriangle className="w-3.5 h-3.5 mr-1 text-amber-500"/>
-                    Registrar Nueva Incidencia (Opcional)
+                    Registrar Nueva Incidencia en BD (Opcional)
                   </label>
                   <textarea 
                     value={incidenciaDesc} 
                     onChange={e => setIncidenciaDesc(e.target.value)}
-                    placeholder="Ej. Lleganza tardía, falta justificada, etc."
+                    placeholder="Ej. Tardanza justificada, observación de nómina, etc. (Se guardará en InsForge)"
                     className="w-full px-3 py-2 text-sm border border-slate-200 dark:border-white/10 rounded-lg focus:ring-1 focus:ring-blue-500 focus:border-blue-500 outline-hidden h-20 resize-none bg-white/60 dark:bg-white/5 backdrop-blur-2xl/50 dark:text-white"
                   ></textarea>
                 </div>
@@ -412,11 +468,11 @@ export default function DocentesPage() {
             </div>
             
             <div className="px-5 py-4 border-t border-slate-100 dark:border-white/10 bg-slate-50 dark:bg-white/5 flex justify-end gap-2">
-              <button type="button" onClick={handleCloseModal} className="px-4 py-2 text-xs font-semibold text-slate-600 dark:text-slate-300 bg-white dark:bg-white/5 border border-slate-300 dark:border-white/10 rounded-lg hover:bg-slate-50 dark:hover:bg-white/5">
+              <button type="button" onClick={handleCloseModal} disabled={isSubmitting} className="px-4 py-2 text-xs font-semibold text-slate-600 dark:text-slate-300 bg-white dark:bg-white/5 border border-slate-300 dark:border-white/10 rounded-lg hover:bg-slate-50 dark:hover:bg-white/5 disabled:opacity-50">
                 Cancelar
               </button>
-              <button type="submit" form="docente-form" className="px-4 py-2 text-xs font-semibold text-white bg-blue-600 hover:bg-blue-700 rounded-lg">
-                Guardar Docente
+              <button type="submit" form="docente-form" disabled={isSubmitting} className="px-4 py-2 text-xs font-semibold text-white bg-blue-600 hover:bg-blue-700 rounded-lg disabled:opacity-50">
+                {isSubmitting ? "Guardando..." : "Guardar Docente"}
               </button>
             </div>
           </div>

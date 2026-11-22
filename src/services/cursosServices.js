@@ -165,7 +165,51 @@ export const courseService = {
       .upsert(rows)
       .select(COURSE_COLUMNS);
     throwIfError(error, "guardar cursos");
-    return (data || []).map(normalizeCourse);
+    const savedCourses = (data || []).map(normalizeCourse);
+
+    // Sincronizar cursosAsignados en la tabla users para mantener consistencia en la BD
+    try {
+      const { data: teachers } = await insforge.database
+        .from("users")
+        .select("id, nombres, apellidos, rol, cursosAsignados");
+
+      if (Array.isArray(teachers) && teachers.length > 0) {
+        const parseList = (val) => {
+          if (Array.isArray(val)) return val.map(String).map((s) => s.trim()).filter(Boolean);
+          if (typeof val === "string") {
+            return val.replace(/^\{|\}$|^\[|\]$/g, "").split(",").map((s) => s.trim().replace(/^["']|["']$/g, "")).filter(Boolean);
+          }
+          return [];
+        };
+
+        for (const course of savedCourses) {
+          const courseIdStr = String(course.id);
+          const assignedDocenteId = String(course.docenteId || "").trim();
+          const assignedDocenteName = String(course.docente || "").toLowerCase().trim();
+
+          for (const u of teachers) {
+            if (!["docente", "profesor", "profesora"].includes(String(u.rol || "").toLowerCase())) continue;
+            const currentAssigned = parseList(u.cursosAsignados);
+            const fullName = `${u.nombres || ""} ${u.apellidos || ""}`.toLowerCase().trim();
+            const isAssignedTeacher =
+              (assignedDocenteId && String(u.id) === assignedDocenteId) ||
+              (assignedDocenteName && fullName && (assignedDocenteName.includes(fullName) || fullName.includes(assignedDocenteName)));
+
+            if (isAssignedTeacher && !currentAssigned.includes(courseIdStr)) {
+              const updatedList = [...currentAssigned, courseIdStr];
+              await insforge.database.from("users").update({ cursosAsignados: updatedList }).eq("id", u.id);
+            } else if (!isAssignedTeacher && currentAssigned.includes(courseIdStr)) {
+              const updatedList = currentAssigned.filter((id) => id !== courseIdStr);
+              await insforge.database.from("users").update({ cursosAsignados: updatedList }).eq("id", u.id);
+            }
+          }
+        }
+      }
+    } catch (syncErr) {
+      console.warn("[courseService] Advertencia al sincronizar cursosAsignados en users:", syncErr);
+    }
+
+    return savedCourses;
   },
 
   async saveCourse(course) {
