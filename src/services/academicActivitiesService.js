@@ -318,6 +318,7 @@ export const academicActivitiesService = {
     const updated = [created, ...all.filter((t) => t.id !== created.id)];
     localStorage.setItem(TASKS_STORAGE_KEY, JSON.stringify(updated));
     window.dispatchEvent(new Event("storage"));
+    console.log(`✅ [Tareas] Tarea "${created.titulo}" (ID: ${created.id}, Curso: ${created.curso}) creada correctamente.`);
     return created;
   },
 
@@ -420,6 +421,7 @@ export const academicActivitiesService = {
     const updated = [created, ...all.filter((a) => a.id !== created.id)];
     localStorage.setItem(ANNOUNCEMENTS_STORAGE_KEY, JSON.stringify(updated));
     window.dispatchEvent(new Event("storage"));
+    console.log(`✅ [Anuncios] Anuncio "${created.titulo}" (ID: ${created.id}, Curso: ${created.curso}) publicado correctamente.`);
     return created;
   },
 

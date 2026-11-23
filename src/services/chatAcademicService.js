@@ -379,12 +379,14 @@ export const chatAcademicService = {
         body: JSON.stringify(newMessage)
       });
       if (saved && saved.id) {
+        console.log(`✅ [Mensajes] Consulta "${saved.id}" enviada correctamente a "${newMessage.destinatarioNombre}" (Curso: ${newMessage.curso}).`);
         return { ...newMessage, ...saved };
       }
     } catch (e) {
-      console.warn("[ChatAcademicService] No se pudo persistir en backend, usando local:", e);
+      console.error(`❌ [Mensajes] Ocurrió un error al enviar la consulta en backend. Motivo: ${e.message}`);
     }
 
+    console.log(`✅ [Mensajes] Consulta "${newMessage.id}" registrada correctamente (modo local).`);
     return newMessage;
   },
 

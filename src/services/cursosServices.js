@@ -118,11 +118,12 @@ export const courseService = {
         const data = await res.json().catch(() => ({}));
         if (data?.detail) {
           const detail = typeof data.detail === "string" ? data.detail : JSON.stringify(data.detail);
-          console.warn("[Backend] Alerta de monitoreo de curso:", detail);
+          console.error(`❌ [Cursos] Ocurrió un error al validar el curso "${curso.asignatura}". Motivo: ${detail}`);
           // Si el conflicto reportado es con la misma asignatura que se está editando, verificar si es falso positivo
           if (curso.id && curso.asignatura && detail.includes(curso.asignatura)) {
             const localCheck = await courseService.validarCruce(curso);
             if (!localCheck.cruce) {
+              console.log(`✅ [Cursos] Curso "${curso.asignatura}" (ID: ${curso.id}) validado correctamente sin cruces de horario.`);
               return { valido: true, mensaje: "Horario disponible. Sin cruces para el docente." };
             }
           }
@@ -130,6 +131,7 @@ export const courseService = {
         }
       } else {
         const data = await res.json().catch(() => ({ valido: true }));
+        console.log(`✅ [Cursos] Curso "${curso.asignatura}" (Docente: ${curso.docente}) validado correctamente sin cruces de horario.`);
         return data;
       }
     } catch (err) {
@@ -164,8 +166,15 @@ export const courseService = {
       .from("courses")
       .upsert(rows)
       .select(COURSE_COLUMNS);
+    if (error) {
+      const nombresCursos = rows.map((r) => r.asignatura).join(", ");
+      console.error(`❌ [Cursos] Ocurrió un error al guardar/crear el curso "${nombresCursos}". Motivo: ${error.message}`);
+    }
     throwIfError(error, "guardar cursos");
     const savedCourses = (data || []).map(normalizeCourse);
+    savedCourses.forEach((c) => {
+      console.log(`✅ [Cursos] Curso "${c.asignatura}" (ID: ${c.id}, Docente: ${c.docente}) creado/actualizado correctamente.`);
+    });
 
     // Sincronizar cursosAsignados en la tabla users para mantener consistencia en la BD
     try {
@@ -222,7 +231,11 @@ export const courseService = {
       .from("courses")
       .delete()
       .eq("id", id);
+    if (error) {
+      console.error(`❌ [Cursos] Ocurrió un error al eliminar el curso "${id}". Motivo: ${error.message}`);
+    }
     throwIfError(error, "eliminar curso");
+    console.log(`✅ [Cursos] Curso "${id}" eliminado correctamente.`);
   },
 
   async countStudentsForTeacher(courseIds) {

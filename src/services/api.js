@@ -206,19 +206,25 @@ const requestBackend = async (path, options = {}) => {
 
 export const authService = {
   async login(email, password) {
-    const body = await requestBackend("/usuarios/login", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        correo: String(email || "").trim().toLowerCase(),
-        password
-      })
-    });
+    try {
+      const body = await requestBackend("/usuarios/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          correo: String(email || "").trim().toLowerCase(),
+          password
+        })
+      });
 
-    if (!body?.access_token || !body?.role) {
-      throw new Error("El backend no devolvió access_token y role para iniciar sesión.");
+      if (!body?.access_token || !body?.role) {
+        throw new Error("El backend no devolvió access_token y role para iniciar sesión.");
+      }
+      console.log(`✅ [Auth] Usuario "${body.name || email}" (Rol: ${body.role}) inició sesión correctamente.`);
+      return body;
+    } catch (err) {
+      console.error(`❌ [Auth] Ocurrió un error al iniciar sesión para "${email}". Motivo: ${err.message}`);
+      throw err;
     }
-    return body;
   }
 };
 
@@ -251,11 +257,18 @@ export const validateWithBackend = async ({ tipoDocumento = "DNI", dni, celular,
   const headers = { "Content-Type": "application/json" };
   if (accessToken) headers.Authorization = `Bearer ${accessToken}`;
 
-  await requestBackend("/usuarios/validar", {
-    method: "POST",
-    headers,
-    body: JSON.stringify({ tipoDocumento, dni, celular, correo })
-  });
+  try {
+    const res = await requestBackend("/usuarios/validar", {
+      method: "POST",
+      headers,
+      body: JSON.stringify({ tipoDocumento, dni, celular, correo })
+    });
+    console.log(`✅ [Validación] Datos de usuario (${tipoDocumento}: ${dni}, Correo: ${correo || "N/A"}) validados correctamente.`);
+    return res;
+  } catch (err) {
+    console.error(`❌ [Validación] Ocurrió un error al validar los datos (${tipoDocumento}: ${dni}). Motivo: ${err.message}`);
+    throw err;
+  }
 };
 
 const ADMIN_USER_ROLES = ["admin", "docente", "estudiante"];
@@ -390,15 +403,22 @@ export const adminUserRegistrationService = {
     const safeProfile = { ...profilePayload };
     delete safeProfile.password;
     delete safeProfile.universidad;
+    const fullName = `${safeProfile.nombres || ""} ${safeProfile.apellidos || ""}`.trim();
 
-    const savedProfile = await requestBackend("/usuarios/", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${adminAccessToken}`
-      },
-      body: JSON.stringify(safeProfile)
-    });
+    let savedProfile;
+    try {
+      savedProfile = await requestBackend("/usuarios/", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${adminAccessToken}`
+        },
+        body: JSON.stringify(safeProfile)
+      });
+    } catch (err) {
+      console.error(`❌ [Usuarios] Ocurrió un error al registrar al usuario "${fullName}" (${safeProfile.correo}). Motivo: ${err.message}`);
+      throw err;
+    }
 
     const returnedUser =
       savedProfile?.user ||
@@ -406,13 +426,15 @@ export const adminUserRegistrationService = {
       savedProfile?.usuario ||
       (savedProfile && typeof savedProfile === "object" ? savedProfile : {});
 
-    return normalizeUser({
+    const finalUser = normalizeUser({
       ...safeProfile,
       ...(returnedUser && typeof returnedUser === "object" ? returnedUser : {}),
       id: returnedUser?.id || safeProfile.id || formatIdForDb(safeProfile.id),
       rol: formatRoleForDb(returnedUser?.rol || safeProfile.rol),
       estado: formatEstadoForDb(returnedUser?.estado || safeProfile.estado)
     });
+    console.log(`✅ [Usuarios] Usuario "${finalUser.nombres} ${finalUser.apellidos}" (ID: ${finalUser.id}, Rol: ${finalUser.rol}) registrado correctamente.`);
+    return finalUser;
   }
 };
 
@@ -558,6 +580,9 @@ export const userService = {
       .from("users")
       .upsert([payload])
       .select(USER_COLUMNS);
+    if (error) {
+      console.error(`❌ [Usuarios] Ocurrió un error al guardar/actualizar al usuario "${payload.nombres} ${payload.apellidos}". Motivo: ${error.message}`);
+    }
     throwIfError(error, "guardar usuario");
     const savedUser = data?.[0] ? normalizeUser(data[0]) : null;
     if (savedUser) {
@@ -567,6 +592,7 @@ export const userService = {
         ...current.filter((stored) => stored.id !== savedUser.id)
       ];
       cacheUsers(updated);
+      console.log(`✅ [Usuarios] Usuario "${savedUser.nombres} ${savedUser.apellidos}" (ID: ${savedUser.id}, Rol: ${savedUser.rol}) guardado/actualizado correctamente.`);
     }
     return savedUser;
   },
@@ -584,6 +610,7 @@ export const userService = {
         });
         if (res.ok) {
           cacheUsers(getStoredUsers().filter((user) => user.id !== id));
+          console.log(`✅ [Usuarios] Usuario (ID: ${id}) eliminado correctamente de la base de datos y de Auth.`);
           return;
         }
       }
@@ -596,8 +623,12 @@ export const userService = {
       .from("users")
       .delete()
       .eq("id", id);
+    if (error) {
+      console.error(`❌ [Usuarios] Ocurrió un error al eliminar al usuario (ID: ${id}). Motivo: ${error.message}`);
+    }
     throwIfError(error, "eliminar usuario");
     cacheUsers(getStoredUsers().filter((user) => user.id !== id));
+    console.log(`✅ [Usuarios] Usuario (ID: ${id}) eliminado correctamente.`);
   },
 
   async resetUsers() {
@@ -672,7 +703,11 @@ export const incidentService = {
       .from("incidents")
       .upsert([payload])
       .select();
+    if (error) {
+      console.error(`❌ [Incidencias] Ocurrió un error al registrar la incidencia de "${payload.docente}". Motivo: ${error.message}`);
+    }
     throwIfError(error, "guardar incidencia");
+    console.log(`✅ [Incidencias] Incidencia "${payload.tipo}" del docente "${payload.docente}" (Curso: ${payload.materia || "General"}) registrada correctamente.`);
     return data?.[0] || null;
   },
 
@@ -759,7 +794,11 @@ export const matriculaService = {
       .from("matriculas")
       .upsert([row])
       .select();
+    if (error) {
+      console.error(`❌ [Matrículas] Ocurrió un error al registrar la matrícula "${row.id}" de "${row.estudiante}". Motivo: ${error.message}`);
+    }
     throwIfError(error, "guardar matrícula");
+    console.log(`✅ [Matrículas] Matrícula "${row.id}" del estudiante "${row.estudiante}" (Programa: ${row.programa}) registrada correctamente.`);
     return data?.[0] || null;
   },
 
@@ -768,7 +807,11 @@ export const matriculaService = {
       .from("matriculas")
       .delete()
       .eq("id", id);
+    if (error) {
+      console.error(`❌ [Matrículas] Ocurrió un error al eliminar la matrícula "${id}". Motivo: ${error.message}`);
+    }
     throwIfError(error, "eliminar matrícula");
+    console.log(`✅ [Matrículas] Matrícula "${id}" eliminada correctamente.`);
   }
 };
 
@@ -800,7 +843,11 @@ export const pagoService = {
       .from("pagos")
       .upsert([row])
       .select();
+    if (error) {
+      console.error(`❌ [Pagos] Ocurrió un error al registrar el pago "${row.id}" de "${row.estudiante}". Motivo: ${error.message}`);
+    }
     throwIfError(error, "guardar pago");
+    console.log(`✅ [Pagos] Pago "${row.id}" (Comprobante: ${row.comprobante}, Monto: S/ ${row.monto}) del estudiante "${row.estudiante}" registrado correctamente.`);
     return data?.[0] || null;
   }
 };
