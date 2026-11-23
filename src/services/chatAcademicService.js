@@ -246,26 +246,18 @@ export const chatAcademicService = {
       studentProfile.cursosInscritos || studentProfile.cursos_inscritos || studentProfile.CursosInscritos
     );
     const directIds = new Set(
-      inscritos.map((c) => (typeof c === "object" && c !== null ? String(c.id) : String(c)))
+      inscritos.map((c) => (typeof c === "object" && c !== null ? String(c.id).trim() : String(c).trim()))
     );
 
+    if (directIds.size === 0) {
+      return { teachers: [], classmates: [], studentCourses: [] };
+    }
+
     const activeCourses = (allCourses || []).filter((c) => c.estado === "Activo");
-    const studentArea = String(studentProfile.areaAcademica || "").toLowerCase().trim();
-    const studentCarrera = String(studentProfile.carreraObjetivo || "").toLowerCase().trim();
 
-    // 1. Cursos que corresponden estrictamente al estudiante según matrícula o carrera/área
-    const studentCourses = activeCourses.filter((course) => {
-      if (directIds.has(String(course.id))) return true;
-      if (directIds.size === 0) {
-        const cArea = String(course.area || "").toLowerCase().trim();
-        const cCarrera = String(course.carrera || "").toLowerCase().trim();
-        if (studentArea && (cArea.includes(studentArea) || studentArea.includes(cArea))) return true;
-        if (studentCarrera && (cCarrera.includes(studentCarrera) || studentCarrera.includes(cCarrera))) return true;
-      }
-      return false;
-    });
-
-    const studentCourseIds = new Set(studentCourses.map((c) => String(c.id)));
+    // 1. Cursos en los que el estudiante está efectivamente inscrito en la BD
+    const studentCourses = activeCourses.filter((course) => directIds.has(String(course.id).trim()));
+    const studentCourseIds = new Set(studentCourses.map((c) => String(c.id).trim()));
 
     // 2. Docentes titulares de esos cursos
     const teachersMap = new Map();
@@ -285,7 +277,7 @@ export const chatAcademicService = {
     });
     const teachers = Array.from(teachersMap.values());
 
-    // 3. Compañeros de curso (estudiantes que comparten cursos o misma carrera/área)
+    // 3. Compañeros de curso (estudiantes que comparten explícitamente algún curso inscrito)
     const classmates = (allUsers || []).filter((u) => {
       if (String(u.rol || "").toLowerCase() !== "estudiante") return false;
       if (String(u.id) === String(studentProfile.id)) return false;
@@ -296,26 +288,10 @@ export const chatAcademicService = {
         u.cursosInscritos || u.cursos_inscritos || u.CursosInscritos
       );
       const peerCourseIds = new Set(
-        peerInscritos.map((c) => (typeof c === "object" && c !== null ? String(c.id) : String(c)))
+        peerInscritos.map((c) => (typeof c === "object" && c !== null ? String(c.id).trim() : String(c).trim()))
       );
 
-      // Si comparte algún curso con el alumno
-      const sharesCourse = Array.from(studentCourseIds).some((cid) => peerCourseIds.has(cid));
-      if (sharesCourse) return true;
-
-      // Si alguno no tiene lista explícita, ver si comparten carrera o área académica
-      if (peerCourseIds.size === 0 || directIds.size === 0) {
-        const peerArea = String(u.areaAcademica || "").toLowerCase().trim();
-        const peerCarrera = String(u.carreraObjetivo || "").toLowerCase().trim();
-        if (studentArea && peerArea && (studentArea.includes(peerArea) || peerArea.includes(studentArea))) {
-          return true;
-        }
-        if (studentCarrera && peerCarrera && (studentCarrera.includes(peerCarrera) || peerCarrera.includes(studentCarrera))) {
-          return true;
-        }
-      }
-
-      return false;
+      return Array.from(studentCourseIds).some((cid) => peerCourseIds.has(cid));
     }).map((peer) => ({
       tipo: "companero",
       id: peer.id,

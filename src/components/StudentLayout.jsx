@@ -130,34 +130,31 @@ export default function StudentLayout() {
     let cancelled = false;
 
     const syncNotifications = () => {
-      let enrolledIds = new Set(
-        (studentProfile?.cursosInscritos || []).map((id) =>
-          typeof id === "object" && id !== null ? String(id.id) : String(id)
+      const rawInscritos =
+        studentProfile?.cursosInscritos ||
+        studentProfile?.cursos_inscritos ||
+        studentProfile?.CursosInscritos ||
+        [];
+      const enrolledIds = new Set(
+        (Array.isArray(rawInscritos) ? rawInscritos : []).map((id) =>
+          typeof id === "object" && id !== null ? String(id.id).trim() : String(id).trim()
         )
       );
 
       let enrolledNames = [];
 
-      // Si no tiene lista explícita pero tiene área académica, filtrar los cursos de esa área
-      if (enrolledIds.size === 0 && studentProfile?.areaAcademica && availableCourses.length > 0) {
-        const areaLower = studentProfile.areaAcademica.toLowerCase().trim();
-        const matchedCourses = availableCourses.filter((c) => {
-          const cArea = (c.area || "").toLowerCase().trim();
-          return cArea.includes(areaLower) || areaLower.includes(cArea);
-        });
-        enrolledIds = new Set(matchedCourses.map((c) => String(c.id)));
-        enrolledNames = matchedCourses.map((c) => (c.asignatura || c.nombre || "").toLowerCase().trim());
-      } else if (availableCourses.length > 0) {
+      if (enrolledIds.size > 0 && availableCourses.length > 0) {
         enrolledNames = availableCourses
-          .filter((c) => enrolledIds.has(String(c.id)))
+          .filter((c) => enrolledIds.has(String(c.id).trim()))
           .map((c) => (c.asignatura || c.nombre || "").toLowerCase().trim());
       }
 
-      // Si el alumno tiene cursos matriculados, filtrar por ellos más los simulacros generales
+      // Si el alumno no tiene cursos matriculados, solo ve simulacros generales ("SIM...")
       const allTasks = academicActivitiesService.getTasks().filter((t) => t.estado === "Por entregar");
       const filteredTasks = allTasks.filter((t) => {
         const cid = String(t.cursoId || t.curso_id || "");
         if (cid.startsWith("SIM")) return true;
+        if (enrolledIds.size === 0) return false;
         if (enrolledIds.has(cid)) return true;
         const taskCourseName = (t.curso || "").toLowerCase().trim();
         if (taskCourseName && enrolledNames.some((name) => taskCourseName.includes(name) || name.includes(taskCourseName))) {
@@ -170,8 +167,8 @@ export default function StudentLayout() {
       const filteredAnns = allAnns.filter((a) => {
         const cid = String(a.cursoId || a.curso_id || "");
         if (cid.startsWith("SIM")) return true;
+        if (enrolledIds.size === 0) return false;
         if (enrolledIds.has(cid)) return true;
-        if ((a.prioridad || "").toLowerCase() === "urgente") return true;
         const annCourseName = (a.curso || "").toLowerCase().trim();
         if (annCourseName && enrolledNames.some((name) => annCourseName.includes(name) || name.includes(annCourseName))) {
           return true;

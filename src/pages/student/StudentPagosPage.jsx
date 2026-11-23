@@ -54,13 +54,13 @@ export default function StudentPagosPage() {
           ? `${perfil.nombres || ""} ${perfil.apellidos || ""}`.trim().toLowerCase()
           : "";
 
-        // Encontrar la matrícula del estudiante
+        // Encontrar la matrícula real del estudiante (sin asignar matrícula ajena si aún no tiene)
         const userMatricula = (remoteMatriculas || []).find((m) => {
           if (perfil?.dni && m.dni === perfil.dni) return true;
           if (userEmail && m.correo?.toLowerCase() === userEmail.toLowerCase()) return true;
           if (studentName && m.estudiante?.toLowerCase().includes(studentName)) return true;
           return false;
-        }) || (remoteMatriculas || [])[0] || null;
+        }) || null;
 
         setMatricula(userMatricula);
 

@@ -135,31 +135,23 @@ export default function StudentDashboardPage() {
   const carreraObjetivo = estudianteActivo?.carreraObjetivo || "Ingeniería de Sistemas";
   const universidadObjetivo = estudianteActivo?.universidad || "UNI / San Marcos";
 
-  // Cruce de cursosInscritos de la sesión con la lista global del backend
+  // Cruce estricto de cursosInscritos de la sesión con la lista global de cursos en la BD
   const misCursosInscritos = useMemo(() => {
     if (!estudianteActivo) return [];
 
-    const inscritos = parseCourseList(estudianteActivo.cursosInscritos || estudianteActivo.cursos_inscritos || estudianteActivo.CursosInscritos);
-    if (inscritos.length > 0) {
-      const idsInscritos = new Set(
-        inscritos.map((c) => (typeof c === "object" && c !== null ? String(c.id) : String(c)))
-      );
-      const encontrados = (listaCursosGlobal || []).filter(
-        (curso) => idsInscritos.has(String(curso.id)) && curso.estado === "Activo"
-      );
-      if (encontrados.length > 0) return encontrados;
-    }
+    const inscritos = parseCourseList(
+      estudianteActivo.cursosInscritos ||
+      estudianteActivo.cursos_inscritos ||
+      estudianteActivo.CursosInscritos
+    );
+    if (inscritos.length === 0) return [];
 
-    // Fallback inteligente: Filtrar según su área académica si no hay lista explícita
-    if (estudianteActivo.areaAcademica) {
-      const porArea = (listaCursosGlobal || []).filter(
-        (curso) => curso.estado === "Activo" && (curso.area || "").includes(estudianteActivo.areaAcademica)
-      );
-      if (porArea.length > 0) return porArea;
-    }
-
-    // Si no tiene área académica definida, mostrar catálogo activo
-    return (listaCursosGlobal || []).filter((curso) => curso.estado === "Activo");
+    const idsInscritos = new Set(
+      inscritos.map((c) => (typeof c === "object" && c !== null ? String(c.id).trim() : String(c).trim()))
+    );
+    return (listaCursosGlobal || []).filter(
+      (curso) => idsInscritos.has(String(curso.id).trim()) && curso.estado === "Activo"
+    );
   }, [estudianteActivo, listaCursosGlobal]);
 
   const handleJoinMeet = (course) => {

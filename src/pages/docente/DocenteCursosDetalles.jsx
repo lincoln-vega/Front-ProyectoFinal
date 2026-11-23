@@ -144,34 +144,16 @@ export default function DocenteCursosDetalles({ cursoId, initialTab = "clase", o
       setTasks(courseTasks);
       setAnnouncements(courseAnnouncements);
 
-      // Filtrar estrictamente los estudiantes matriculados en este curso (sin mezclar con otras carreras)
+      // Filtrar estrictamente los estudiantes matriculados en este curso (solo por cursosInscritos real en la BD)
       const students = (users || []).filter((u) => {
         const isStudent = String(u.rol || "").toLowerCase() === "estudiante";
         if (!isStudent) return false;
-        
-        // 1. Si tiene el curso explícitamente en cursosInscritos
+
         const inscritos = parseCourseList(u.cursosInscritos || u.cursos_inscritos || u.CursosInscritos);
-        const hasDirectEnrollment = inscritos.some((c) => {
+        return inscritos.some((c) => {
           const id = typeof c === "object" && c !== null ? c.id : c;
-          return String(id) === String(cursoId);
+          return String(id).trim() === String(cursoId).trim();
         });
-        if (hasDirectEnrollment) return true;
-
-        // 2. Si no tiene lista explícita de cursos pero su área académica o carrera coincide con la del curso
-        if (inscritos.length === 0) {
-          if (foundCourse?.area && u.areaAcademica) {
-            const courseArea = foundCourse.area.toLowerCase().trim();
-            const studentArea = u.areaAcademica.toLowerCase().trim();
-            if (courseArea.includes(studentArea) || studentArea.includes(courseArea)) return true;
-          }
-          if (foundCourse?.carrera && u.carreraObjetivo) {
-            const courseCarrera = foundCourse.carrera.toLowerCase().trim();
-            const studentCarrera = u.carreraObjetivo.toLowerCase().trim();
-            if (courseCarrera.includes(studentCarrera) || studentCarrera.includes(courseCarrera)) return true;
-          }
-        }
-
-        return false;
       });
 
       setEnrolledStudents(students);

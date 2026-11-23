@@ -118,27 +118,10 @@ export default function DocenteEstudiantesPage() {
           inscritos.map((c) => (typeof c === "object" && c !== null ? String(c.id) : String(c)))
         );
 
-        // Cursos del docente donde este alumno está matriculado
-        const matchingCourses = myAssignedCourses.filter((course) => {
-          // 1. Inscripción directa
-          if (studentCourseIds.has(String(course.id))) return true;
-
-          // 2. Si no tiene lista explícita, ver si su área o carrera coincide con la del curso
-          if (studentCourseIds.size === 0) {
-            if (student.areaAcademica && course.area) {
-              const courseArea = course.area.toLowerCase().trim();
-              const studentArea = student.areaAcademica.toLowerCase().trim();
-              if (courseArea.includes(studentArea) || studentArea.includes(courseArea)) return true;
-            }
-            if (student.carreraObjetivo && course.carrera) {
-              const courseCarrera = course.carrera.toLowerCase().trim();
-              const studentCarrera = student.carreraObjetivo.toLowerCase().trim();
-              if (courseCarrera.includes(studentCarrera) || studentCarrera.includes(courseCarrera)) return true;
-            }
-          }
-
-          return false;
-        });
+        // Cursos del docente donde este alumno está efectivamente matriculado en la BD
+        const matchingCourses = myAssignedCourses.filter((course) =>
+          studentCourseIds.has(String(course.id).trim())
+        );
 
         if (matchingCourses.length === 0) return null;
 
