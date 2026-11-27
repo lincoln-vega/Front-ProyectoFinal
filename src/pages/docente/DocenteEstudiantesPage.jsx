@@ -12,11 +12,15 @@ import {
   GraduationCap,
   Sparkles,
   ChevronRight,
-  Filter
+  Filter,
+  FileSpreadsheet,
+  Award
 } from "lucide-react";
 import { getCurrentSessionProfile } from "../../services/session";
 import { courseService } from "../../services/cursosServices";
 import { userService, academicosService, parseCourseList } from "../../services/api";
+import { exportToCSV } from "../../utils/exportUtils";
+import ReportViewerModal from "../../components/shared/ReportViewerModal";
 
 const normalizeName = (value) =>
   String(value || "")
@@ -50,6 +54,7 @@ export default function DocenteEstudiantesPage() {
   const [selectedCycleFilter, setSelectedCycleFilter] = useState("vigentes");
   const [selectedCourseFilter, setSelectedCourseFilter] = useState("todos");
   const [searchQuery, setSearchQuery] = useState("");
+  const [reportModal, setReportModal] = useState(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -200,6 +205,64 @@ export default function DocenteEstudiantesPage() {
         </div>
 
         <div className="flex flex-wrap items-center gap-2 self-start sm:self-auto">
+          <button
+            type="button"
+            onClick={() =>
+              setReportModal({
+                title: "Acta Consolidada de Evaluaciones y Notas",
+                subtitle:
+                  selectedCourseFilter !== "todos"
+                    ? "Filtrado por asignatura seleccionada"
+                    : "Consolidado de todas tus cátedras asignadas",
+                endpointPath: "/reportes/notas",
+                params: {
+                  curso_id: selectedCourseFilter !== "todos" ? selectedCourseFilter : undefined,
+                  ciclo_id:
+                    selectedCycleFilter !== "vigentes" && selectedCycleFilter !== "todos"
+                      ? selectedCycleFilter
+                      : undefined
+                },
+                csvFilename: "acta_notas_catedra_docente"
+              })
+            }
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-extrabold shadow-xs transition-colors cursor-pointer"
+          >
+            <Award className="w-3.5 h-3.5 text-amber-300" />
+            <span>Acta de Notas PDF</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => {
+              if (!filteredStudents.length) return;
+              exportToCSV(
+                filteredStudents.map((s) => ({
+                  id: s.id,
+                  apellidos: s.apellidos,
+                  nombres: s.nombres,
+                  dni: s.dni || "",
+                  correo: s.correo || "",
+                  carrera: s.carreraObjetivo || "",
+                  cursos: s.enrolledTeacherCourses.map((c) => c.asignatura).join(", ")
+                })),
+                "nomina_alumnos_docente",
+                [
+                  { key: "id", label: "CODIGO" },
+                  { key: "apellidos", label: "APELLIDOS" },
+                  { key: "nombres", label: "NOMBRES" },
+                  { key: "dni", label: "DNI" },
+                  { key: "correo", label: "CORREO" },
+                  { key: "carrera", label: "CARRERA OBJETIVO" },
+                  { key: "cursos", label: "CURSOS CON DOCENTE" }
+                ]
+              );
+            }}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-extrabold shadow-xs transition-colors cursor-pointer"
+          >
+            <FileSpreadsheet className="w-3.5 h-3.5" />
+            <span>Nómina Excel</span>
+          </button>
+
           <select
             value={selectedCycleFilter}
             onChange={(e) => {
@@ -379,22 +442,51 @@ export default function DocenteEstudiantesPage() {
                     <span className="truncate max-w-[140px]">{student.correo}</span>
                   </a>
 
-                  {student.enrolledTeacherCourses.length > 0 && (
-                    <Link
-                      to={`/docente/cursos?cursoId=${student.enrolledTeacherCourses[0].id}&tab=tareas`}
-                      className="inline-flex items-center gap-1 text-[11px] font-bold text-indigo-600 dark:text-indigo-400 hover:text-indigo-700"
-                      title="Asignar tarea para esta materia"
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setReportModal({
+                          title: `Kardex Académico — ${student.nombres} ${student.apellidos}`,
+                          subtitle: "Récord oficial en tus materias asignadas",
+                          endpointPath: `/reportes/kardex-alumno/${encodeURIComponent(student.id)}`,
+                          params: {},
+                          csvFilename: `kardex_${student.id}`
+                        })
+                      }
+                      className="inline-flex items-center gap-1 text-[11px] font-extrabold px-2.5 py-1 rounded-lg bg-indigo-50 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800 hover:bg-indigo-100 cursor-pointer"
+                      title="Emitir Kardex PDF de este alumno en tus materias"
                     >
                       <FileText className="w-3.5 h-3.5" />
-                      <span>+ Tarea</span>
-                    </Link>
-                  )}
+                      <span>Kardex PDF</span>
+                    </button>
+
+                    {student.enrolledTeacherCourses.length > 0 && (
+                      <Link
+                        to={`/docente/cursos?cursoId=${student.enrolledTeacherCourses[0].id}&tab=tareas`}
+                        className="inline-flex items-center gap-1 text-[11px] font-bold text-indigo-600 dark:text-indigo-400 hover:text-indigo-700"
+                        title="Asignar tarea para esta materia"
+                      >
+                        <span>+ Tarea</span>
+                      </Link>
+                    )}
+                  </div>
                 </div>
               </div>
             );
           })}
         </div>
       )}
+
+      <ReportViewerModal
+        isOpen={Boolean(reportModal)}
+        onClose={() => setReportModal(null)}
+        title={reportModal?.title}
+        subtitle={reportModal?.subtitle}
+        endpointPath={reportModal?.endpointPath}
+        params={reportModal?.params}
+        csvFilename={reportModal?.csvFilename}
+      />
     </div>
   );
 }

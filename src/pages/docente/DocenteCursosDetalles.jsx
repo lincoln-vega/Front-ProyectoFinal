@@ -24,7 +24,8 @@ import {
   Download,
   Award,
   UploadCloud,
-  FileCheck
+  FileCheck,
+  Eye
 } from "lucide-react";
 import { courseService } from "../../services/cursosServices";
 import { userService, parseCourseList } from "../../services/api";
@@ -32,7 +33,9 @@ import { getMeetAttendanceHistory, registerMeetEntry, registerMeetExit } from ".
 import { clasesVivoService } from "../../services/clasesVivoService";
 import { academicActivitiesService } from "../../services/academicActivitiesService";
 import { chatAcademicService } from "../../services/chatAcademicService";
-import { openStorageFile, uploadFileToStorage } from "../../lib/supabase";
+import { uploadFileToStorage } from "../../lib/supabase";
+import ReportViewerModal from "../../components/shared/ReportViewerModal";
+import FilePreviewModal from "../../components/shared/FilePreviewModal";
 import { useNavigate } from "react-router-dom";
 
 const validMeetUrl = (value) => {
@@ -128,6 +131,7 @@ export default function DocenteCursosDetalles({ cursoId, initialTab = "clase", o
   const [gradingData, setGradingData] = useState(null);
   const [gradingFilter, setGradingFilter] = useState("todos");
   const [gradeInputs, setGradeInputs] = useState({});
+  const [courseReportModal, setCourseReportModal] = useState(null);
 
   // Formulario nuevo anuncio
   const [newAnnData, setNewAnnData] = useState({
@@ -135,6 +139,9 @@ export default function DocenteCursosDetalles({ cursoId, initialTab = "clase", o
     prioridad: "Normal",
     contenido: ""
   });
+  const [annFile, setAnnFile] = useState(null);
+  const [isCreatingAnn, setIsCreatingAnn] = useState(false);
+  const [filePreviewTarget, setFilePreviewTarget] = useState(null);
 
   const loadAttendance = useCallback(async () => {
     const records = await getMeetAttendanceHistory(cursoId);
@@ -408,35 +415,53 @@ export default function DocenteCursosDetalles({ cursoId, initialTab = "clase", o
     }
   };
 
-  // Creación de nuevo anuncio (Sincronizado con Backend y PostgreSQL)
+  // Creación de nuevo anuncio (con adjunto opcional en Supabase Storage)
   const handleCreateAnnouncement = async (e) => {
     e.preventDefault();
-    if (!newAnnData.titulo.trim() || !newAnnData.contenido.trim()) {
-      alert("Por favor completa el título y el mensaje del anuncio.");
+    if (!newAnnData.titulo.trim() || !newAnnData.contenido.trim() || isCreatingAnn) {
+      if (!newAnnData.titulo.trim() || !newAnnData.contenido.trim()) {
+        alert("Por favor completa el título y el mensaje del anuncio.");
+      }
       return;
     }
 
+    setIsCreatingAnn(true);
+    setError("");
     try {
+      let uploadedMat = null;
+      if (annFile) {
+        uploadedMat = await uploadFileToStorage("materiales-clase", annFile, curso.id);
+      }
+
       const created = await academicActivitiesService.createAnnouncement({
         cursoId: curso.id,
         curso: curso.asignatura,
         titulo: newAnnData.titulo.trim(),
         prioridad: newAnnData.prioridad,
         contenido: newAnnData.contenido.trim(),
-        docente: curso.docente || localStorage.getItem("userName") || "Docente"
+        docente: curso.docente || localStorage.getItem("userName") || "Docente",
+        archivoUrl: uploadedMat?.url || null,
+        archivoPath: uploadedMat?.path || null,
+        archivoNombre: uploadedMat?.fileName || annFile?.name || null
       });
 
       const updated = await academicActivitiesService.fetchAnnouncements(cursoId);
       setAnnouncements(updated);
       setIsAnnModalOpen(false);
+      setAnnFile(null);
       setNewAnnData({
         titulo: "",
         prioridad: "Normal",
         contenido: ""
       });
-      setNotice(`Anuncio "${created.titulo}" publicado en el muro del curso y guardado en la base de datos.`);
+      if (uploadedMat) {
+        clasesVivoService.notifyMaterialPublished(curso.id);
+      }
+      setNotice(`Anuncio "${created.titulo}" publicado en el muro del curso.`);
     } catch (err) {
       setError("No se pudo publicar el anuncio: " + err.message);
+    } finally {
+      setIsCreatingAnn(false);
     }
   };
 
@@ -521,8 +546,42 @@ export default function DocenteCursosDetalles({ cursoId, initialTab = "clase", o
             </p>
           </div>
 
-          {/* Acceso Rápido a Google Meet */}
+          {/* Acceso Rápido a Google Meet y Emisión de Actas PDF de la Sección */}
           <div className="flex flex-wrap gap-2">
+            <button
+              type="button"
+              onClick={() =>
+                setCourseReportModal({
+                  title: `Acta Oficial de Evaluaciones y Notas — ${curso.asignatura}`,
+                  subtitle: `Cátedra: ${curso.docente}`,
+                  endpointPath: "/reportes/notas",
+                  params: { curso_id: curso.id },
+                  csvFilename: `acta_notas_${curso.id}`
+                })
+              }
+              className="inline-flex items-center gap-1.5 rounded-xl border border-indigo-200 dark:border-indigo-800 bg-indigo-50 dark:bg-indigo-950/50 hover:bg-indigo-100 px-3.5 py-2.5 text-xs font-extrabold text-indigo-700 dark:text-indigo-300 transition-colors cursor-pointer"
+            >
+              <FileText className="h-4 w-4" />
+              <span>Acta de Notas PDF</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() =>
+                setCourseReportModal({
+                  title: `Acta de Asistencia y Permanencia — ${curso.asignatura}`,
+                  subtitle: `Cátedra: ${curso.docente}`,
+                  endpointPath: "/reportes/asistencia",
+                  params: { curso_id: curso.id },
+                  csvFilename: `acta_asistencia_${curso.id}`
+                })
+              }
+              className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 dark:border-white/15 bg-slate-50 dark:bg-white/5 hover:bg-slate-100 dark:hover:bg-white/10 px-3.5 py-2.5 text-xs font-extrabold text-slate-700 dark:text-slate-200 transition-colors cursor-pointer"
+            >
+              <Award className="h-4 w-4 text-amber-500" />
+              <span>Acta Asistencia PDF</span>
+            </button>
+
             <button
               type="button"
               disabled={Boolean(activeSession || action || !validMeetUrl(curso.meetUrl))}
@@ -783,11 +842,20 @@ export default function DocenteCursosDetalles({ cursoId, initialTab = "clase", o
                       {(task.archivoUrl || task.archivoPath) && (
                         <button
                           type="button"
-                          onClick={() => openStorageFile("materiales-clase", task.archivoPath, task.archivoUrl)}
+                          onClick={() =>
+                            setFilePreviewTarget({
+                              title: `Guía de Tarea — ${task.titulo}`,
+                              subtitle: `${curso.asignatura} • ${task.docente}`,
+                              fileName: task.archivoNombre || "guia_tarea.pdf",
+                              bucket: "materiales-clase",
+                              path: task.archivoPath,
+                              fallbackUrl: task.archivoUrl
+                            })
+                          }
                           className="inline-flex items-center gap-1.5 text-[11px] font-bold text-blue-600 dark:text-blue-400 hover:underline cursor-pointer"
                         >
-                          <Download className="w-3.5 h-3.5" />
-                          <span className="truncate">Guía adjunta: {task.archivoNombre || "Ver archivo"}</span>
+                          <Eye className="w-3.5 h-3.5" />
+                          <span className="truncate">Previsualizar guía: {task.archivoNombre || "Ver archivo"}</span>
                         </button>
                       )}
 
@@ -910,11 +978,20 @@ export default function DocenteCursosDetalles({ cursoId, initialTab = "clase", o
                   {(ann.archivoUrl || ann.archivoPath) && (
                     <button
                       type="button"
-                      onClick={() => openStorageFile("materiales-clase", ann.archivoPath, ann.archivoUrl)}
+                      onClick={() =>
+                        setFilePreviewTarget({
+                          title: ann.titulo,
+                          subtitle: `${curso.asignatura} • Material publicado`,
+                          fileName: ann.archivoNombre || "material_clase.pdf",
+                          bucket: "materiales-clase",
+                          path: ann.archivoPath,
+                          fallbackUrl: ann.archivoUrl
+                        })
+                      }
                       className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-blue-50 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-800 text-xs font-bold text-blue-700 dark:text-blue-300 hover:bg-blue-100 cursor-pointer"
                     >
-                      <Download className="w-3.5 h-3.5" />
-                      <span>Material adjunto: {ann.archivoNombre || "Descargar archivo"}</span>
+                      <Eye className="w-3.5 h-3.5" />
+                      <span>Previsualizar adjunto: {ann.archivoNombre || "Ver archivo"}</span>
                     </button>
                   )}
 
@@ -1006,10 +1083,23 @@ export default function DocenteCursosDetalles({ cursoId, initialTab = "clase", o
                     </div>
                   </div>
 
-                  <div className="text-right shrink-0">
-                    <span className="text-[10px] font-extrabold px-2 py-0.5 rounded-full bg-emerald-50 dark:bg-emerald-950/50 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800 block mb-1">
-                      95% Asist.
-                    </span>
+                  <div className="text-right shrink-0 space-y-1.5">
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setCourseReportModal({
+                          title: `Kardex Académico — ${student.nombres} ${student.apellidos}`,
+                          subtitle: `Rendimiento y asistencia en tus asignaturas`,
+                          endpointPath: `/reportes/kardex-alumno/${encodeURIComponent(student.id)}`,
+                          params: {},
+                          csvFilename: `kardex_${student.id}`
+                        })
+                      }
+                      className="text-[11px] font-extrabold px-2.5 py-1 rounded-lg bg-indigo-50 dark:bg-indigo-950/50 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800 hover:bg-indigo-100 inline-flex items-center gap-1 cursor-pointer"
+                    >
+                      <FileText className="w-3 h-3" />
+                      <span>Kardex PDF</span>
+                    </button>
                     <a
                       href={`mailto:${student.correo}`}
                       className="text-[11px] font-bold text-indigo-600 dark:text-indigo-400 hover:underline flex items-center gap-1 justify-end"
@@ -1243,16 +1333,33 @@ export default function DocenteCursosDetalles({ cursoId, initialTab = "clase", o
                     )}
                   </span>
                   {taskGuideFile && (
-                    <button
-                      type="button"
-                      onClick={(ev) => {
-                        ev.preventDefault();
-                        setTaskGuideFile(null);
-                      }}
-                      className="text-[11px] font-bold text-rose-500 hover:underline shrink-0"
-                    >
-                      Quitar
-                    </button>
+                    <div className="flex items-center gap-2 shrink-0">
+                      <button
+                        type="button"
+                        onClick={(ev) => {
+                          ev.preventDefault();
+                          setFilePreviewTarget({
+                            title: `Vista Previa — ${taskGuideFile.name}`,
+                            subtitle: "Revisión de guía antes de publicar la tarea",
+                            fileName: taskGuideFile.name,
+                            localFile: taskGuideFile
+                          });
+                        }}
+                        className="text-[11px] font-extrabold text-indigo-600 dark:text-indigo-400 hover:underline inline-flex items-center gap-1"
+                      >
+                        <Eye className="w-3.5 h-3.5" /> Previsualizar
+                      </button>
+                      <button
+                        type="button"
+                        onClick={(ev) => {
+                          ev.preventDefault();
+                          setTaskGuideFile(null);
+                        }}
+                        className="text-[11px] font-bold text-rose-500 hover:underline"
+                      >
+                        Quitar
+                      </button>
+                    </div>
                   )}
                 </label>
               </div>
@@ -1449,13 +1556,20 @@ export default function DocenteCursosDetalles({ cursoId, initialTab = "clase", o
                               <button
                                 type="button"
                                 onClick={() =>
-                                  openStorageFile("tareas-entregas", est.archivoPath, est.archivoUrl)
+                                  setFilePreviewTarget({
+                                    title: `Entrega de ${est.estudianteNombre}`,
+                                    subtitle: `${gradingModalTask.titulo} • ${est.estudianteCorreo}`,
+                                    fileName: est.archivoNombre || "entrega_alumno.pdf",
+                                    bucket: "tareas-entregas",
+                                    path: est.archivoPath,
+                                    fallbackUrl: est.archivoUrl
+                                  })
                                 }
                                 className="px-3 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold inline-flex items-center gap-1.5 shadow-2xs cursor-pointer"
                               >
-                                <Download className="w-3.5 h-3.5" />
+                                <Eye className="w-3.5 h-3.5" />
                                 <span className="max-w-[160px] truncate">
-                                  {est.archivoNombre || "Abrir entrega"}
+                                  {est.archivoNombre || "Previsualizar entrega"}
                                 </span>
                               </button>
                             )}
@@ -1595,25 +1709,121 @@ export default function DocenteCursosDetalles({ cursoId, initialTab = "clase", o
                 />
               </div>
 
+              <div>
+                <label className="font-bold text-slate-700 dark:text-slate-200 block mb-1">
+                  Adjuntar Separata / PDF o Imagen (opcional, máx. 15 MB):
+                </label>
+                <label className="flex items-center justify-between gap-2 p-3 rounded-xl border border-dashed border-slate-300 dark:border-white/15 bg-slate-50/70 dark:bg-white/5 hover:border-blue-500 cursor-pointer transition-colors">
+                  <input
+                    type="file"
+                    accept=".pdf,.doc,.docx,.ppt,.pptx,.xls,.xlsx,.zip,.png,.jpg,.jpeg,.webp"
+                    className="hidden"
+                    onChange={(e) => {
+                      const f = e.target.files?.[0] || null;
+                      if (f && f.size > 15 * 1024 * 1024) {
+                        alert("El archivo supera el límite máximo de 15 MB.");
+                        e.target.value = "";
+                        return;
+                      }
+                      setAnnFile(f);
+                    }}
+                  />
+                  <span className="flex items-center gap-2 truncate text-slate-600 dark:text-slate-300">
+                    {annFile ? (
+                      <>
+                        <FileCheck className="w-4 h-4 text-emerald-500 shrink-0" />
+                        <span className="font-bold text-emerald-700 dark:text-emerald-300 truncate">
+                          {annFile.name}
+                        </span>
+                      </>
+                    ) : (
+                      <>
+                        <UploadCloud className="w-4 h-4 text-blue-500 shrink-0" />
+                        <span>Seleccionar PDF o material para adjuntar al comunicado...</span>
+                      </>
+                    )}
+                  </span>
+                  {annFile && (
+                    <div className="flex items-center gap-2 shrink-0">
+                      <button
+                        type="button"
+                        onClick={(ev) => {
+                          ev.preventDefault();
+                          setFilePreviewTarget({
+                            title: `Vista Previa — ${annFile.name}`,
+                            subtitle: "Revisión de material antes de publicar el anuncio",
+                            fileName: annFile.name,
+                            localFile: annFile
+                          });
+                        }}
+                        className="text-[11px] font-extrabold text-blue-600 dark:text-blue-400 hover:underline inline-flex items-center gap-1"
+                      >
+                        <Eye className="w-3.5 h-3.5" /> Previsualizar
+                      </button>
+                      <button
+                        type="button"
+                        onClick={(ev) => {
+                          ev.preventDefault();
+                          setAnnFile(null);
+                        }}
+                        className="text-[11px] font-bold text-rose-500 hover:underline"
+                      >
+                        Quitar
+                      </button>
+                    </div>
+                  )}
+                </label>
+              </div>
+
               <div className="flex justify-end gap-2 pt-2 border-t border-slate-100 dark:border-white/10">
                 <button
                   type="button"
-                  onClick={() => setIsAnnModalOpen(false)}
+                  disabled={isCreatingAnn}
+                  onClick={() => {
+                    setIsAnnModalOpen(false);
+                    setAnnFile(null);
+                  }}
                   className="px-4 py-2 rounded-xl border border-slate-200 dark:border-white/10 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-white/5 font-bold cursor-pointer"
                 >
                   Cancelar
                 </button>
                 <button
                   type="submit"
-                  className="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-extrabold shadow-md cursor-pointer"
+                  disabled={isCreatingAnn}
+                  className="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-extrabold shadow-md cursor-pointer inline-flex items-center gap-1.5 disabled:opacity-60"
                 >
-                  Publicar Anuncio
+                  {isCreatingAnn && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
+                  <span>{isCreatingAnn ? "Publicando..." : "Publicar Anuncio"}</span>
                 </button>
               </div>
             </form>
           </div>
         </div>
       )}
+
+      {/* VISOR PDF OFICIAL DE ACTAS Y KARDEX DE LA SECCIÓN */}
+      <ReportViewerModal
+        isOpen={Boolean(courseReportModal)}
+        onClose={() => setCourseReportModal(null)}
+        title={courseReportModal?.title}
+        subtitle={courseReportModal?.subtitle}
+        endpointPath={courseReportModal?.endpointPath}
+        params={courseReportModal?.params}
+        csvFilename={courseReportModal?.csvFilename}
+      />
+
+      {/* VISOR UNIVERSAL DE ARCHIVOS ADJUNTOS Y ENTREGAS DE ALUMNOS */}
+      <FilePreviewModal
+        isOpen={Boolean(filePreviewTarget)}
+        onClose={() => setFilePreviewTarget(null)}
+        title={filePreviewTarget?.title}
+        subtitle={filePreviewTarget?.subtitle}
+        fileName={filePreviewTarget?.fileName}
+        localFile={filePreviewTarget?.localFile}
+        bucket={filePreviewTarget?.bucket}
+        path={filePreviewTarget?.path}
+        fallbackUrl={filePreviewTarget?.fallbackUrl}
+      />
     </div>
   );
 }

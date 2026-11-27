@@ -66,13 +66,11 @@ export async function uploadFileToStorage(bucket, file, folder = "general") {
 }
 
 /**
- * Abre un archivo privado de Supabase Storage renovando su URL firmada bajo demanda
- * cuando existe `path`, evitando enlaces caducados incluso en ciclos históricos.
+ * Resuelve una URL firmada vigente para un archivo privado en Supabase Storage
+ * (o devuelve `fallbackUrl` cuando solo se dispone del enlace directo).
  */
-export async function openStorageFile(bucket, path, fallbackUrl = null) {
-  const win = typeof window !== "undefined" ? window.open("about:blank", "_blank") : null;
+export async function resolveStorageUrl(bucket, path, fallbackUrl = null) {
   const token = getApiAccessToken();
-
   if (bucket && path && token) {
     try {
       const response = await fetch(`${getApiBaseUrl()}/storage/signed-url`, {
@@ -86,28 +84,32 @@ export async function openStorageFile(bucket, path, fallbackUrl = null) {
       if (response.ok) {
         const data = await response.json().catch(() => ({}));
         if (data?.url) {
-          if (win) {
-            win.location.href = data.url;
-          } else if (typeof window !== "undefined") {
-            window.open(data.url, "_blank", "noopener,noreferrer");
-          }
           return data.url;
         }
       }
     } catch {}
   }
-
   if (fallbackUrl) {
-    if (win) {
-      win.location.href = fallbackUrl;
-    } else if (typeof window !== "undefined") {
-      window.open(fallbackUrl, "_blank", "noopener,noreferrer");
-    }
     return fallbackUrl;
   }
-
-  if (win) {
-    win.close();
-  }
   throw new Error("El archivo no tiene un enlace disponible en este momento.");
+}
+
+/**
+ * Abre un archivo privado de Supabase Storage en una pestaña externa renovando su URL firmada.
+ */
+export async function openStorageFile(bucket, path, fallbackUrl = null) {
+  const win = typeof window !== "undefined" ? window.open("about:blank", "_blank") : null;
+  try {
+    const url = await resolveStorageUrl(bucket, path, fallbackUrl);
+    if (win) {
+      win.location.href = url;
+    } else if (typeof window !== "undefined") {
+      window.open(url, "_blank", "noopener,noreferrer");
+    }
+    return url;
+  } catch (err) {
+    if (win) win.close();
+    throw err;
+  }
 }

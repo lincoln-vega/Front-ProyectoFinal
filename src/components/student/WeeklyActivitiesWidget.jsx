@@ -9,8 +9,8 @@ import {
 } from "lucide-react";
 import { academicActivitiesService } from "../../services/academicActivitiesService";
 import { clasesVivoService } from "../../services/clasesVivoService";
-import { openStorageFile } from "../../lib/supabase";
 import StudentTaskModal from "./StudentTaskModal";
+import FilePreviewModal from "../shared/FilePreviewModal";
 
 export default function WeeklyActivitiesWidget({
   activeCourses = [],
@@ -20,6 +20,7 @@ export default function WeeklyActivitiesWidget({
 }) {
   const [filter, setFilter] = useState("pendientes");
   const [selectedTaskId, setSelectedTaskId] = useState(null);
+  const [previewMaterial, setPreviewMaterial] = useState(null);
   const [activities, setActivities] = useState(() =>
     academicActivitiesService.getStudentMergedTasks()
   );
@@ -216,12 +217,12 @@ export default function WeeklyActivitiesWidget({
               <button
                 key={mat.id}
                 type="button"
-                onClick={() => openStorageFile("materiales-clase", mat.archivoPath, mat.archivoUrl)}
+                onClick={() => setPreviewMaterial(mat)}
                 className="w-full text-left block rounded-xl bg-blue-50/70 dark:bg-blue-950/35 border border-blue-200/80 dark:border-blue-800/50 p-3 hover:border-blue-400 transition-colors cursor-pointer"
               >
                 <div className="flex items-center justify-between text-[10px] font-extrabold text-blue-600 dark:text-blue-300">
                   <span>{mat.curso}</span>
-                  <span>⬇ Descargar</span>
+                  <span>👁 Previsualizar</span>
                 </div>
                 <p className="text-xs font-bold text-slate-900 dark:text-white mt-0.5 line-clamp-1">
                   {mat.titulo}
@@ -385,6 +386,17 @@ export default function WeeklyActivitiesWidget({
         onDeliver={async () => {
           syncAll();
         }}
+      />
+
+      <FilePreviewModal
+        isOpen={Boolean(previewMaterial)}
+        onClose={() => setPreviewMaterial(null)}
+        title={previewMaterial?.titulo || "Material de Clase"}
+        subtitle={`${previewMaterial?.curso || ""} • ${previewMaterial?.docente || ""}`}
+        fileName={previewMaterial?.archivoNombre || "material_clase.pdf"}
+        bucket="materiales-clase"
+        path={previewMaterial?.archivoPath}
+        fallbackUrl={previewMaterial?.archivoUrl}
       />
     </div>
   );

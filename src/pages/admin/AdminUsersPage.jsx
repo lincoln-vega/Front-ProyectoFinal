@@ -1,11 +1,13 @@
 import { useEffect, useRef, useState } from "react";
 import { Navigate } from "react-router-dom";
-import { RotateCcw, UserPlus, ShieldCheck } from "lucide-react";
+import { RotateCcw, UserPlus, ShieldCheck, FileSpreadsheet } from "lucide-react";
 import Notification from "../../components/admin/Notification";
 import UserFilters from "../../components/admin/UserFilters";
 import UserFormModal from "../../components/admin/UserFormModal";
 import RolesModal from "../../components/admin/RolesModal";
 import UsersTable from "../../components/admin/UsersTable";
+import ReportViewerModal from "../../components/shared/ReportViewerModal";
+import { exportToCSV } from "../../utils/exportUtils";
 import useUsers, { createInitialUserForm } from "../../hooks/useUsers";
 import { adminUserRegistrationService } from "../../services/api";
 import { getAuthenticatedAdminAccessToken } from "../../services/session";
@@ -61,6 +63,7 @@ function AdminUsersContent() {
   
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isRolesModalOpen, setIsRolesModalOpen] = useState(false);
+  const [reportTarget, setReportTarget] = useState(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [editingUserId, setEditingUserId] = useState(null);
   const [formData, setFormData] = useState(createInitialUserForm);
@@ -299,6 +302,34 @@ function AdminUsersContent() {
           <div className="flex flex-wrap items-center gap-2">
             <button
               type="button"
+              onClick={() => {
+                if (!filteredUsers.length) {
+                  showNotification("No hay usuarios en el filtro actual para exportar.");
+                  return;
+                }
+                exportToCSV(filteredUsers, "padron_general_usuarios", [
+                  { key: "id", label: "CODIGO" },
+                  { key: "apellidos", label: "APELLIDOS" },
+                  { key: "nombres", label: "NOMBRES" },
+                  { key: "tipoDocumento", label: "TIPO DOC" },
+                  { key: "dni", label: "NRO DOCUMENTO" },
+                  { key: "correo", label: "CORREO" },
+                  { key: "celular", label: "CELULAR" },
+                  { key: "rol", label: "ROL" },
+                  { key: "carreraObjetivo", label: "CARRERA / ESPECIALIDAD" },
+                  { key: "cicloVirtual", label: "CICLO" },
+                  { key: "estado", label: "ESTADO" }
+                ]);
+                showNotification("Padrón de usuarios exportado exitosamente a Excel (.csv).");
+              }}
+              className="inline-flex items-center space-x-1.5 px-3 py-2 border border-emerald-500/30 text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/40 hover:bg-emerald-100 rounded-lg text-xs font-semibold shadow-2xs transition-colors cursor-pointer"
+            >
+              <FileSpreadsheet className="w-3.5 h-3.5" />
+              <span>Exportar Padrón (Excel)</span>
+            </button>
+
+            <button
+              type="button"
               onClick={handleResetData}
               className="inline-flex items-center space-x-1.5 px-3 py-2 border border-slate-300 dark:border-white/10 text-slate-700 dark:text-slate-200 bg-white dark:bg-white/5 hover:bg-slate-50 dark:hover:bg-white/10 rounded-lg text-xs font-medium shadow-2xs transition-colors cursor-pointer"
               title="Volver a consultar usuarios en Supabase"
@@ -379,8 +410,41 @@ function AdminUsersContent() {
         inactiveUsers={users.filter((user) => user.estado === "Inactivo").length}
         onEdit={handleEdit}
         onDelete={handleDelete}
+        onOpenReport={(user) => {
+          const isDoc = ["docente", "profesor", "profesora"].includes(
+            String(user.rol || "").toLowerCase()
+          );
+          const fullName = `${user.nombres || ""} ${user.apellidos || ""}`.trim();
+          setReportTarget(
+            isDoc
+              ? {
+                  title: `Récord y Liquidación Docente — ${fullName}`,
+                  subtitle: "Auditoría oficial de cátedras, sesiones Meet, incidencias y haberes",
+                  endpointPath: "/reportes/docentes",
+                  params: { docente_id: user.id },
+                  csvFilename: `record_docente_${user.id}`
+                }
+              : {
+                  title: `Kardex Académico Individual — ${fullName}`,
+                  subtitle: "Récord oficial de asignaturas, evaluaciones vigesimales y asistencia",
+                  endpointPath: `/reportes/kardex-alumno/${encodeURIComponent(user.id)}`,
+                  params: {},
+                  csvFilename: `kardex_alumno_${user.id}`
+                }
+          );
+        }}
       />
       {loading && <p className="text-sm text-slate-500">Consultando usuarios en Supabase...</p>}
+
+      <ReportViewerModal
+        isOpen={Boolean(reportTarget)}
+        onClose={() => setReportTarget(null)}
+        title={reportTarget?.title}
+        subtitle={reportTarget?.subtitle}
+        endpointPath={reportTarget?.endpointPath}
+        params={reportTarget?.params}
+        csvFilename={reportTarget?.csvFilename}
+      />
 
       {isModalOpen && (
         <UserFormModal
