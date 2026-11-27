@@ -484,8 +484,8 @@ function StudentLayoutInner() {
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-[#0a0a0e] text-slate-900 dark:text-slate-100 flex flex-col font-sans transition-colors duration-500 overflow-x-hidden">
       
-      {/* 1. BARRA VERTICAL LATERAL (SLIM SIDEBAR DESKTOP) - ALTURA TOTAL 100% */}
-      <aside className="hidden md:flex flex-col fixed left-0 top-0 bottom-0 h-screen w-20 bg-[#0A1128] dark:bg-[#060814] border-r border-slate-800/80 z-40 text-white shadow-xl overflow-y-auto overflow-x-hidden transition-all">
+      {/* 1. BARRA VERTICAL LATERAL (SLIM SIDEBAR DESKTOP) - ANCLADA A 100DVH CON SALIR SIEMPRE VISIBLE */}
+      <aside className="hidden md:flex flex-col fixed inset-y-0 left-0 h-dvh w-20 bg-[#0A1128] dark:bg-[#060814] border-r border-slate-800/80 z-40 text-white shadow-xl overflow-hidden transition-all">
         {/* Brand Icon Superior en Sidebar */}
         <Link
           to="/estudiante/panel"
@@ -498,7 +498,7 @@ function StudentLayoutInner() {
         </Link>
 
         {/* Enlaces Principales de Navegación Vertical */}
-        <nav className="flex-1 py-3 flex flex-col items-center space-y-2 shrink-0">
+        <nav className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden py-3 flex flex-col items-center space-y-2">
           {/* Cursos */}
           <NavLink
             to="/estudiante/panel"
@@ -581,8 +581,8 @@ function StudentLayoutInner() {
           </button>
         </nav>
 
-        {/* Botón Salir Inferior */}
-        <div className="p-3 border-t border-white/10 flex flex-col items-center shrink-0">
+        {/* Botón Salir Inferior (siempre visible al pie del viewport) */}
+        <div className="p-3 border-t border-white/10 flex flex-col items-center shrink-0 mt-auto bg-[#0A1128] dark:bg-[#060814]">
           <button
             type="button"
             onClick={handleLogout}
@@ -790,8 +790,8 @@ function StudentLayoutInner() {
 
         {/* MENÚ MÓVIL DESPLEGABLE */}
         {mobileMenuOpen && (
-          <div className="md:hidden bg-white/95 dark:bg-[#0a0a0e]/95 backdrop-blur-2xl border-b border-slate-200 dark:border-white/10 p-4 space-y-3 shadow-xl animate-fade-in">
-            <div className="pb-3 border-b border-slate-100 dark:border-white/10 flex items-center justify-between">
+          <div className="md:hidden bg-white/95 dark:bg-[#0a0a0e]/95 backdrop-blur-2xl border-b border-slate-200 dark:border-white/10 p-4 shadow-xl animate-fade-in max-h-[calc(100dvh-64px)] flex flex-col overflow-hidden">
+            <div className="pb-3 border-b border-slate-100 dark:border-white/10 flex items-center justify-between shrink-0">
               <div>
                 <div className="text-sm font-extrabold text-slate-900 dark:text-white">{studentName}</div>
                 <div className="text-xs text-slate-500 dark:text-slate-400">{studentEmail}</div>
@@ -801,7 +801,7 @@ function StudentLayoutInner() {
               </span>
             </div>
 
-            <nav className="space-y-1">
+            <nav className="flex-1 min-h-0 overflow-y-auto py-2.5 space-y-1">
               <NavLink
                 to="/estudiante/panel"
                 onClick={() => setMobileMenuOpen(false)}
@@ -875,7 +875,7 @@ function StudentLayoutInner() {
               </button>
             </nav>
 
-            <div className="pt-2 border-t border-slate-100 dark:border-white/10">
+            <div className="pt-3 border-t border-slate-100 dark:border-white/10 shrink-0 mt-auto">
               <button
                 type="button"
                 onClick={handleLogout}
