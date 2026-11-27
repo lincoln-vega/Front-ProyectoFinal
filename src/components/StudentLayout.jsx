@@ -267,8 +267,8 @@ function StudentLayoutInner() {
       }
 
       // Si el alumno no tiene cursos matriculados, solo ve simulacros generales ("SIM...")
-      const allTasks = academicActivitiesService.getTasks().filter((t) => t.estado === "Por entregar");
-      const filteredTasks = allTasks.filter((t) => {
+      const mergedTasks = academicActivitiesService.getStudentMergedTasks();
+      const studentTasksInCourses = mergedTasks.filter((t) => {
         const cid = String(t.cursoId || t.curso_id || "");
         if (cid.startsWith("SIM")) return true;
         if (enrolledIds.size === 0) return false;
@@ -279,6 +279,12 @@ function StudentLayoutInner() {
         }
         return false;
       });
+      const filteredTasks = studentTasksInCourses.filter(
+        (t) => t.estadoAlumno === "Por entregar" || t.estadoAlumno === "Observado"
+      );
+      const gradedTasks = studentTasksInCourses.filter(
+        (t) => t.estadoAlumno === "Calificado" && t.nota !== null && t.nota !== undefined
+      );
 
       const allAnns = academicActivitiesService.getAnnouncements();
       const filteredAnns = allAnns.filter((a) => {
@@ -316,11 +322,24 @@ function StudentLayoutInner() {
       } catch {}
 
       const combined = [
-        ...filteredTasks.map((t) => {
-          const notifId = `task-${t.id}`;
+        ...gradedTasks.map((t) => {
+          const notifId = `task-graded-${t.id}-${t.nota}`;
           return {
             id: notifId,
-            title: `Nueva Tarea: ${t.titulo}`,
+            title: `Nota Publicada: ${t.titulo}`,
+            course: `${t.curso} • Obtuviste ${t.nota}/20`,
+            time: "Calificado",
+            type: "task",
+            unread: !readSet.has(notifId),
+            data: t
+          };
+        }),
+        ...filteredTasks.map((t) => {
+          const isObs = t.estadoAlumno === "Observado";
+          const notifId = isObs ? `task-obs-${t.id}` : `task-${t.id}`;
+          return {
+            id: notifId,
+            title: isObs ? `Corregir Entrega: ${t.titulo}` : `Nueva Tarea: ${t.titulo}`,
             course: `${t.curso} • Límite: ${t.fechaLimite}`,
             time: t.fechaLimite,
             type: "task",
@@ -365,12 +384,26 @@ function StudentLayoutInner() {
     };
 
     syncNotifications();
-    academicActivitiesService.fetchTasks().then(syncNotifications);
+    academicActivitiesService.fetchStudentTasksWithSubmissions().then(syncNotifications);
     academicActivitiesService.fetchAnnouncements().then(syncNotifications);
+
+    const unsubLive = clasesVivoService.subscribeLiveChanges((evt) => {
+      if (
+        evt?.type === "TASK_CREATED" ||
+        evt?.type === "TASK_DELETED" ||
+        evt?.type === "TASK_SUBMITTED" ||
+        evt?.type === "TASK_GRADED" ||
+        evt?.type === "MATERIAL_PUBLISHED"
+      ) {
+        academicActivitiesService.fetchStudentTasksWithSubmissions().then(syncNotifications);
+        academicActivitiesService.fetchAnnouncements().then(syncNotifications);
+      }
+    });
 
     window.addEventListener("storage", syncNotifications);
     return () => {
       cancelled = true;
+      unsubLive();
       window.removeEventListener("storage", syncNotifications);
     };
   }, [studentProfile, availableCourses]);
@@ -1243,11 +1276,11 @@ function StudentLayoutInner() {
         isReadOnly={isReadOnlyHistory}
         onClose={() => setSelectedTaskModal(null)}
         onDeliver={async (taskId) => {
-          await academicActivitiesService.toggleTaskStatus(taskId);
-          // Actualizar notificaciones para reflejar el cambio
           setNotifications((prev) =>
             prev.map((n) =>
-              n.id === `task-${taskId}` ? { ...n, unread: false } : n
+              n.id === `task-${taskId}` || n.id === `task-obs-${taskId}`
+                ? { ...n, unread: false }
+                : n
             )
           );
         }}

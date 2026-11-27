@@ -20,7 +20,11 @@ import {
   GraduationCap,
   MessageSquare,
   Sparkles,
-  X
+  X,
+  Download,
+  Award,
+  UploadCloud,
+  FileCheck
 } from "lucide-react";
 import { courseService } from "../../services/cursosServices";
 import { userService, parseCourseList } from "../../services/api";
@@ -28,6 +32,7 @@ import { getMeetAttendanceHistory, registerMeetEntry, registerMeetExit } from ".
 import { clasesVivoService } from "../../services/clasesVivoService";
 import { academicActivitiesService } from "../../services/academicActivitiesService";
 import { chatAcademicService } from "../../services/chatAcademicService";
+import { openStorageFile, uploadFileToStorage } from "../../lib/supabase";
 import { useNavigate } from "react-router-dom";
 
 const validMeetUrl = (value) => {
@@ -114,6 +119,15 @@ export default function DocenteCursosDetalles({ cursoId, initialTab = "clase", o
     puntos: "20 pts",
     descripcion: ""
   });
+  const [taskGuideFile, setTaskGuideFile] = useState(null);
+  const [isCreatingTask, setIsCreatingTask] = useState(false);
+
+  // Bandeja de revisión y calificación de entregas individuales por tarea
+  const [gradingModalTask, setGradingModalTask] = useState(null);
+  const [gradingLoading, setGradingLoading] = useState(false);
+  const [gradingData, setGradingData] = useState(null);
+  const [gradingFilter, setGradingFilter] = useState("todos");
+  const [gradeInputs, setGradeInputs] = useState({});
 
   // Formulario nuevo anuncio
   const [newAnnData, setNewAnnData] = useState({
@@ -215,29 +229,41 @@ export default function DocenteCursosDetalles({ cursoId, initialTab = "clase", o
     }
   };
 
-  // Creación de nueva tarea (Sincronizada con Backend y PostgreSQL)
+  // Creación de nueva tarea (con guía opcional subida a Supabase Storage)
   const handleCreateTask = async (e) => {
     e.preventDefault();
-    if (!newTaskData.titulo.trim()) {
-      alert("Por favor ingresa el título de la tarea.");
+    if (!newTaskData.titulo.trim() || isCreatingTask) {
+      if (!newTaskData.titulo.trim()) alert("Por favor ingresa el título de la tarea.");
       return;
     }
 
+    setIsCreatingTask(true);
+    setError("");
     try {
+      let uploadedGuide = null;
+      if (taskGuideFile) {
+        uploadedGuide = await uploadFileToStorage("materiales-clase", taskGuideFile, curso.id);
+      }
+
       const created = await academicActivitiesService.createTask({
         cursoId: curso.id,
+        cicloId: curso.cicloId || curso.ciclo_id || null,
         curso: curso.asignatura,
         tipo: newTaskData.tipo,
         titulo: newTaskData.titulo.trim(),
         fechaLimite: newTaskData.fechaLimite.trim(),
         puntos: newTaskData.puntos.trim(),
         descripcion: newTaskData.descripcion.trim() || "Desarrollar y subir la resolución en PDF.",
-        docente: curso.docente || localStorage.getItem("userName") || "Docente"
+        docente: curso.docente || localStorage.getItem("userName") || "Docente",
+        archivoUrl: uploadedGuide?.url || null,
+        archivoPath: uploadedGuide?.path || null,
+        archivoNombre: uploadedGuide?.fileName || taskGuideFile?.name || null
       });
 
       const updated = await academicActivitiesService.fetchTasks(cursoId);
       setTasks(updated);
       setIsTaskModalOpen(false);
+      setTaskGuideFile(null);
       setNewTaskData({
         titulo: "",
         tipo: "Tarea Calificada",
@@ -245,11 +271,130 @@ export default function DocenteCursosDetalles({ cursoId, initialTab = "clase", o
         puntos: "20 pts",
         descripcion: ""
       });
-      setNotice(`Tarea "${created.titulo}" guardada y sincronizada exitosamente con la base de datos.`);
+      setNotice(`Tarea "${created.titulo}" publicada y disponible en tiempo real para tus alumnos.`);
     } catch (err) {
       setError("No se pudo publicar la tarea: " + err.message);
+    } finally {
+      setIsCreatingTask(false);
     }
   };
+
+  // Carga las entregas individuales de los alumnos matriculados para una tarea
+  const loadGradingDeliveries = useCallback(async (taskObj, silent = false) => {
+    if (!taskObj?.id) return;
+    if (!silent) setGradingLoading(true);
+    try {
+      const data = await academicActivitiesService.fetchTaskDeliveriesForTeacher(taskObj.id);
+      setGradingData(data);
+      setGradeInputs((prev) => {
+        const next = { ...prev };
+        for (const est of data?.estudiantes || []) {
+          const existingDraft = next[est.estudianteId];
+          if (!existingDraft || !existingDraft.dirty) {
+            next[est.estudianteId] = {
+              nota: est.nota !== null && est.nota !== undefined ? String(est.nota) : "",
+              comentarioDocente: est.comentarioDocente || "",
+              saving: false,
+              savedFlash: false,
+              dirty: false
+            };
+          }
+        }
+        return next;
+      });
+    } catch (err) {
+      setError("No se pudieron cargar las entregas de la tarea: " + err.message);
+    } finally {
+      if (!silent) setGradingLoading(false);
+    }
+  }, []);
+
+  const openGradingModal = (taskObj) => {
+    setGradingModalTask(taskObj);
+    setGradingFilter("todos");
+    setGradeInputs({});
+    loadGradingDeliveries(taskObj, false);
+  };
+
+  const handleGradeChange = (estudianteId, field, value) => {
+    setGradeInputs((prev) => ({
+      ...prev,
+      [estudianteId]: {
+        ...(prev[estudianteId] || { nota: "", comentarioDocente: "", saving: false, savedFlash: false }),
+        [field]: value,
+        dirty: true,
+        savedFlash: false
+      }
+    }));
+  };
+
+  const handleSaveStudentGrade = async (estudianteId, targetEstado = "Calificado") => {
+    if (!gradingModalTask?.id) return;
+    const draft = gradeInputs[estudianteId] || { nota: "", comentarioDocente: "" };
+
+    if (targetEstado === "Calificado") {
+      const n = Number(draft.nota);
+      if (draft.nota === "" || Number.isNaN(n) || n < 0 || n > 20) {
+        alert("Ingresa una nota válida en escala vigesimal (entre 0 y 20).");
+        return;
+      }
+    }
+
+    setGradeInputs((prev) => ({
+      ...prev,
+      [estudianteId]: { ...draft, saving: true, savedFlash: false }
+    }));
+
+    try {
+      const saved = await academicActivitiesService.gradeStudentDelivery(
+        gradingModalTask.id,
+        estudianteId,
+        {
+          nota: targetEstado === "Calificado" ? Number(draft.nota) : (draft.nota === "" ? null : Number(draft.nota)),
+          comentarioDocente: draft.comentarioDocente || "",
+          estado: targetEstado
+        }
+      );
+
+      setGradeInputs((prev) => ({
+        ...prev,
+        [estudianteId]: {
+          nota: saved.nota !== null && saved.nota !== undefined ? String(saved.nota) : "",
+          comentarioDocente: saved.comentarioDocente || "",
+          saving: false,
+          dirty: false,
+          savedFlash: true
+        }
+      }));
+
+      await Promise.all([
+        loadGradingDeliveries(gradingModalTask, true),
+        academicActivitiesService.fetchTasks(cursoId).then((updated) => setTasks(updated))
+      ]);
+    } catch (err) {
+      setGradeInputs((prev) => ({
+        ...prev,
+        [estudianteId]: { ...draft, saving: false }
+      }));
+      alert("Error al guardar calificación: " + err.message);
+    }
+  };
+
+  // Sincronización en vivo cuando un alumno sube su tarea desde otro navegador
+  useEffect(() => {
+    if (!cursoId) return;
+    const unsub = clasesVivoService.subscribeLiveChanges((evt) => {
+      if (evt?.type === "TASK_SUBMITTED" || evt?.type === "TASK_GRADED") {
+        academicActivitiesService.fetchTasks(cursoId).then((updated) => {
+          if (updated) setTasks(updated);
+        });
+        if (gradingModalTask?.id && (!evt.tareaId || evt.tareaId === gradingModalTask.id)) {
+          loadGradingDeliveries(gradingModalTask, true);
+        }
+      }
+    });
+    return unsub;
+  }, [cursoId, gradingModalTask, loadGradingDeliveries]);
 
   const handleDeleteTask = async (taskId) => {
     if (!window.confirm("¿Estás seguro de eliminar esta tarea?")) return;
@@ -607,45 +752,91 @@ export default function DocenteCursosDetalles({ cursoId, initialTab = "clase", o
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {tasks.map((task) => (
-                <div
-                  key={task.id}
-                  className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-white/10 p-5 shadow-xs flex flex-col justify-between space-y-3"
-                >
-                  <div>
-                    <div className="flex items-center justify-between gap-2 mb-2">
-                      <span className="text-[10px] font-extrabold uppercase px-2.5 py-0.5 rounded-full bg-blue-50 dark:bg-blue-950/50 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800">
-                        {task.tipo}
-                      </span>
-                      <span className="text-xs font-bold text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/40 px-2.5 py-0.5 rounded-full">
-                        {task.puntos}
-                      </span>
+              {tasks.map((task) => {
+                const entregasCount = Number(task.entregasCount || 0);
+                const pendientesCalificar = Number(task.pendientesCalificarCount || 0);
+                const calificadasCount = Number(task.calificadasCount || 0);
+                const totalEsperado = enrolledStudents.length;
+
+                return (
+                  <div
+                    key={task.id}
+                    className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-white/10 p-5 shadow-xs flex flex-col justify-between space-y-3.5"
+                  >
+                    <div className="space-y-2.5">
+                      <div className="flex flex-wrap items-center justify-between gap-2">
+                        <span className="text-[10px] font-extrabold uppercase px-2.5 py-0.5 rounded-full bg-blue-50 dark:bg-blue-950/50 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800">
+                          {task.tipo}
+                        </span>
+                        <span className="text-xs font-bold text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/40 px-2.5 py-0.5 rounded-full">
+                          {task.puntos}
+                        </span>
+                      </div>
+
+                      <h4 className="text-base font-extrabold text-slate-900 dark:text-white leading-snug">
+                        {task.titulo}
+                      </h4>
+                      <p className="text-xs text-slate-600 dark:text-slate-300 line-clamp-2">
+                        {task.descripcion}
+                      </p>
+
+                      {(task.archivoUrl || task.archivoPath) && (
+                        <button
+                          type="button"
+                          onClick={() => openStorageFile("materiales-clase", task.archivoPath, task.archivoUrl)}
+                          className="inline-flex items-center gap-1.5 text-[11px] font-bold text-blue-600 dark:text-blue-400 hover:underline cursor-pointer"
+                        >
+                          <Download className="w-3.5 h-3.5" />
+                          <span className="truncate">Guía adjunta: {task.archivoNombre || "Ver archivo"}</span>
+                        </button>
+                      )}
+
+                      {/* Resumen real de entregas por tarea */}
+                      <div className="flex flex-wrap items-center gap-2 pt-1">
+                        <span className="text-[11px] font-bold px-2.5 py-1 rounded-lg bg-slate-100 dark:bg-white/5 text-slate-700 dark:text-slate-200">
+                          📥 Entregas: {entregasCount}{totalEsperado > 0 ? ` / ${totalEsperado}` : ""}
+                        </span>
+                        {pendientesCalificar > 0 && (
+                          <span className="text-[11px] font-extrabold px-2.5 py-1 rounded-lg bg-amber-100 dark:bg-amber-950/50 text-amber-800 dark:text-amber-300 border border-amber-200 dark:border-amber-800">
+                            🔔 {pendientesCalificar} por calificar
+                          </span>
+                        )}
+                        {calificadasCount > 0 && (
+                          <span className="text-[11px] font-bold px-2.5 py-1 rounded-lg bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300">
+                            ✓ {calificadasCount} calificada{calificadasCount === 1 ? "" : "s"}
+                          </span>
+                        )}
+                      </div>
                     </div>
 
-                    <h4 className="text-base font-extrabold text-slate-900 dark:text-white leading-snug">
-                      {task.titulo}
-                    </h4>
-                    <p className="text-xs text-slate-600 dark:text-slate-300 mt-2 line-clamp-2">
-                      {task.descripcion}
-                    </p>
-                  </div>
+                    <div className="pt-3 border-t border-slate-100 dark:border-white/5 flex items-center justify-between gap-2 text-xs">
+                      <span className="text-slate-500 font-mono flex items-center gap-1 truncate">
+                        <Clock className="w-3.5 h-3.5 shrink-0" />
+                        <span className="truncate">{task.fechaLimite}</span>
+                      </span>
 
-                  <div className="pt-3 border-t border-slate-100 dark:border-white/5 flex items-center justify-between text-xs">
-                    <span className="text-slate-500 font-mono flex items-center gap-1">
-                      <Clock className="w-3.5 h-3.5" />
-                      {task.fechaLimite}
-                    </span>
-                    <button
-                      type="button"
-                      onClick={() => handleDeleteTask(task.id)}
-                      className="p-1.5 text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/40 rounded-lg transition-colors cursor-pointer"
-                      title="Eliminar tarea"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
+                      <div className="flex items-center gap-1.5 shrink-0">
+                        <button
+                          type="button"
+                          onClick={() => openGradingModal(task)}
+                          className="px-3 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-extrabold shadow-2xs transition-colors cursor-pointer inline-flex items-center gap-1.5"
+                        >
+                          <Award className="w-3.5 h-3.5" />
+                          <span>Revisar y Calificar</span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleDeleteTask(task.id)}
+                          className="p-1.5 text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/40 rounded-lg transition-colors cursor-pointer"
+                          title="Eliminar tarea"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
+                    </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           )}
         </div>
@@ -715,6 +906,17 @@ export default function DocenteCursosDetalles({ cursoId, initialTab = "clase", o
                   <p className="text-xs text-slate-700 dark:text-slate-300 leading-relaxed">
                     {ann.contenido}
                   </p>
+
+                  {(ann.archivoUrl || ann.archivoPath) && (
+                    <button
+                      type="button"
+                      onClick={() => openStorageFile("materiales-clase", ann.archivoPath, ann.archivoUrl)}
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-blue-50 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-800 text-xs font-bold text-blue-700 dark:text-blue-300 hover:bg-blue-100 cursor-pointer"
+                    >
+                      <Download className="w-3.5 h-3.5" />
+                      <span>Material adjunto: {ann.archivoNombre || "Descargar archivo"}</span>
+                    </button>
+                  )}
 
                   <div className="text-[11px] text-slate-400 pt-2 border-t border-slate-100 dark:border-white/5 flex items-center justify-between">
                     <span>Publicado por: <strong className="text-slate-600 dark:text-slate-300">{ann.docente}</strong></span>
@@ -1006,22 +1208,325 @@ export default function DocenteCursosDetalles({ cursoId, initialTab = "clase", o
                 />
               </div>
 
+              <div>
+                <label className="font-bold text-slate-700 dark:text-slate-200 block mb-1">
+                  Adjuntar Guía o Práctica en PDF / Imagen (opcional, máx. 15 MB):
+                </label>
+                <label className="flex items-center justify-between gap-2 p-3 rounded-xl border border-dashed border-slate-300 dark:border-white/15 bg-slate-50/70 dark:bg-white/5 hover:border-indigo-500 cursor-pointer transition-colors">
+                  <input
+                    type="file"
+                    accept=".pdf,.doc,.docx,.ppt,.pptx,.xls,.xlsx,.zip,.png,.jpg,.jpeg,.webp"
+                    className="hidden"
+                    onChange={(e) => {
+                      const f = e.target.files?.[0] || null;
+                      if (f && f.size > 15 * 1024 * 1024) {
+                        alert("La guía supera el límite máximo de 15 MB.");
+                        e.target.value = "";
+                        return;
+                      }
+                      setTaskGuideFile(f);
+                    }}
+                  />
+                  <span className="flex items-center gap-2 truncate text-slate-600 dark:text-slate-300">
+                    {taskGuideFile ? (
+                      <>
+                        <FileCheck className="w-4 h-4 text-emerald-500 shrink-0" />
+                        <span className="font-bold text-emerald-700 dark:text-emerald-300 truncate">
+                          {taskGuideFile.name}
+                        </span>
+                      </>
+                    ) : (
+                      <>
+                        <UploadCloud className="w-4 h-4 text-indigo-500 shrink-0" />
+                        <span>Seleccionar PDF o guía de ejercicios para el alumno...</span>
+                      </>
+                    )}
+                  </span>
+                  {taskGuideFile && (
+                    <button
+                      type="button"
+                      onClick={(ev) => {
+                        ev.preventDefault();
+                        setTaskGuideFile(null);
+                      }}
+                      className="text-[11px] font-bold text-rose-500 hover:underline shrink-0"
+                    >
+                      Quitar
+                    </button>
+                  )}
+                </label>
+              </div>
+
               <div className="flex justify-end gap-2 pt-2 border-t border-slate-100 dark:border-white/10">
                 <button
                   type="button"
-                  onClick={() => setIsTaskModalOpen(false)}
+                  disabled={isCreatingTask}
+                  onClick={() => {
+                    setIsTaskModalOpen(false);
+                    setTaskGuideFile(null);
+                  }}
                   className="px-4 py-2 rounded-xl border border-slate-200 dark:border-white/10 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-white/5 font-bold cursor-pointer"
                 >
                   Cancelar
                 </button>
                 <button
                   type="submit"
-                  className="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-extrabold shadow-md cursor-pointer"
+                  disabled={isCreatingTask}
+                  className="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-extrabold shadow-md cursor-pointer inline-flex items-center gap-1.5 disabled:opacity-60"
                 >
-                  Publicar Tarea
+                  {isCreatingTask && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
+                  <span>{isCreatingTask ? "Publicando..." : "Publicar Tarea"}</span>
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL BANDEJA DE REVISIÓN Y CALIFICACIÓN INDIVIDUAL DE ENTREGAS */}
+      {gradingModalTask && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/70 backdrop-blur-xs p-4 animate-fade-in overscroll-contain"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) setGradingModalTask(null);
+          }}
+        >
+          <div className="bg-white dark:bg-slate-900 rounded-3xl shadow-2xl border border-slate-200 dark:border-white/10 max-w-4xl w-full max-h-[90vh] flex flex-col overflow-hidden overscroll-contain">
+            {/* Cabecera del modal de calificación */}
+            <div className="p-5 border-b border-slate-100 dark:border-white/10 flex items-start justify-between gap-3 bg-slate-50/70 dark:bg-white/5 shrink-0">
+              <div>
+                <div className="flex items-center gap-2">
+                  <span className="text-[10px] font-extrabold uppercase px-2.5 py-0.5 rounded-full bg-indigo-100 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300">
+                    Bandeja de Calificación Vigesimal (0 - 20)
+                  </span>
+                  <span className="text-[11px] font-mono text-slate-500">
+                    Límite: {gradingModalTask.fechaLimite}
+                  </span>
+                </div>
+                <h3 className="text-base sm:text-lg font-extrabold text-slate-900 dark:text-white mt-1">
+                  {gradingModalTask.titulo}
+                </h3>
+              </div>
+
+              <div className="flex items-center gap-2 shrink-0">
+                <button
+                  type="button"
+                  onClick={() => loadGradingDeliveries(gradingModalTask, false)}
+                  className="p-2 rounded-xl border border-slate-200 dark:border-white/10 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-white/10 cursor-pointer"
+                  title="Actualizar entregas"
+                >
+                  <RefreshCw className={`w-4 h-4 ${gradingLoading ? "animate-spin" : ""}`} />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setGradingModalTask(null)}
+                  className="p-2 rounded-xl text-slate-400 hover:text-slate-700 dark:hover:text-white cursor-pointer"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+            </div>
+
+            {/* Resumen estadístico y filtros rápidos */}
+            <div className="px-5 py-3.5 border-b border-slate-100 dark:border-white/10 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shrink-0">
+              <div className="flex flex-wrap items-center gap-2 text-xs">
+                <span className="px-2.5 py-1 rounded-lg bg-slate-100 dark:bg-white/5 font-bold text-slate-700 dark:text-slate-200">
+                  👥 Matriculados: {gradingData?.resumen?.matriculados ?? 0}
+                </span>
+                <span className="px-2.5 py-1 rounded-lg bg-blue-50 dark:bg-blue-950/40 font-bold text-blue-700 dark:text-blue-300">
+                  📥 Entregaron: {gradingData?.resumen?.entregados ?? 0}
+                </span>
+                <span className="px-2.5 py-1 rounded-lg bg-amber-50 dark:bg-amber-950/40 font-extrabold text-amber-800 dark:text-amber-300">
+                  🔔 Por Calificar: {gradingData?.resumen?.pendientesCalificar ?? 0}
+                </span>
+                <span className="px-2.5 py-1 rounded-lg bg-emerald-50 dark:bg-emerald-950/40 font-bold text-emerald-700 dark:text-emerald-300">
+                  ✓ Calificados: {gradingData?.resumen?.calificados ?? 0}
+                </span>
+              </div>
+
+              <div className="flex flex-wrap gap-1.5 text-[11px]">
+                {[
+                  { key: "todos", label: "Todos" },
+                  { key: "por_calificar", label: "Por Calificar" },
+                  { key: "calificados", label: "Calificados" },
+                  { key: "sin_entregar", label: "Sin Entregar" }
+                ].map((tab) => (
+                  <button
+                    key={tab.key}
+                    type="button"
+                    onClick={() => setGradingFilter(tab.key)}
+                    className={`px-2.5 py-1 rounded-lg font-bold cursor-pointer transition-colors ${
+                      gradingFilter === tab.key
+                        ? "bg-indigo-600 text-white"
+                        : "bg-slate-100 dark:bg-white/5 text-slate-600 dark:text-slate-300 hover:bg-slate-200"
+                    }`}
+                  >
+                    {tab.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Lista de estudiantes y entregas */}
+            <div className="p-5 overflow-y-auto flex-1 space-y-3 overscroll-contain">
+              {gradingLoading ? (
+                <div className="py-14 flex flex-col items-center justify-center text-slate-500 space-y-2">
+                  <Loader2 className="w-8 h-8 animate-spin text-indigo-600" />
+                  <p className="text-xs font-bold">Consultando entregas reales en Supabase...</p>
+                </div>
+              ) : (
+                (() => {
+                  const allRows = gradingData?.estudiantes || [];
+                  const filteredRows = allRows.filter((row) => {
+                    if (gradingFilter === "por_calificar") {
+                      return row.entregado && (row.estado === "Entregado" || row.estado === "Observado");
+                    }
+                    if (gradingFilter === "calificados") return row.estado === "Calificado";
+                    if (gradingFilter === "sin_entregar") return !row.entregado && row.estado !== "Calificado";
+                    return true;
+                  });
+
+                  if (filteredRows.length === 0) {
+                    return (
+                      <div className="py-12 text-center text-xs text-slate-400">
+                        No hay estudiantes en este filtro para la tarea seleccionada.
+                      </div>
+                    );
+                  }
+
+                  return filteredRows.map((est) => {
+                    const draft = gradeInputs[est.estudianteId] || {
+                      nota: est.nota !== null && est.nota !== undefined ? String(est.nota) : "",
+                      comentarioDocente: est.comentarioDocente || "",
+                      saving: false,
+                      savedFlash: false
+                    };
+                    const isCal = est.estado === "Calificado";
+                    const isObs = est.estado === "Observado";
+                    const isEnt = est.estado === "Entregado";
+
+                    return (
+                      <div
+                        key={est.estudianteId}
+                        className="rounded-2xl border border-slate-200 dark:border-white/10 bg-slate-50/50 dark:bg-white/[0.03] p-4 space-y-3"
+                      >
+                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
+                          <div className="flex items-center gap-3 min-w-0">
+                            <div className="w-9 h-9 rounded-full bg-gradient-to-tr from-indigo-600 to-blue-600 text-white font-extrabold text-xs flex items-center justify-center shrink-0">
+                              {(est.estudianteNombre || "A")
+                                .split(" ")
+                                .slice(0, 2)
+                                .map((p) => p[0]?.toUpperCase())
+                                .join("")}
+                            </div>
+                            <div className="min-w-0">
+                              <p className="text-sm font-extrabold text-slate-900 dark:text-white truncate">
+                                {est.estudianteNombre}
+                              </p>
+                              <p className="text-[11px] font-mono text-slate-500 dark:text-slate-400 truncate">
+                                {est.estudianteCorreo}
+                                {est.entregadoEn ? ` • Enviado: ${formatDateTime(est.entregadoEn)}` : ""}
+                              </p>
+                            </div>
+                          </div>
+
+                          <div className="flex flex-wrap items-center gap-2 shrink-0">
+                            <span
+                              className={`text-[10px] font-extrabold uppercase px-2.5 py-0.5 rounded-full border ${
+                                isCal
+                                  ? "bg-indigo-100 dark:bg-indigo-950/60 text-indigo-800 dark:text-indigo-300 border-indigo-300 dark:border-indigo-800"
+                                  : isEnt
+                                  ? "bg-emerald-100 dark:bg-emerald-950/60 text-emerald-800 dark:text-emerald-300 border-emerald-300 dark:border-emerald-800"
+                                  : isObs
+                                  ? "bg-rose-100 dark:bg-rose-950/60 text-rose-800 dark:text-rose-300 border-rose-300 dark:border-rose-800"
+                                  : "bg-slate-200/80 dark:bg-white/10 text-slate-600 dark:text-slate-400 border-slate-300 dark:border-white/10"
+                              }`}
+                            >
+                              {isCal && est.nota !== null ? `Calificado (${est.nota}/20)` : est.estado}
+                            </span>
+
+                            {(est.archivoUrl || est.archivoPath) && (
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  openStorageFile("tareas-entregas", est.archivoPath, est.archivoUrl)
+                                }
+                                className="px-3 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold inline-flex items-center gap-1.5 shadow-2xs cursor-pointer"
+                              >
+                                <Download className="w-3.5 h-3.5" />
+                                <span className="max-w-[160px] truncate">
+                                  {est.archivoNombre || "Abrir entrega"}
+                                </span>
+                              </button>
+                            )}
+                          </div>
+                        </div>
+
+                        {est.comentarioAlumno && (
+                          <div className="text-xs bg-white dark:bg-slate-800/80 border border-slate-200/70 dark:border-white/10 rounded-xl p-2.5 text-slate-700 dark:text-slate-300">
+                            <strong className="text-slate-900 dark:text-white">Comentario del alumno:</strong>{" "}
+                            “{est.comentarioAlumno}”
+                          </div>
+                        )}
+
+                        {/* Controles rápidos de calificación (0-20) y retroalimentación */}
+                        <div className="grid grid-cols-1 sm:grid-cols-12 gap-2.5 items-center pt-1">
+                          <div className="sm:col-span-2">
+                            <input
+                              type="number"
+                              min="0"
+                              max="20"
+                              step="0.5"
+                              placeholder="Nota 0-20"
+                              value={draft.nota}
+                              onChange={(e) => handleGradeChange(est.estudianteId, "nota", e.target.value)}
+                              className="w-full p-2 rounded-xl border border-slate-300 dark:border-white/15 bg-white dark:bg-slate-800 text-xs font-extrabold text-center text-slate-900 dark:text-white focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+                            />
+                          </div>
+                          <div className="sm:col-span-6">
+                            <input
+                              type="text"
+                              placeholder="Retroalimentación u observación académica para el alumno..."
+                              value={draft.comentarioDocente}
+                              onChange={(e) =>
+                                handleGradeChange(est.estudianteId, "comentarioDocente", e.target.value)
+                              }
+                              className="w-full p-2 rounded-xl border border-slate-300 dark:border-white/15 bg-white dark:bg-slate-800 text-xs text-slate-900 dark:text-white focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+                            />
+                          </div>
+                          <div className="sm:col-span-4 flex items-center justify-end gap-1.5">
+                            {est.entregado && (
+                              <button
+                                type="button"
+                                disabled={draft.saving}
+                                onClick={() => handleSaveStudentGrade(est.estudianteId, "Observado")}
+                                className="px-2.5 py-2 rounded-xl border border-rose-300 dark:border-rose-800 text-rose-600 dark:text-rose-300 hover:bg-rose-50 dark:hover:bg-rose-950/40 text-[11px] font-bold cursor-pointer disabled:opacity-50"
+                                title="Solicitar al alumno que corrija y vuelva a subir su archivo"
+                              >
+                                Observar
+                              </button>
+                            )}
+                            <button
+                              type="button"
+                              disabled={draft.saving}
+                              onClick={() => handleSaveStudentGrade(est.estudianteId, "Calificado")}
+                              className="px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-extrabold shadow-2xs cursor-pointer inline-flex items-center gap-1.5 disabled:opacity-50"
+                            >
+                              {draft.saving ? (
+                                <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                              ) : (
+                                <CheckCircle2 className="w-3.5 h-3.5" />
+                              )}
+                              <span>{draft.savedFlash ? "¡Guardado!" : "Guardar Nota"}</span>
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  });
+                })()
+              )}
+            </div>
           </div>
         </div>
       )}
