@@ -1,5 +1,7 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { saveAttendanceRecord } from "../../services/asistencia";
+import { clasesVivoService } from "../../services/clasesVivoService";
+import { academicActivitiesService } from "../../services/academicActivitiesService";
 import WeeklyActivitiesWidget from "../../components/student/WeeklyActivitiesWidget";
 import { useStudentCycle } from "../../context/StudentCycleContext";
 
@@ -40,6 +42,72 @@ export default function StudentDashboardPage() {
 
   const [activeMeetModal, setActiveMeetModal] = useState(null);
   const [attendanceNotice, setAttendanceNotice] = useState(null);
+  const [liveSessionsByCourse, setLiveSessionsByCourse] = useState({});
+  const [resumenAsistencia, setResumenAsistencia] = useState({});
+  const [courseMaterials, setCourseMaterials] = useState([]);
+  const [liveTracker, setLiveTracker] = useState(() => clasesVivoService.getStudentTrackerState());
+
+  useEffect(() => {
+    const unsub = clasesVivoService.subscribeStudentTracker(setLiveTracker);
+    return unsub;
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    const syncLiveData = async () => {
+      try {
+        const [activasRes, resumenRes, anns] = await Promise.all([
+          clasesVivoService.listarClasesActivas(selectedCycleId).catch(() => ({ sesiones: [] })),
+          clasesVivoService.obtenerResumenAsistencia(selectedCycleId).catch(() => ({ cursos: {} })),
+          academicActivitiesService.fetchAnnouncements().catch(() => []),
+        ]);
+        if (cancelled) return;
+
+        const map = {};
+        for (const s of activasRes?.sesiones || []) {
+          if (s.cursoId) map[s.cursoId] = s;
+        }
+        setLiveSessionsByCourse(map);
+        setResumenAsistencia(resumenRes?.cursos || {});
+        setCourseMaterials(Array.isArray(anns) ? anns.filter((a) => Boolean(a.archivoUrl)) : []);
+      } catch {}
+    };
+
+    syncLiveData();
+    const id = setInterval(() => {
+      if (!document.hidden) syncLiveData();
+    }, 30000);
+    const unsub = clasesVivoService.subscribeLiveChanges((evt) => {
+      if (evt?.type === "CLASS_ENDED" && evt.cursoId) {
+        setLiveSessionsByCourse((prev) => {
+          const next = { ...prev };
+          delete next[evt.cursoId];
+          return next;
+        });
+        setAttendanceNotice(null);
+      }
+      syncLiveData();
+    });
+    const onVis = () => {
+      if (!document.hidden) syncLiveData();
+    };
+    document.addEventListener("visibilitychange", onVis);
+    return () => {
+      cancelled = true;
+      clearInterval(id);
+      unsub();
+      document.removeEventListener("visibilitychange", onVis);
+    };
+  }, [selectedCycleId]);
+
+  const latestMaterialByCourse = useMemo(() => {
+    const map = {};
+    for (const mat of courseMaterials) {
+      const cid = String(mat.cursoId || mat.curso_id || "");
+      if (cid && !map[cid]) map[cid] = mat;
+    }
+    return map;
+  }, [courseMaterials]);
 
   // Estado para el carrusel de banners académicos
   const [activeSlide, setActiveSlide] = useState(0);
@@ -104,37 +172,39 @@ export default function StudentDashboardPage() {
   const carreraObjetivo = selectedCycle?.programa || estudianteActivo?.carreraObjetivo || "Preparación Preuniversitaria";
   const universidadObjetivo = estudianteActivo?.universidad || "UNMSM / UNI";
 
-  const handleJoinMeet = (course) => {
+  const handleJoinMeet = async (course) => {
     if (isReadOnlyHistory) return;
-    if (!course?.meetUrl) {
-      alert("El curso seleccionado no tiene un enlace de Google Meet asignado.");
+    const liveSession = liveSessionsByCourse[course.id];
+    if (!liveSession) {
+      alert("El docente aún no ha iniciado la sesión en vivo de esta asignatura.");
       return;
     }
 
-    // 1. Apertura directa en nueva pestaña
-    window.open(course.meetUrl, "_blank", "noopener,noreferrer");
+    try {
+      const joined = await clasesVivoService.unirseAClase(liveSession, course.asignatura);
+      const horaActual = new Date().toLocaleTimeString("es-PE", {
+        hour: "2-digit",
+        minute: "2-digit",
+      });
+      setAttendanceNotice({
+        asignatura: course.asignatura,
+        docente: course.docente || liveSession.docenteNombre || "Docente a cargo",
+        meetUrl: joined.meetUrl || course.meetUrl,
+        hora: horaActual,
+      });
 
-    // 2. Notificación en pantalla de registro exitoso
-    const horaActual = new Date().toLocaleTimeString("es-PE", { hour: "2-digit", minute: "2-digit" });
-    setAttendanceNotice({
-      asignatura: course.asignatura,
-      docente: course.docente || "Docente a cargo",
-      meetUrl: course.meetUrl,
-      hora: horaActual
-    });
-
-    // 3. Registrar asistencia puntual en Supabase en segundo plano
-    saveAttendanceRecord({
-      cursoId: course.id,
-      curso: course.asignatura,
-      docenteId: course.docenteId || "USR-002",
-      docente: course.docente || "Docente a cargo",
-      estudianteId: estudianteActivo?.id || "USR-005",
-      estudiante: studentName,
-      horaRegistro: horaActual
-    }).catch((err) => {
-      console.warn("[Asistencia Estudiante] Registro completado con advertencia:", err);
-    });
+      saveAttendanceRecord({
+        cursoId: course.id,
+        curso: course.asignatura,
+        docenteId: course.docenteId || "USR-002",
+        docente: course.docente || "Docente a cargo",
+        estudianteId: estudianteActivo?.id || "USR-005",
+        estudiante: studentName,
+        horaRegistro: horaActual,
+      }).catch(() => {});
+    } catch (err) {
+      alert(err.message || "No se pudo unir a la sesión en vivo.");
+    }
   };
 
   // Colores o temas decorativos por materia para asemejarse al diseño de tarjetas moderno
@@ -378,25 +448,50 @@ export default function StudentDashboardPage() {
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
               {misCursosInscritos.map((course, idx) => {
                 const theme = getCourseTheming(idx);
+                const liveSession = liveSessionsByCourse[course.id];
+                const isLiveNow = Boolean(liveSession) && !isReadOnlyHistory;
+                const myLiveEntry =
+                  (liveTracker?.cursoId === course.id ? liveTracker : null) ||
+                  liveSession?.miAsistencia ||
+                  null;
+                const courseStats = resumenAsistencia[course.id];
+                const realPct = courseStats ? `${courseStats.porcentaje}%` : "100%";
+                const latestMat = latestMaterialByCourse[course.id];
+
                 return (
                   <div
                     key={course.id}
-                    className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/90 dark:border-white/10 shadow-xs hover:shadow-lg transition-all duration-300 flex flex-col justify-between overflow-hidden group hover:border-blue-400/60"
+                    className={`bg-white dark:bg-slate-900 rounded-2xl border shadow-xs hover:shadow-lg transition-all duration-300 flex flex-col justify-between overflow-hidden group ${
+                      isLiveNow
+                        ? "border-emerald-500 ring-2 ring-emerald-500/15"
+                        : "border-slate-200/90 dark:border-white/10 hover:border-blue-400/60"
+                    }`}
                   >
                     {/* Header temático de la tarjeta */}
                     <div className={`p-4 bg-gradient-to-r ${theme.gradient} border-b border-slate-100 dark:border-white/5 relative`}>
                       <div className="flex items-center justify-between gap-2">
-                        <span className={`text-[10px] font-extrabold px-2 py-0.5 rounded-full ${theme.badge}`}>
-                          {theme.progress} Asistencia
+                        <span
+                          className={`text-[10px] font-extrabold px-2 py-0.5 rounded-full ${theme.badge}`}
+                          title={
+                            courseStats
+                              ? `${courseStats.asistidas} de ${courseStats.totalSesiones} sesiones asistidas`
+                              : "Sin inasistencias registradas"
+                          }
+                        >
+                          {realPct} Asistencia Real
                         </span>
                         {isReadOnlyHistory ? (
                           <span className="text-[10px] font-bold text-amber-700 dark:text-amber-300 bg-amber-50 dark:bg-amber-950/50 px-2 py-0.5 rounded-full border border-amber-200 dark:border-amber-800/60">
                             Ciclo Concluido
                           </span>
+                        ) : isLiveNow ? (
+                          <span className="text-[10px] font-extrabold text-white bg-red-600 px-2.5 py-0.5 rounded-full flex items-center gap-1 shadow-xs">
+                            <span className="w-1.5 h-1.5 rounded-full bg-white animate-pulse" />
+                            EN VIVO AHORA
+                          </span>
                         ) : (
-                          <span className="text-[10px] font-bold text-emerald-700 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/50 px-2 py-0.5 rounded-full border border-emerald-200 dark:border-emerald-800/60 flex items-center gap-1">
-                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                            Virtual en vivo
+                          <span className="text-[10px] font-bold text-slate-600 dark:text-slate-300 bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded-full border border-slate-200 dark:border-white/10">
+                            {course.horaInicio || "08:00"} hrs
                           </span>
                         )}
                       </div>
@@ -410,8 +505,8 @@ export default function StudentDashboardPage() {
                       </p>
                     </div>
 
-                    {/* Cuerpo de la tarjeta: Información de Docente y Horario */}
-                    <div className="p-4 space-y-3 text-xs text-slate-600 dark:text-slate-300">
+                    {/* Cuerpo de la tarjeta: Información de Docente, Horario y Material */}
+                    <div className="p-4 space-y-2.5 text-xs text-slate-600 dark:text-slate-300">
                       <div className="flex items-center space-x-2">
                         <div className="w-6 h-6 rounded-full bg-blue-100 dark:bg-blue-950/60 text-blue-700 dark:text-blue-300 flex items-center justify-center font-bold text-[10px] shrink-0">
                           {course.docente ? course.docente.charAt(0) : "D"}
@@ -427,6 +522,17 @@ export default function StudentDashboardPage() {
                           {Array.isArray(course.dias) ? course.dias.join(", ") : (course.dias || "Lunes")} ({course.horaInicio || "08:00"} - {course.horaFin || "10:00"})
                         </span>
                       </div>
+
+                      {latestMat && (
+                        <a
+                          href={latestMat.archivoUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="block rounded-lg bg-blue-50/80 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-800/60 px-2.5 py-1.5 text-[11px] font-bold text-blue-700 dark:text-blue-300 truncate hover:underline"
+                        >
+                          📎 Material disponible: {latestMat.archivoNombre || latestMat.titulo}
+                        </a>
+                      )}
                     </div>
 
                     {/* Botones de acción inferiores */}
@@ -440,15 +546,29 @@ export default function StudentDashboardPage() {
                           <Clock className="w-4 h-4 shrink-0" />
                           <span>Sala Cerrada (Ciclo Finalizado)</span>
                         </button>
-                      ) : (
+                      ) : isLiveNow ? (
                         <button
                           type="button"
                           onClick={() => handleJoinMeet(course)}
                           className="w-full bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white font-extrabold py-2.5 px-3 rounded-xl shadow-sm text-xs flex items-center justify-center space-x-1.5 cursor-pointer transition-all hover:scale-[1.01]"
-                          title="Unirse inmediatamente a la sala de Google Meet"
+                          title="Se abrirá directamente Google Meet y se validará tu permanencia en 2.º plano"
                         >
                           <Video className="w-4 h-4 shrink-0" />
-                          <span>Unirse a Sala Virtual (Meet)</span>
+                          <span>
+                            {myLiveEntry
+                              ? `En llamada Meet (${myLiveEntry.minutosPermanencia || 1} min validados) · Reabrir`
+                              : "Unirse a Sala Google Meet (EN VIVO)"}
+                          </span>
+                        </button>
+                      ) : (
+                        <button
+                          type="button"
+                          disabled
+                          className="w-full bg-slate-100 dark:bg-slate-800/80 text-slate-500 dark:text-slate-400 border border-slate-200 dark:border-white/10 font-bold py-2.5 px-3 rounded-xl text-xs flex items-center justify-center space-x-1.5 cursor-not-allowed"
+                          title="El botón se habilitará automáticamente apenas tu docente inicie la sesión"
+                        >
+                          <Clock className="w-3.5 h-3.5 shrink-0" />
+                          <span>Sala disponible cuando el docente inicie clase</span>
                         </button>
                       )}
 
@@ -474,6 +594,7 @@ export default function StudentDashboardPage() {
           <div className="sticky top-24">
             <WeeklyActivitiesWidget
               activeCourses={misCursosInscritos}
+              liveSessionsByCourse={liveSessionsByCourse}
               onJoinMeet={handleJoinMeet}
               isReadOnly={isReadOnlyHistory}
             />
@@ -517,7 +638,7 @@ export default function StudentDashboardPage() {
               >
                 Volver
               </button>
-              {!isReadOnlyHistory && (
+              {!isReadOnlyHistory && liveSessionsByCourse[activeMeetModal.id] && (
                 <button
                   type="button"
                   onClick={() => {
@@ -526,7 +647,7 @@ export default function StudentDashboardPage() {
                   }}
                   className="w-full py-2.5 px-4 bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold rounded-xl text-xs flex items-center justify-center space-x-1.5 shadow-md cursor-pointer"
                 >
-                  <span>Entrar a la Sala</span>
+                  <span>Entrar a la Sala en Vivo</span>
                   <ExternalLink className="w-3.5 h-3.5" />
                 </button>
               )}

@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { ShieldCheck, User, Lock, ArrowRight, Loader2 } from "lucide-react";
 import ThemeToggle from "../components/ThemeToggle";
 import { setApiAccessToken } from "../lib/supabase";
-import { authService } from "../services/api";
+import { authService, userService } from "../services/api";
 
 const normalizeLoginRole = (role) => {
   const normalizedRole = String(role || "").trim().toLowerCase();
@@ -38,6 +38,9 @@ export default function Login() {
       const user = { id: userId, correo: trimmedEmail, rol: role, nombres: name };
 
       setApiAccessToken(session.access_token);
+      if (session.profile) {
+        userService.cacheLoggedProfile(session.profile);
+      }
       localStorage.setItem("userRole", role);
       localStorage.setItem("userName", name);
       localStorage.setItem("userEmail", trimmedEmail);

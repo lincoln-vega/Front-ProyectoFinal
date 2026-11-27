@@ -33,8 +33,7 @@ export default function DocenteChatModal({
       setFilter("todos");
     }
 
-    const loadMessages = async () => {
-      await chatAcademicService.fetchMessages();
+    const refreshFromCache = () => {
       const teacherMsgs = chatAcademicService.getMessagesForTeacher(
         docenteId,
         docenteName,
@@ -43,9 +42,9 @@ export default function DocenteChatModal({
       setMessages(teacherMsgs);
     };
 
-    loadMessages();
-    window.addEventListener("storage", loadMessages);
-    return () => window.removeEventListener("storage", loadMessages);
+    chatAcademicService.fetchMessages().then(refreshFromCache);
+    window.addEventListener("storage", refreshFromCache);
+    return () => window.removeEventListener("storage", refreshFromCache);
   }, [isOpen, docenteId, docenteName, docenteEmail, targetMessageId]);
 
   // Bloquear el scroll del fondo mientras el modal está abierto

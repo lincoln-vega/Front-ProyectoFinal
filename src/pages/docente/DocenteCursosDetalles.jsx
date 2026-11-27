@@ -25,8 +25,10 @@ import {
 import { courseService } from "../../services/cursosServices";
 import { userService, parseCourseList } from "../../services/api";
 import { getMeetAttendanceHistory, registerMeetEntry, registerMeetExit } from "../../services/asistencia";
+import { clasesVivoService } from "../../services/clasesVivoService";
 import { academicActivitiesService } from "../../services/academicActivitiesService";
 import { chatAcademicService } from "../../services/chatAcademicService";
+import { useNavigate } from "react-router-dom";
 
 const validMeetUrl = (value) => {
   try {
@@ -52,6 +54,7 @@ const formatDateTime = (value) => {
 };
 
 export default function DocenteCursosDetalles({ cursoId, initialTab = "clase", onVolver }) {
+  const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState(initialTab || "clase"); // "clase" | "tareas" | "anuncios" | "alumnos" | "consultas"
 
   useEffect(() => {
@@ -186,22 +189,13 @@ export default function DocenteCursosDetalles({ cursoId, initialTab = "clase", o
     }
   };
 
-  const handleEntry = async () => {
-    if (action || activeSession) return;
-    setAction("entry");
+  const handleEntry = () => {
+    if (action) return;
     setError("");
     setNotice("");
-    try {
-      const record = await registerMeetEntry(cursoId);
-      await loadAttendance();
-      setNotice("Entrada registrada correctamente en Google Meet e Supabase.");
-      const meetUrl = record?.meetUrl || curso?.meetUrl;
-      if (validMeetUrl(meetUrl)) window.open(meetUrl, "_blank", "noopener,noreferrer");
-    } catch (err) {
-      setError(err.message);
-    } finally {
-      setAction("");
-    }
+    clasesVivoService.launchClassOptimistically(curso || { id: cursoId, meetUrl: curso?.meetUrl });
+    registerMeetEntry(cursoId).catch(() => {});
+    navigate(`/docente/aula-vivo/${cursoId}`, { state: { coursePreview: curso } });
   };
 
   const handleExit = async () => {

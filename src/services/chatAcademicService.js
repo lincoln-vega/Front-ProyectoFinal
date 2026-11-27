@@ -31,6 +31,9 @@ async function requestMensajes(path, options = {}) {
   return res.json();
 }
 
+let _inFlightMessagesPromise = null;
+let _lastMessagesFetchAt = 0;
+
 export const chatAcademicService = {
   getMessages() {
     try {
@@ -43,39 +46,58 @@ export const chatAcademicService = {
     return [];
   },
 
-  async fetchMessages() {
-    try {
-      const data = await requestMensajes("/mensajes/");
-      if (Array.isArray(data)) {
-        const normalized = data.map((m) => ({
-          id: m.id,
-          estudianteId: m.estudianteId || m.estudiante_id,
-          estudianteNombre: m.estudianteNombre || m.estudiante_nombre,
-          estudianteCorreo: m.estudianteCorreo || m.estudiante_correo,
-          estudianteCarrera: m.estudianteCarrera || m.estudiante_carrera,
-          docenteId: m.docenteId || m.docente_id,
-          docenteNombre: m.docenteNombre || m.docente_nombre,
-          cursoId: m.cursoId || m.curso_id,
-          curso: m.curso,
-          mensaje: m.mensaje,
-          fecha: m.fecha,
-          estado: m.estado || "Pendiente",
-          respuesta: m.respuesta,
-          fechaRespuesta: m.fechaRespuesta || m.fecha_respuesta,
-          destinatarioTipo: m.destinatarioTipo || m.destinatario_tipo,
-          destinatarioId: m.destinatarioId || m.destinatario_id,
-          destinatarioNombre: m.destinatarioNombre || m.destinatario_nombre,
-          destinatarioCorreo: m.destinatarioCorreo || m.destinatario_correo
-        }));
-
-        localStorage.setItem(CHAT_STORAGE_KEY, JSON.stringify(normalized));
-        window.dispatchEvent(new Event("storage"));
-        return normalized;
-      }
-    } catch (err) {
-      console.warn("[ChatAcademicService] No se pudieron sincronizar mensajes desde el backend:", err.message);
+  async fetchMessages(force = false) {
+    const now = Date.now();
+    if (!force && _inFlightMessagesPromise) {
+      return _inFlightMessagesPromise;
     }
-    return this.getMessages();
+    if (!force && now - _lastMessagesFetchAt < 3000) {
+      return this.getMessages();
+    }
+
+    _inFlightMessagesPromise = (async () => {
+      try {
+        const data = await requestMensajes("/mensajes/");
+        _lastMessagesFetchAt = Date.now();
+        if (Array.isArray(data)) {
+          const normalized = data.map((m) => ({
+            id: m.id,
+            estudianteId: m.estudianteId || m.estudiante_id,
+            estudianteNombre: m.estudianteNombre || m.estudiante_nombre,
+            estudianteCorreo: m.estudianteCorreo || m.estudiante_correo,
+            estudianteCarrera: m.estudianteCarrera || m.estudiante_carrera,
+            docenteId: m.docenteId || m.docente_id,
+            docenteNombre: m.docenteNombre || m.docente_nombre,
+            cursoId: m.cursoId || m.curso_id,
+            curso: m.curso,
+            mensaje: m.mensaje,
+            fecha: m.fecha,
+            estado: m.estado || "Pendiente",
+            respuesta: m.respuesta,
+            fechaRespuesta: m.fechaRespuesta || m.fecha_respuesta,
+            destinatarioTipo: m.destinatarioTipo || m.destinatario_tipo,
+            destinatarioId: m.destinatarioId || m.destinatario_id,
+            destinatarioNombre: m.destinatarioNombre || m.destinatario_nombre,
+            destinatarioCorreo: m.destinatarioCorreo || m.destinatario_correo
+          }));
+
+          const nextRaw = JSON.stringify(normalized);
+          const prevRaw = localStorage.getItem(CHAT_STORAGE_KEY);
+          if (nextRaw !== prevRaw) {
+            localStorage.setItem(CHAT_STORAGE_KEY, nextRaw);
+            window.dispatchEvent(new Event("storage"));
+          }
+          return normalized;
+        }
+      } catch (err) {
+        console.warn("[ChatAcademicService] No se pudieron sincronizar mensajes desde el backend:", err.message);
+      } finally {
+        _inFlightMessagesPromise = null;
+      }
+      return this.getMessages();
+    })();
+
+    return _inFlightMessagesPromise;
   },
 
   getMessagesForTeacher(docenteId, docenteNombre = "", docenteEmail = "") {

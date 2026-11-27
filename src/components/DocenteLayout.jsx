@@ -25,6 +25,7 @@ import SolicitudPermutaModal from "./docente/SolicitudPermutaModal";
 import DocenteChatModal from "./docente/DocenteChatModal";
 import { academicActivitiesService } from "../services/academicActivitiesService";
 import { chatAcademicService } from "../services/chatAcademicService";
+import { clasesVivoService } from "../services/clasesVivoService";
 
 export default function DocenteLayout() {
   const navigate = useNavigate();
@@ -35,7 +36,41 @@ export default function DocenteLayout() {
   const [isChatModalOpen, setIsChatModalOpen] = useState(false);
   const [targetStudentMessageId, setTargetStudentMessageId] = useState(null);
   const [pendingChatCount, setPendingChatCount] = useState(0);
+  const [activeLiveSession, setActiveLiveSession] = useState(null);
   const notifRef = useRef(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    const syncLiveSession = async () => {
+      try {
+        const res = await clasesVivoService.obtenerClaseActiva();
+        if (!cancelled) setActiveLiveSession(res?.activa || null);
+      } catch {}
+    };
+    syncLiveSession();
+    const id = setInterval(() => {
+      if (!document.hidden) syncLiveSession();
+    }, 30000);
+    const unsub = clasesVivoService.subscribeLiveChanges((evt) => {
+      if (evt?.type === "CLASS_ENDED") {
+        setActiveLiveSession(null);
+        return;
+      }
+      if (evt?.type === "CLASS_STARTED") {
+        syncLiveSession();
+      }
+    });
+    const onVis = () => {
+      if (!document.hidden) syncLiveSession();
+    };
+    document.addEventListener("visibilitychange", onVis);
+    return () => {
+      cancelled = true;
+      clearInterval(id);
+      unsub();
+      document.removeEventListener("visibilitychange", onVis);
+    };
+  }, [location.pathname]);
 
   const userName = localStorage.getItem("userName") || "Docente";
   const userId = localStorage.getItem("userId") || "USR-107";
@@ -43,20 +78,25 @@ export default function DocenteLayout() {
 
   useEffect(() => {
     let cancelled = false;
-    const updateChatCount = async () => {
-      await chatAcademicService.fetchMessages();
+    const readCachedCount = () => {
       if (cancelled) return;
       const msgs = chatAcademicService.getMessagesForTeacher(userId, userName, userEmail);
       const pending = msgs.filter((m) => m.estado === "Pendiente").length;
       setPendingChatCount(pending);
     };
 
-    updateChatCount();
-    window.addEventListener("storage", updateChatCount);
-    const interval = setInterval(updateChatCount, 30000);
+    const fetchAndSyncChat = async () => {
+      if (document.hidden) return;
+      await chatAcademicService.fetchMessages();
+      readCachedCount();
+    };
+
+    fetchAndSyncChat();
+    window.addEventListener("storage", readCachedCount);
+    const interval = setInterval(fetchAndSyncChat, 30000);
     return () => {
       cancelled = true;
-      window.removeEventListener("storage", updateChatCount);
+      window.removeEventListener("storage", readCachedCount);
       clearInterval(interval);
     };
   }, [userId, userName, userEmail]);
@@ -649,6 +689,27 @@ export default function DocenteLayout() {
 
       {/* 4. CONTENIDO PRINCIPAL */}
       <main className="md:pl-20 flex-1 p-4 sm:p-6 md:p-8 max-w-7xl mx-auto w-full transition-all">
+        {activeLiveSession && (
+          <div className="mb-5 rounded-2xl border border-red-400/60 bg-gradient-to-r from-red-950/90 via-slate-900 to-slate-900 text-white px-4 py-3 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-lg">
+            <div className="flex items-center gap-3">
+              <span className="w-3 h-3 rounded-full bg-red-500 animate-pulse shrink-0" />
+              <div className="text-xs sm:text-sm">
+                <strong className="font-black">Clase en Vivo en Curso:</strong>{" "}
+                <span className="text-red-200 font-semibold">{activeLiveSession.asignatura}</span>{" "}
+                <span className="text-slate-400 text-xs">
+                  ({activeLiveSession.horaProgramadaInicio} – {activeLiveSession.horaProgramadaFin})
+                </span>
+              </div>
+            </div>
+            <Link
+              to={`/docente/aula-vivo/${activeLiveSession.cursoId}`}
+              className="inline-flex items-center justify-center gap-1.5 bg-red-600 hover:bg-red-500 text-white font-extrabold text-xs px-4 py-2 rounded-xl transition-colors shrink-0"
+            >
+              <span>Volver a la Cabina en Vivo</span>
+              <ChevronRight className="w-4 h-4" />
+            </Link>
+          </div>
+        )}
         <Outlet />
       </main>
 

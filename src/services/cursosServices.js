@@ -68,17 +68,43 @@ export const normalizeCourse = (course) => {
   };
 };
 
+const COURSES_CACHE_KEY = "academia_courses_cache_v2";
+let _inFlightCoursesPromise = null;
+
 export const courseService = {
+  getCachedCourses() {
+    try {
+      const raw = localStorage.getItem(COURSES_CACHE_KEY);
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (Array.isArray(parsed)) return parsed;
+      }
+    } catch {}
+    return [];
+  },
+
   async getCourses() {
-    const res = await fetch(`${getApiBaseUrl()}/horarios/cursos`, {
-      headers: authHeaders()
-    });
-    if (!res.ok) {
-      const body = await res.json().catch(() => ({}));
-      throw new Error(body?.detail || `No se pudieron cargar los cursos (HTTP ${res.status}).`);
-    }
-    const data = await res.json();
-    return (Array.isArray(data) ? data : []).map(normalizeCourse);
+    if (_inFlightCoursesPromise) return _inFlightCoursesPromise;
+    _inFlightCoursesPromise = (async () => {
+      try {
+        const res = await fetch(`${getApiBaseUrl()}/horarios/cursos`, {
+          headers: authHeaders()
+        });
+        if (!res.ok) {
+          const body = await res.json().catch(() => ({}));
+          throw new Error(body?.detail || `No se pudieron cargar los cursos (HTTP ${res.status}).`);
+        }
+        const data = await res.json();
+        const normalized = (Array.isArray(data) ? data : []).map(normalizeCourse);
+        try {
+          localStorage.setItem(COURSES_CACHE_KEY, JSON.stringify(normalized));
+        } catch {}
+        return normalized;
+      } finally {
+        _inFlightCoursesPromise = null;
+      }
+    })();
+    return _inFlightCoursesPromise;
   },
 
   async fetchCourses() {

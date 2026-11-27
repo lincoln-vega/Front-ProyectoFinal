@@ -154,7 +154,10 @@ export const academicActivitiesService = {
         const normalized = data.map((a) => ({
           ...a,
           cursoId: a.cursoId || a.curso_id,
-          docenteId: a.docenteId || a.docente_id
+          docenteId: a.docenteId || a.docente_id,
+          archivoUrl: a.archivoUrl || a.archivo_url || null,
+          archivoPath: a.archivoPath || a.archivo_path || null,
+          archivoNombre: a.archivoNombre || a.archivo_nombre || null
         }));
         if (!cursoId) {
           localStorage.setItem(ANNOUNCEMENTS_STORAGE_KEY, JSON.stringify(normalized));
@@ -175,7 +178,10 @@ export const academicActivitiesService = {
       contenido: newAnn.contenido,
       prioridad: newAnn.prioridad || "Normal",
       docenteId: newAnn.docenteId || newAnn.docente_id || "",
-      docente: newAnn.docente || "Docente"
+      docente: newAnn.docente || "Docente",
+      archivoUrl: newAnn.archivoUrl || newAnn.archivo_url || null,
+      archivoPath: newAnn.archivoPath || newAnn.archivo_path || null,
+      archivoNombre: newAnn.archivoNombre || newAnn.archivo_nombre || null
     };
 
     const created = await requestActivities("/anuncios/", {

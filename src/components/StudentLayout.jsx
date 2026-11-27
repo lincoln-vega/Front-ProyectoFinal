@@ -32,6 +32,7 @@ import { courseService } from "../services/cursosServices";
 import StudentTaskModal from "./student/StudentTaskModal";
 import StudentAnnouncementModal from "./student/StudentAnnouncementModal";
 import { StudentCycleProvider, useStudentCycle } from "../context/StudentCycleContext";
+import { clasesVivoService } from "../services/clasesVivoService";
 
 export default function StudentLayout() {
   return (
@@ -58,6 +59,102 @@ function StudentLayoutInner() {
   const [libraryModalOpen, setLibraryModalOpen] = useState(false);
   const [helpModalOpen, setHelpModalOpen] = useState(false);
   const [selectedTaskModal, setSelectedTaskModal] = useState(null);
+  const [liveTracker, setLiveTracker] = useState(() => clasesVivoService.getStudentTrackerState());
+
+  // Suscripción reactiva y vigilancia silenciosa en 2.º plano de la pestaña de Google Meet
+  useEffect(() => {
+    const unsub = clasesVivoService.subscribeStudentTracker(setLiveTracker);
+    return unsub;
+  }, []);
+
+  // Restaurar y sincronizar al instante el estado de clases activas (sin necesidad de F5)
+  useEffect(() => {
+    let cancelled = false;
+    const syncTrackerFromServer = () => {
+      clasesVivoService
+        .listarClasesActivas(selectedCycleId)
+        .then((res) => {
+          if (cancelled) return;
+          const sesiones = Array.isArray(res?.sesiones) ? res.sesiones : [];
+          const current = clasesVivoService.getStudentTrackerState();
+          if (current && !sesiones.some((s) => s.id === current.sesionId)) {
+            clasesVivoService.setStudentTrackerState(null);
+            return;
+          }
+          const yaUnida = sesiones.find((s) => Boolean(s.miAsistencia));
+          if (yaUnida) {
+            clasesVivoService.setStudentTrackerState({
+              sesionId: yaUnida.id,
+              cursoId: yaUnida.cursoId,
+              asignatura: yaUnida.asignatura,
+              docenteNombre: yaUnida.docenteNombre,
+              meetUrl: yaUnida.meetUrl,
+              estado: yaUnida.miAsistencia.estado,
+              horaRegistro: yaUnida.miAsistencia.horaRegistro,
+              minutosPermanencia: yaUnida.miAsistencia.minutosPermanencia || 1,
+              ventanaAbierta: clasesVivoService.isMeetWindowOpen(yaUnida.cursoId),
+            });
+          }
+        })
+        .catch(() => {});
+    };
+
+    syncTrackerFromServer();
+    const poll = setInterval(() => {
+      if (!document.hidden) syncTrackerFromServer();
+    }, 30000);
+    const unsub = clasesVivoService.subscribeLiveChanges((evt) => {
+      if (evt?.type === "CLASS_ENDED") {
+        const current = clasesVivoService.getStudentTrackerState();
+        if (
+          current &&
+          (current.sesionId === evt.sesionId || current.cursoId === evt.cursoId)
+        ) {
+          clasesVivoService.setStudentTrackerState(null);
+        }
+        return;
+      }
+      syncTrackerFromServer();
+    });
+    const onVis = () => {
+      if (!document.hidden) syncTrackerFromServer();
+    };
+    document.addEventListener("visibilitychange", onVis);
+    return () => {
+      cancelled = true;
+      clearInterval(poll);
+      unsub();
+      document.removeEventListener("visibilitychange", onVis);
+    };
+  }, [selectedCycleId, location.pathname]);
+
+  // Pulso cada 60s mientras `!meetWin.closed` y aviso inmediato si cerró la pestaña
+  useEffect(() => {
+    if (!liveTracker?.sesionId) return;
+    let closedReported = false;
+
+    const watchClose = setInterval(() => {
+      const win = clasesVivoService.getMeetWindow(liveTracker.cursoId);
+      if (win && win.closed && !closedReported) {
+        closedReported = true;
+        clasesVivoService.enviarLatido(liveTracker.sesionId, false).catch(() => {});
+      } else if (win && !win.closed) {
+        closedReported = false;
+      }
+    }, 3000);
+
+    const heartbeat = setInterval(() => {
+      const isOpen = clasesVivoService.isMeetWindowOpen(liveTracker.cursoId);
+      if (isOpen) {
+        clasesVivoService.enviarLatido(liveTracker.sesionId, true).catch(() => {});
+      }
+    }, 60000);
+
+    return () => {
+      clearInterval(watchClose);
+      clearInterval(heartbeat);
+    };
+  }, [liveTracker?.sesionId, liveTracker?.cursoId]);
   const [selectedAnnouncementModal, setSelectedAnnouncementModal] = useState(null);
   const notifRef = useRef(null);
 
@@ -134,8 +231,7 @@ function StudentLayoutInner() {
 
     loadStudentData();
 
-    const handleStorageUpdate = async () => {
-      await chatAcademicService.fetchMessages();
+    const handleStorageUpdate = () => {
       setStudentMessages(chatAcademicService.getMessagesForStudent(studentEmail));
     };
 
@@ -763,6 +859,56 @@ function StudentLayoutInner() {
       {/* 3. ÁREA DE CONTENIDO PRINCIPAL */}
       <main className="flex-1 md:pl-20 w-full transition-all">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-5">
+          {liveTracker && !isReadOnlyHistory && (
+            <div
+              role="status"
+              className="rounded-2xl border border-emerald-400/70 bg-gradient-to-r from-emerald-950/90 via-slate-900 to-slate-900 text-white px-4 py-3 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-md"
+            >
+              <div className="flex items-center gap-3">
+                <div className="w-8 h-8 rounded-xl bg-emerald-600/30 border border-emerald-400/50 flex items-center justify-center text-emerald-300 shrink-0">
+                  <CheckCircle2 className="w-4.5 h-4.5" />
+                </div>
+                <div className="text-xs">
+                  <div className="font-extrabold text-sm">
+                    Conectado a{" "}
+                    <span className="text-emerald-300">{liveTracker.asignatura}</span> • Asistencia
+                    en validación automática (2.º plano)
+                  </div>
+                  <div className="text-emerald-200/85 mt-0.5">
+                    Estado inicial: <strong>{liveTracker.estado}</strong>
+                    {liveTracker.horaRegistro
+                      ? ` (${new Date(liveTracker.horaRegistro).toLocaleTimeString("es-PE", {
+                          hour: "2-digit",
+                          minute: "2-digit",
+                        })})`
+                      : ""}{" "}
+                    • Permanencia validada:{" "}
+                    <strong>{liveTracker.minutosPermanencia || 1} min acumulados</strong>{" "}
+                    {clasesVivoService.isMeetWindowOpen(liveTracker.cursoId)
+                      ? "(Ventana Meet abierta)"
+                      : "(Reabre Meet para continuar acumulando permanencia)"}
+                  </div>
+                </div>
+              </div>
+
+              {liveTracker.meetUrl && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    clasesVivoService.openOrFocusMeetWindow(
+                      liveTracker.cursoId,
+                      liveTracker.meetUrl
+                    );
+                    clasesVivoService.enviarLatido(liveTracker.sesionId, true).catch(() => {});
+                  }}
+                  className="inline-flex items-center justify-center gap-1.5 bg-emerald-600 hover:bg-emerald-500 text-white font-extrabold text-xs px-3.5 py-2 rounded-xl cursor-pointer transition-colors shrink-0"
+                >
+                  <span>Enfocar / Reabrir Google Meet</span>
+                  <ExternalLink className="w-3.5 h-3.5" />
+                </button>
+              )}
+            </div>
+          )}
           {isReadOnlyHistory && selectedCycle && (
             <div
               role="status"

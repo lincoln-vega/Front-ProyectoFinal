@@ -21,6 +21,7 @@ import AdminConfiguracionPage from "./pages/admin/AdminConfiguracionPage";
 import DocenteCursosPage from "./pages/docente/DocenteCursosPage";
 import DocenteHorariosPage from "./pages/docente/DocenteHorariosPage";
 import DocenteEstudiantesPage from "./pages/docente/DocenteEstudiantesPage";
+import DocenteAulaVivoPage from "./pages/docente/DocenteAulaVivoPage";
 
 export default function App() {
   return (
@@ -60,6 +61,11 @@ export default function App() {
           <Route path="reportes" element={<AdminReportesPage />} />
           <Route path="configuracion" element={<AdminConfiguracionPage />} />
         </Route>
+      </Route>
+
+      {/* Cabina Dedicada de Clase en Vivo a Pantalla Completa (Sin barra lateral) */}
+      <Route element={<ProtectedRoute allowedRoles={["docente", "admin"]} />}>
+        <Route path="/docente/aula-vivo/:cursoId" element={<DocenteAulaVivoPage />} />
       </Route>
 
       {/* Rutas de Docente Protegidas (Solo rol "docente") */}

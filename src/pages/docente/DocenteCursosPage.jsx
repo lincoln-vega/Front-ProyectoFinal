@@ -1,11 +1,12 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { useSearchParams } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { BookOpen, Loader2, Video, Clock, ExternalLink, Calendar, ChevronRight, Users, FileText, Bell } from "lucide-react";
 import CursoDetalleView from "./DocenteCursosDetalles";
 import { courseService } from "../../services/cursosServices";
 import { academicosService } from "../../services/academicosService";
 import { getCurrentSessionProfile } from "../../services/session";
 import { registerMeetEntry } from "../../services/asistencia";
+import { clasesVivoService } from "../../services/clasesVivoService";
 
 const normalizeName = (value) => String(value || "")
   .toLowerCase()
@@ -25,6 +26,7 @@ const matchesTeacherName = (courseName, userName) => {
 };
 
 export default function DocenteCursosPage() {
+  const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const queryCursoId = searchParams.get("cursoId");
   const queryTab = searchParams.get("tab") || "clase";
@@ -107,20 +109,15 @@ export default function DocenteCursosPage() {
     }
   }, [queryCursoId, cursoSeleccionado, cursosFiltrados, listaCursos]);
 
-  const handleStartMeet = async (curso) => {
+  const handleStartMeet = (curso) => {
     if (!curso?.meetUrl) {
       alert("El curso no tiene un enlace de Google Meet configurado.");
       return;
     }
-    setStartingCourseId(curso.id);
-    window.open(curso.meetUrl, "_blank", "noopener,noreferrer");
-    try {
-      await registerMeetEntry(curso.id);
-    } catch (err) {
-      console.warn("Registro de entrada en segundo plano:", err);
-    } finally {
-      setStartingCourseId(null);
-    }
+    setError("");
+    clasesVivoService.launchClassOptimistically(curso);
+    registerMeetEntry(curso.id).catch(() => {});
+    navigate(`/docente/aula-vivo/${curso.id}`, { state: { coursePreview: curso } });
   };
 
   const handleSelectCursoTab = (curso, tab = "clase") => {

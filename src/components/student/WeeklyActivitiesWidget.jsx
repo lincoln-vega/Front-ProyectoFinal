@@ -13,26 +13,50 @@ import {
   BookOpen
 } from "lucide-react";
 import { academicActivitiesService } from "../../services/academicActivitiesService";
+import { clasesVivoService } from "../../services/clasesVivoService";
 
-export default function WeeklyActivitiesWidget({ activeCourses = [], onJoinMeet, isReadOnly = false }) {
+export default function WeeklyActivitiesWidget({
+  activeCourses = [],
+  liveSessionsByCourse = {},
+  onJoinMeet,
+  isReadOnly = false
+}) {
   const [filter, setFilter] = useState("pendientes");
   const [selectedTask, setSelectedTask] = useState(null);
   const [activities, setActivities] = useState(() => academicActivitiesService.getTasks());
+  const [announcements, setAnnouncements] = useState(() => academicActivitiesService.getAnnouncements());
 
-  // Sincronizar tareas al cargar o cuando cambie la ventana/pestaña
+  // Sincronizar tareas y materiales publicados en clase al cargar o actualizar
   useEffect(() => {
     let isMounted = true;
-    academicActivitiesService.fetchTasks().then((tasks) => {
-      if (isMounted && tasks) setActivities(tasks);
+    const syncAll = () => {
+      academicActivitiesService.fetchTasks().then((tasks) => {
+        if (isMounted && tasks) setActivities(tasks);
+      });
+      academicActivitiesService.fetchAnnouncements().then((anns) => {
+        if (isMounted && anns) setAnnouncements(anns);
+      });
+    };
+    syncAll();
+    const id = setInterval(() => {
+      if (!document.hidden) syncAll();
+    }, 35000);
+    const unsub = clasesVivoService.subscribeLiveChanges((evt) => {
+      if (evt?.type === "MATERIAL_PUBLISHED") {
+        syncAll();
+      }
     });
 
-    const refreshTasks = () => {
+    const refreshFromStorage = () => {
       setActivities(academicActivitiesService.getTasks());
+      setAnnouncements(academicActivitiesService.getAnnouncements());
     };
-    window.addEventListener("storage", refreshTasks);
+    window.addEventListener("storage", refreshFromStorage);
     return () => {
       isMounted = false;
-      window.removeEventListener("storage", refreshTasks);
+      clearInterval(id);
+      unsub();
+      window.removeEventListener("storage", refreshFromStorage);
     };
   }, []);
 
@@ -79,23 +103,37 @@ export default function WeeklyActivitiesWidget({ activeCourses = [], onJoinMeet,
     return true;
   });
 
-  // Próxima clase destacada
-  const nextClass = activeCourses.length > 0 ? activeCourses[0] : null;
+  // Priorizar cualquier curso que esté EN VIVO ahora mismo; si no, el primer curso activo
+  const liveCourseNow = activeCourses.find((c) => Boolean(liveSessionsByCourse?.[c.id]));
+  const nextClass = liveCourseNow || (activeCourses.length > 0 ? activeCourses[0] : null);
+  const isNextClassLive = Boolean(nextClass && liveSessionsByCourse?.[nextClass.id]);
+
+  // Materiales recientes subidos por los docentes en los cursos inscritos
+  const recentMaterials = useMemo(() => {
+    const enrolledIds = new Set(activeCourses.map((c) => String(c.id || "")));
+    return (announcements || [])
+      .filter((a) => a.archivoUrl && enrolledIds.has(String(a.cursoId || a.curso_id || "")))
+      .slice(0, 3);
+  }, [announcements, activeCourses]);
 
   return (
     <div className="space-y-5 animate-fade-in">
-      {/* TARJETA PRÓXIMA CLASE EN VIVO (Solo en ciclos activos) */}
+      {/* TARJETA CLASE EN VIVO / PRÓXIMA CLASE (Solo en ciclos activos) */}
       {nextClass && !isReadOnly && (
         <div className="bg-gradient-to-br from-indigo-900 via-blue-900 to-[#1E3A8A] text-white rounded-2xl p-5 shadow-lg border border-indigo-700/40 relative overflow-hidden">
           <div className="absolute right-0 bottom-0 translate-x-4 translate-y-4 w-32 h-32 bg-white/10 rounded-full blur-xl pointer-events-none" />
           
           <div className="flex items-center justify-between gap-2 mb-3">
-            <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-extrabold uppercase tracking-wide bg-emerald-500/20 text-emerald-300 border border-emerald-400/30">
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-              Próxima Clase
+            <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-extrabold uppercase tracking-wide border ${
+              isNextClassLive
+                ? "bg-red-500/25 text-red-200 border-red-400/50"
+                : "bg-emerald-500/20 text-emerald-300 border-emerald-400/30"
+            }`}>
+              <span className={`w-1.5 h-1.5 rounded-full animate-pulse ${isNextClassLive ? "bg-red-400" : "bg-emerald-400"}`} />
+              {isNextClassLive ? "En Vivo Ahora" : "Próxima Clase"}
             </span>
             <span className="text-xs font-mono text-blue-200">
-              {nextClass.horaInicio || "08:00"} AM
+              {nextClass.horaInicio || "08:00"} - {nextClass.horaFin || "10:00"}
             </span>
           </div>
 
@@ -108,12 +146,57 @@ export default function WeeklyActivitiesWidget({ activeCourses = [], onJoinMeet,
 
           <button
             type="button"
-            onClick={() => onJoinMeet ? onJoinMeet(nextClass) : window.open(nextClass.meetUrl, '_blank')}
-            className="w-full mt-4 bg-emerald-500 hover:bg-emerald-600 active:bg-emerald-700 text-slate-950 font-extrabold py-2.5 px-3 rounded-xl shadow-md text-xs flex items-center justify-center gap-2 cursor-pointer transition-all hover:scale-[1.01]"
+            disabled={!isNextClassLive}
+            onClick={() => isNextClassLive && onJoinMeet && onJoinMeet(nextClass)}
+            className={`w-full mt-4 font-extrabold py-2.5 px-3 rounded-xl shadow-md text-xs flex items-center justify-center gap-2 transition-all ${
+              isNextClassLive
+                ? "bg-emerald-500 hover:bg-emerald-600 text-slate-950 cursor-pointer hover:scale-[1.01]"
+                : "bg-white/10 text-blue-200 border border-white/15 cursor-not-allowed"
+            }`}
           >
-            <Video className="w-4 h-4 text-slate-950" />
-            <span>Unirse a la Sala en Vivo</span>
+            <Video className="w-4 h-4 shrink-0" />
+            <span>
+              {isNextClassLive
+                ? "Unirse a la Sala Google Meet"
+                : "Esperando inicio del docente"}
+            </span>
           </button>
+        </div>
+      )}
+
+      {/* TARJETA DE MATERIALES PUBLICADOS EN CLASE */}
+      {recentMaterials.length > 0 && (
+        <div className="bg-white/85 dark:bg-slate-900/85 rounded-2xl border border-blue-200 dark:border-blue-500/30 p-4 space-y-2.5 shadow-xs">
+          <div className="flex items-center justify-between">
+            <h3 className="text-xs font-black uppercase tracking-wider text-blue-700 dark:text-blue-300">
+              📎 Materiales Recientes de Clase
+            </h3>
+            <span className="text-[10px] font-bold text-blue-600 dark:text-blue-400">
+              En tiempo real
+            </span>
+          </div>
+          <div className="space-y-2">
+            {recentMaterials.map((mat) => (
+              <a
+                key={mat.id}
+                href={mat.archivoUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="block rounded-xl bg-blue-50/70 dark:bg-blue-950/35 border border-blue-200/80 dark:border-blue-800/50 p-3 hover:border-blue-400 transition-colors"
+              >
+                <div className="flex items-center justify-between text-[10px] font-extrabold text-blue-600 dark:text-blue-300">
+                  <span>{mat.curso}</span>
+                  <span>⬇ Descargar</span>
+                </div>
+                <p className="text-xs font-bold text-slate-900 dark:text-white mt-0.5 line-clamp-1">
+                  {mat.titulo}
+                </p>
+                <p className="text-[11px] text-slate-500 dark:text-slate-400 truncate mt-0.5">
+                  📄 {mat.archivoNombre || "Archivo adjunto"}
+                </p>
+              </a>
+            ))}
+          </div>
         </div>
       )}
 

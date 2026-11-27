@@ -13,6 +13,7 @@ import {
   GraduationCap
 } from "lucide-react";
 import { useStudentCycle } from "../../context/StudentCycleContext";
+import { clasesVivoService } from "../../services/clasesVivoService";
 
 const DAYS = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado"];
 const START_HOUR = 7;
@@ -78,6 +79,47 @@ export default function StudentHorariosPage() {
   const [localError, setLocalError] = useState("");
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedMobileDay, setSelectedMobileDay] = useState("Lunes");
+  const [liveSessionsByCourse, setLiveSessionsByCourse] = useState({});
+
+  useEffect(() => {
+    let cancelled = false;
+    const syncLive = async () => {
+      try {
+        const res = await clasesVivoService.listarClasesActivas(selectedCycleId);
+        if (cancelled) return;
+        const map = {};
+        for (const s of res?.sesiones || []) {
+          if (s.cursoId) map[s.cursoId] = s;
+        }
+        setLiveSessionsByCourse(map);
+      } catch {}
+    };
+    syncLive();
+    const id = setInterval(() => {
+      if (!document.hidden) syncLive();
+    }, 30000);
+    const unsub = clasesVivoService.subscribeLiveChanges((evt) => {
+      if (evt?.type === "CLASS_ENDED" && evt.cursoId) {
+        setLiveSessionsByCourse((prev) => {
+          const next = { ...prev };
+          delete next[evt.cursoId];
+          return next;
+        });
+        return;
+      }
+      syncLive();
+    });
+    const onVis = () => {
+      if (!document.hidden) syncLive();
+    };
+    document.addEventListener("visibilitychange", onVis);
+    return () => {
+      cancelled = true;
+      clearInterval(id);
+      unsub();
+      document.removeEventListener("visibilitychange", onVis);
+    };
+  }, [selectedCycleId]);
 
   const error = localError || errorCycle;
 
@@ -105,16 +147,22 @@ export default function StudentHorariosPage() {
 
   const cicloVirtual = selectedCycle?.nombre || estudianteActivo?.cicloVirtual || estudianteActivo?.ciclovirtual || "Semestral";
 
-  const handleOpenRoom = (course) => {
+  const handleOpenRoom = async (course) => {
     if (isReadOnlyHistory) {
       setLocalError("Este horario pertenece a un ciclo finalizado (Modo Historial). Las salas en vivo están cerradas.");
       setTimeout(() => setLocalError(""), 4000);
       return;
     }
-    if (course.meetUrl) {
-      window.open(course.meetUrl, "_blank", "noopener,noreferrer");
-    } else {
-      setLocalError(`No hay enlace de sala virtual configurado para la materia "${course.asignatura}".`);
+    const liveSession = liveSessionsByCourse[course.id];
+    if (!liveSession) {
+      setLocalError(`El docente aún no ha iniciado la sesión en vivo de "${course.asignatura}".`);
+      setTimeout(() => setLocalError(""), 4000);
+      return;
+    }
+    try {
+      await clasesVivoService.unirseAClase(liveSession, course.asignatura);
+    } catch (err) {
+      setLocalError(err.message || "No se pudo unir a la sesión en vivo.");
       setTimeout(() => setLocalError(""), 4000);
     }
   };

@@ -10,7 +10,8 @@ const SESSION_KEYS = [
   "userEmail",
   "userId",
   "user",
-  "usuarioLogueado"
+  "usuarioLogueado",
+  "academia_logged_profile"
 ];
 
 export async function signOutFromApp() {

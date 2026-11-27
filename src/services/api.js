@@ -328,17 +328,60 @@ export const adminUserRegistrationService = {
   }
 };
 
+let _loggedProfileCache = { email: "", profile: null, ts: 0 };
+let _inFlightUsersPromise = null;
+
 export const userService = {
   getStoredUsers,
 
-  async getUsers() {
-    const backUsers = await requestBackend("/usuarios/");
-    if (Array.isArray(backUsers)) {
-      const users = backUsers.map(normalizeUser);
-      cacheUsers(users);
-      return users;
+  cacheLoggedProfile(rawProfile) {
+    if (!rawProfile || typeof rawProfile !== "object") return null;
+    const norm = normalizeUser(rawProfile);
+    const cleanEmail = String(norm.correo || "").trim().toLowerCase();
+    if (cleanEmail) {
+      _loggedProfileCache = { email: cleanEmail, profile: norm, ts: Date.now() };
+      try {
+        localStorage.setItem("academia_logged_profile", JSON.stringify(norm));
+      } catch {}
     }
-    return getStoredUsers();
+    return norm;
+  },
+
+  getCachedLoggedProfile(email) {
+    const cleanEmail = String(email || "").trim().toLowerCase();
+    if (!cleanEmail) return null;
+    if (_loggedProfileCache.email === cleanEmail && _loggedProfileCache.profile) {
+      return _loggedProfileCache.profile;
+    }
+    try {
+      const raw = localStorage.getItem("academia_logged_profile");
+      if (raw) {
+        const parsed = normalizeUser(JSON.parse(raw));
+        if (String(parsed?.correo || "").trim().toLowerCase() === cleanEmail) {
+          _loggedProfileCache = { email: cleanEmail, profile: parsed, ts: 0 };
+          return parsed;
+        }
+      }
+    } catch {}
+    return null;
+  },
+
+  async getUsers() {
+    if (_inFlightUsersPromise) return _inFlightUsersPromise;
+    _inFlightUsersPromise = (async () => {
+      try {
+        const backUsers = await requestBackend("/usuarios/");
+        if (Array.isArray(backUsers)) {
+          const users = backUsers.map(normalizeUser);
+          cacheUsers(users);
+          return users;
+        }
+        return getStoredUsers();
+      } finally {
+        _inFlightUsersPromise = null;
+      }
+    })();
+    return _inFlightUsersPromise;
   },
 
   async fetchUsers() {
@@ -348,12 +391,21 @@ export const userService = {
   async getUserByEmail(email) {
     const cleanEmail = String(email || "").trim().toLowerCase();
     if (!cleanEmail) return null;
+    // Si el perfil acaba de llegar en la respuesta de /usuarios/login (<60s), devolver en 0 ms
+    if (
+      _loggedProfileCache.email === cleanEmail &&
+      _loggedProfileCache.profile &&
+      Date.now() - _loggedProfileCache.ts < 60000
+    ) {
+      return _loggedProfileCache.profile;
+    }
     try {
       const user = await requestBackend(`/usuarios/${encodeURIComponent(cleanEmail)}`);
-      return user ? normalizeUser(user) : null;
+      return user ? userService.cacheLoggedProfile(user) : null;
     } catch {
       const all = await userService.getUsers();
-      return all.find((u) => String(u.correo || "").toLowerCase() === cleanEmail) || null;
+      const found = all.find((u) => String(u.correo || "").toLowerCase() === cleanEmail) || null;
+      return found ? userService.cacheLoggedProfile(found) : null;
     }
   },
 

@@ -78,6 +78,23 @@ export default function StudentAnnouncementModal({ announcement, isOpen, onClose
             </div>
           </div>
 
+          {announcement.archivoUrl && (
+            <a
+              href={announcement.archivoUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center justify-between gap-3 p-3.5 rounded-xl bg-blue-50 dark:bg-blue-950/40 border border-blue-300 dark:border-blue-700/60 text-blue-700 dark:text-blue-200 hover:bg-blue-100 dark:hover:bg-blue-950/70 transition-colors"
+            >
+              <span className="font-extrabold truncate">
+                📄 {announcement.archivoNombre || "Descargar material adjunto de clase"}
+              </span>
+              <span className="inline-flex items-center gap-1 font-black shrink-0 underline">
+                <span>Descargar</span>
+                <ExternalLink className="w-3.5 h-3.5" />
+              </span>
+            </a>
+          )}
+
           <div className="p-3 bg-amber-50 dark:bg-amber-950/30 rounded-xl border border-amber-200 dark:border-amber-900/40 text-[11px] text-amber-800 dark:text-amber-300">
             💡 Puedes consultar cualquier duda sobre este comunicado comunicándote con el docente a través del canal de tutoría.
           </div>
