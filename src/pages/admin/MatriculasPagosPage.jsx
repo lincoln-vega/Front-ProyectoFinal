@@ -345,9 +345,9 @@ export default function MatriculasPagosPage({ defaultTab = "matriculas" }) {
         setAvailableCourses((remoteCourses || []).filter((c) => c.estado === "Activo"));
       } catch (err) {
         if (!cancelled) {
-          console.error("Error al cargar matrículas y pagos desde InsForge:", err);
-          setError(err.message || "No se pudieron cargar los datos desde InsForge.");
-          showNotification(`No se pudieron cargar los datos desde InsForge: ${err.message}`);
+          console.error("Error al cargar matrículas y pagos desde Supabase:", err);
+          setError(err.message || "No se pudieron cargar los datos desde Supabase.");
+          showNotification(`No se pudieron cargar los datos desde Supabase: ${err.message}`);
         }
       } finally {
         if (!cancelled) {
@@ -635,7 +635,7 @@ export default function MatriculasPagosPage({ defaultTab = "matriculas" }) {
       try {
         await matriculaService.deleteMatricula(id);
         setMatriculas((current) => current.filter((matricula) => matricula.id !== id));
-        showNotification(`Matrícula ${id} eliminada de InsForge.`);
+        showNotification(`Matrícula ${id} eliminada de Supabase.`);
       } catch (error) {
         console.error("Error al eliminar matrícula:", error);
         showNotification(`No se pudo eliminar la matrícula: ${error.message}`);
@@ -687,7 +687,7 @@ export default function MatriculasPagosPage({ defaultTab = "matriculas" }) {
   return (
     <div className="space-y-6">
       {error && <p role="alert" className="rounded-lg border border-red-300 dark:border-red-800 bg-red-50 dark:bg-red-950/40 p-3 text-sm text-red-700 dark:text-red-300">{error}</p>}
-      {loadingData && <p className="text-sm text-slate-500 dark:text-slate-400">Consultando matrículas y pagos en InsForge...</p>}
+      {loadingData && <p className="text-sm text-slate-500 dark:text-slate-400">Consultando matrículas y pagos en Supabase...</p>}
       {/* Notificación Toast */}
       {notification && (
         <div className="fixed top-4 right-4 z-50 bg-[#1E3A8A] text-white px-5 py-3 rounded-xl shadow-lg border border-blue-400/40 flex items-center gap-3 animate-fade-in text-sm font-medium">

@@ -224,7 +224,7 @@ export default function CursoPage() {
 
       {/* CUADRÍCULA (GRID) DE CURSOS */}
       {error && <p role="alert" className="rounded-lg border border-red-300 bg-red-50 p-3 text-sm text-red-700">{error}</p>}
-      {loading && <p className="text-sm text-slate-500">Consultando cursos en InsForge...</p>}
+      {loading && <p className="text-sm text-slate-500">Consultando cursos en Supabase...</p>}
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
         {filteredCourses.length > 0 ? (
           filteredCourses.map((curso) => (

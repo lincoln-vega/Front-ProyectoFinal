@@ -33,6 +33,7 @@ export default function DocenteLayout() {
   const [notificationsOpen, setNotificationsOpen] = useState(false);
   const [isPermutaModalOpen, setIsPermutaModalOpen] = useState(false);
   const [isChatModalOpen, setIsChatModalOpen] = useState(false);
+  const [targetStudentMessageId, setTargetStudentMessageId] = useState(null);
   const [pendingChatCount, setPendingChatCount] = useState(0);
   const notifRef = useRef(null);
 
@@ -105,13 +106,21 @@ export default function DocenteLayout() {
       const myMessages = chatAcademicService.getMessagesForTeacher(userId, userName, userEmail);
       const pendingMessages = myMessages.filter((m) => m.estado === "Pendiente");
 
+      // Obtener IDs de notificaciones previamente leídas del almacenamiento local
+      let readSet = new Set();
+      try {
+        const stored = JSON.parse(localStorage.getItem(`read_notifs_doc_${userEmail}`) || "[]");
+        readSet = new Set(stored);
+      } catch {}
+
       const messageNotifs = pendingMessages.map((m) => ({
         id: `msg-${m.id}`,
         title: `Consulta de Alumno: ${m.estudianteNombre}`,
         course: `${m.curso} • ${m.mensaje?.slice(0, 45) || "Nueva consulta"}...`,
         time: m.fecha || "Hoy",
         type: "mensaje",
-        unread: true
+        unread: !readSet.has(`msg-${m.id}`),
+        data: m
       }));
 
       // 2. Entregas de tareas por parte de alumnos
@@ -125,7 +134,7 @@ export default function DocenteLayout() {
           course: `${t.curso} • Alumno envió solución`,
           time: t.fechaLimite || "Reciente",
           type: "tarea",
-          unread: true
+          unread: !readSet.has(`task-entregada-${t.id}`)
         }));
 
       // 3. Tareas activas
@@ -375,20 +384,62 @@ export default function DocenteLayout() {
                     <span className="text-xs font-extrabold text-slate-800 dark:text-white">
                       Notificaciones Docentes
                     </span>
-                    <span className="text-[10px] bg-blue-100 dark:bg-blue-950/60 text-blue-800 dark:text-blue-300 font-bold px-2 py-0.5 rounded-full">
-                      {notifications.filter((n) => n.unread).length} activas
-                    </span>
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const allIds = notifications.map((n) => n.id);
+                          try {
+                            localStorage.setItem(`read_notifs_doc_${userEmail}`, JSON.stringify(allIds));
+                          } catch {}
+                          setNotifications((prev) => prev.map((n) => ({ ...n, unread: false })));
+                        }}
+                        className="text-[10px] text-blue-600 dark:text-blue-400 hover:underline font-semibold cursor-pointer"
+                      >
+                        Marcar leídas
+                      </button>
+                      <span className="text-[10px] bg-blue-100 dark:bg-blue-950/60 text-blue-800 dark:text-blue-300 font-bold px-2 py-0.5 rounded-full">
+                        {notifications.filter((n) => n.unread).length} activas
+                      </span>
+                    </div>
                   </div>
 
                   <div className="divide-y divide-slate-100 dark:divide-white/5 max-h-72 overflow-y-auto">
                     {notifications.map((notif) => (
                       <div
                         key={notif.id}
-                        className="p-3.5 hover:bg-slate-50 dark:hover:bg-white/5 transition-colors cursor-pointer"
+                        className="p-3.5 hover:bg-slate-50 dark:hover:bg-white/5 transition-colors cursor-pointer group"
                         onClick={() => {
                           setNotificationsOpen(false);
+                          
+                          // Guardar que fue leída
+                          try {
+                            const stored = JSON.parse(localStorage.getItem(`read_notifs_doc_${userEmail}`) || "[]");
+                            if (!stored.includes(notif.id)) {
+                              stored.push(notif.id);
+                              localStorage.setItem(`read_notifs_doc_${userEmail}`, JSON.stringify(stored));
+                            }
+                          } catch {}
+
+                          // Desmarcar en el estado
+                          setNotifications((prev) =>
+                            prev.map((n) => (n.id === notif.id ? { ...n, unread: false } : n))
+                          );
+
+                          // Redirección contextual según el tipo de notificación
                           if (notif.type === "mensaje") {
+                            if (notif.data?.id) {
+                              setTargetStudentMessageId(notif.data.id);
+                            }
                             setIsChatModalOpen(true);
+                          } else if (notif.type === "tarea") {
+                            navigate("/docente/cursos?tab=tareas");
+                          } else if (notif.type === "anuncio") {
+                            navigate("/docente/cursos?tab=anuncios");
+                          } else if (notif.type === "asistencia") {
+                            navigate("/docente/horarios");
+                          } else if (notif.type === "permuta") {
+                            setIsPermutaModalOpen(true);
                           }
                         }}
                       >
@@ -402,7 +453,7 @@ export default function DocenteLayout() {
                             {notif.type === "permuta" && <ArrowRightLeft className="w-4 h-4 text-indigo-500" />}
                           </div>
                           <div className="flex-1 min-w-0">
-                            <p className="text-xs font-bold text-slate-800 dark:text-slate-100 truncate">
+                            <p className="text-xs font-bold text-slate-800 dark:text-slate-100 truncate group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
                               {notif.title}
                             </p>
                             <p className="text-[11px] text-slate-500 dark:text-slate-400 truncate">
@@ -616,10 +667,14 @@ export default function DocenteLayout() {
       {/* Modal de Consultas de Estudiantes */}
       <DocenteChatModal
         isOpen={isChatModalOpen}
-        onClose={() => setIsChatModalOpen(false)}
+        onClose={() => {
+          setIsChatModalOpen(false);
+          setTargetStudentMessageId(null);
+        }}
         docenteName={userName}
         docenteId={userId}
         docenteEmail={userEmail}
+        targetMessageId={targetStudentMessageId}
       />
     </div>
   );

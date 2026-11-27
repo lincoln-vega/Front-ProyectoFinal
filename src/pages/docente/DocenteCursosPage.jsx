@@ -50,7 +50,7 @@ export default function DocenteCursosPage() {
           setListaCursos(courses || []);
         }
       } catch (err) {
-        if (!cancelled) setError(err.message || "No se pudieron cargar los cursos desde InsForge.");
+        if (!cancelled) setError(err.message || "No se pudieron cargar los cursos desde Supabase.");
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -155,7 +155,7 @@ export default function DocenteCursosPage() {
           <BookOpen className="mb-4 h-16 w-16 text-slate-400" />
           <h3 className="text-xl font-bold text-slate-800 dark:text-white">No hay cursos asignados</h3>
           <p className="mt-2 text-sm text-slate-500 max-w-md">
-            No se encontraron cursos activos asignados a tu cuenta docente en InsForge.
+            No se encontraron cursos activos asignados a tu cuenta docente en Supabase.
           </p>
         </div>
       ) : (

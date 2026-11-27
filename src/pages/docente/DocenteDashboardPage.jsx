@@ -72,7 +72,7 @@ export default function DocenteDashboardPage() {
 
         setListaCursos(cursos || []);
 
-        // 2. Consultar perfil detallado desde InsForge
+        // 2. Consultar perfil detallado desde Supabase
         if (userEmail && !cancelled) {
           try {
             const profile = await userService.getUserByEmail(userEmail);
@@ -153,7 +153,7 @@ export default function DocenteDashboardPage() {
     window.open(course.meetUrl, "_blank", "noopener,noreferrer");
     setFeedbackNotice(`¡Clase iniciada! Conectando a ${course.asignatura}. Sala de Google Meet abierta.`);
 
-    // 2. Registrar sesión en backend / InsForge en segundo plano
+    // 2. Registrar sesión en backend / Supabase en segundo plano
     try {
       await registerMeetEntry(course.id);
     } catch (err) {
@@ -244,7 +244,7 @@ export default function DocenteDashboardPage() {
               <ul className="space-y-1.5 text-slate-200 text-[11px] leading-snug">
                 <li className="flex items-start gap-1.5">
                   <span className="text-amber-400 font-bold">•</span>
-                  <span>Asistencia sincronizada en tiempo real con InsForge.</span>
+                  <span>Asistencia sincronizada en tiempo real con Supabase.</span>
                 </li>
                 <li className="flex items-start gap-1.5">
                   <span className="text-amber-400 font-bold">•</span>

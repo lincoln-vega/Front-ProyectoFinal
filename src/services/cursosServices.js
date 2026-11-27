@@ -1,12 +1,11 @@
-import { insforge, getApiAccessToken } from "../lib/insforge";
+import { getApiAccessToken } from "../lib/supabase";
 import { getApiBaseUrl } from "../lib/apiUrl";
-const COURSE_COLUMNS = "id, asignatura, area, carrera, docenteId, docente, dias, horaInicio, horaFin, meetUrl, repositorio, estado, created_at, ciclovirtual";
 
-const throwIfError = (error, operation) => {
-  if (error) {
-    console.error(`[InsForge] ${operation}:`, error);
-    throw new Error(error.message || `No se pudo completar: ${operation}`);
-  }
+const authHeaders = () => {
+  const headers = { "Content-Type": "application/json" };
+  const token = getApiAccessToken();
+  if (token) headers.Authorization = `Bearer ${token}`;
+  return headers;
 };
 
 const parseSchedule = (schedule = "") => {
@@ -52,15 +51,16 @@ export const normalizeCourse = (course) => {
     asignatura: storedCourse.asignatura || "",
     area: storedCourse.area || "Ciencias Exactas e Ingenierías",
     carrera: storedCourse.carrera || "Ingeniería de Sistemas",
-    docenteId: storedCourse.docenteId || "USR-002",
+    cicloId: storedCourse.cicloId || storedCourse.ciclo_id || null,
+    docenteId: storedCourse.docenteId || "USR-107",
     docente: storedCourse.docente || "",
-    aula: course.aula || `Aula ${storedCourse.id ? String(storedCourse.id).replace('CRS-', 'V-') : 'Virtual'}`,
+    aula: course.aula || `Aula ${storedCourse.id ? String(storedCourse.id).replace("CRS-", "V-") : "Virtual"}`,
     horario: horarioTexto,
     dias,
     horaInicio,
     horaFin,
     meetUrl,
-    repositorio: storedCourse.repositorio || "drive.google.com",
+    repositorio: storedCourse.repositorio || "https://drive.google.com",
     tipoSala,
     estado: storedCourse.estado || "Activo",
     cicloVirtual: storedCourse.cicloVirtual || storedCourse.ciclovirtual || "Semestral",
@@ -70,33 +70,26 @@ export const normalizeCourse = (course) => {
 
 export const courseService = {
   async getCourses() {
-    const { data, error } = await insforge.database
-      .from("courses")
-      .select(COURSE_COLUMNS)
-      .order("created_at", { ascending: false })
-      .limit(500);
-    throwIfError(error, "cargar cursos");
-    return (data || []).map(normalizeCourse);
+    const res = await fetch(`${getApiBaseUrl()}/horarios/cursos`, {
+      headers: authHeaders()
+    });
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({}));
+      throw new Error(body?.detail || `No se pudieron cargar los cursos (HTTP ${res.status}).`);
+    }
+    const data = await res.json();
+    return (Array.isArray(data) ? data : []).map(normalizeCourse);
   },
 
   async fetchCourses() {
     return courseService.getCourses();
   },
 
-  /**
-   * Valida un nuevo curso contra el backend FastAPI (/monitoreo/validar-curso)
-   */
   async validarCursoConBackend(curso) {
     try {
-      const token = getApiAccessToken();
-      const headers = { "Content-Type": "application/json" };
-      if (token) {
-        headers["Authorization"] = `Bearer ${token}`;
-      }
-
       const res = await fetch(`${getApiBaseUrl()}/monitoreo/validar-curso`, {
         method: "POST",
-        headers,
+        headers: authHeaders(),
         signal: AbortSignal.timeout(4000),
         body: JSON.stringify({
           id: curso.id,
@@ -118,172 +111,105 @@ export const courseService = {
         const data = await res.json().catch(() => ({}));
         if (data?.detail) {
           const detail = typeof data.detail === "string" ? data.detail : JSON.stringify(data.detail);
-          console.error(`❌ [Cursos] Ocurrió un error al validar el curso "${curso.asignatura}". Motivo: ${detail}`);
-          // Si el conflicto reportado es con la misma asignatura que se está editando, verificar si es falso positivo
           if (curso.id && curso.asignatura && detail.includes(curso.asignatura)) {
             const localCheck = await courseService.validarCruce(curso);
             if (!localCheck.cruce) {
-              console.log(`✅ [Cursos] Curso "${curso.asignatura}" (ID: ${curso.id}) validado correctamente sin cruces de horario.`);
               return { valido: true, mensaje: "Horario disponible. Sin cruces para el docente." };
             }
           }
           return { valido: false, mensaje: detail };
         }
       } else {
-        const data = await res.json().catch(() => ({ valido: true }));
-        console.log(`✅ [Cursos] Curso "${curso.asignatura}" (Docente: ${curso.docente}) validado correctamente sin cruces de horario.`);
-        return data;
+        return await res.json().catch(() => ({ valido: true }));
       }
     } catch (err) {
-      console.warn("[Backend] Validación remota de cruces no disponible, usando validación local:", err.message);
+      console.warn("[Backend] Validación remota no disponible, usando validación local:", err.message);
     }
-
-    // Fallback a validación local si backend no responde
     return courseService.validarCruce(curso);
   },
 
-  async saveCourses(courses) {
-    if (courses.length === 0) return [];
-    const rows = courses.map((course) => {
-      const normalized = normalizeCourse(course);
-      return {
-        id: normalized.id,
-        asignatura: normalized.asignatura,
-        area: normalized.area,
-        carrera: normalized.carrera,
-        docenteId: normalized.docenteId,
-        docente: normalized.docente,
-        dias: Array.isArray(normalized.dias) ? normalized.dias : [],
-        horaInicio: normalized.horaInicio,
-        horaFin: normalized.horaFin,
-        meetUrl: normalized.meetUrl,
-        repositorio: normalized.repositorio,
-        estado: normalized.estado || "Activo",
-        ciclovirtual: normalized.cicloVirtual || normalized.ciclovirtual || "Semestral"
-      };
+  async saveCourse(course) {
+    const normalized = normalizeCourse(course);
+    const payload = {
+      id: normalized.id,
+      asignatura: normalized.asignatura,
+      area: normalized.area,
+      carrera: normalized.carrera,
+      docenteId: normalized.docenteId,
+      docente: normalized.docente,
+      dias: Array.isArray(normalized.dias) ? normalized.dias : [],
+      horaInicio: normalized.horaInicio,
+      horaFin: normalized.horaFin,
+      meetUrl: normalized.meetUrl,
+      repositorio: normalized.repositorio,
+      estado: normalized.estado || "Activo",
+      ciclovirtual: normalized.cicloVirtual || normalized.ciclovirtual || "Semestral"
+    };
+
+    const existing = await courseService.getCourses().catch(() => []);
+    const exists = existing.some((c) => String(c.id) === String(payload.id));
+    const url = exists
+      ? `${getApiBaseUrl()}/horarios/cursos/${encodeURIComponent(payload.id)}`
+      : `${getApiBaseUrl()}/horarios/cursos`;
+    const method = exists ? "PUT" : "POST";
+
+    const res = await fetch(url, {
+      method,
+      headers: authHeaders(),
+      body: JSON.stringify(payload)
     });
-    const { data, error } = await insforge.database
-      .from("courses")
-      .upsert(rows)
-      .select(COURSE_COLUMNS);
-    if (error) {
-      const nombresCursos = rows.map((r) => r.asignatura).join(", ");
-      console.error(`❌ [Cursos] Ocurrió un error al guardar/crear el curso "${nombresCursos}". Motivo: ${error.message}`);
+    const body = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      throw new Error(body?.detail || `No se pudo guardar el curso (HTTP ${res.status}).`);
     }
-    throwIfError(error, "guardar cursos");
-    const savedCourses = (data || []).map(normalizeCourse);
-    savedCourses.forEach((c) => {
-      console.log(`✅ [Cursos] Curso "${c.asignatura}" (ID: ${c.id}, Docente: ${c.docente}) creado/actualizado correctamente.`);
-    });
-
-    // Sincronizar cursosAsignados en la tabla users para mantener consistencia en la BD
-    try {
-      const { data: teachers } = await insforge.database
-        .from("users")
-        .select("id, nombres, apellidos, rol, cursosAsignados");
-
-      if (Array.isArray(teachers) && teachers.length > 0) {
-        const parseList = (val) => {
-          if (Array.isArray(val)) return val.map(String).map((s) => s.trim()).filter(Boolean);
-          if (typeof val === "string") {
-            return val.replace(/^\{|\}$|^\[|\]$/g, "").split(",").map((s) => s.trim().replace(/^["']|["']$/g, "")).filter(Boolean);
-          }
-          return [];
-        };
-
-        for (const course of savedCourses) {
-          const courseIdStr = String(course.id);
-          const assignedDocenteId = String(course.docenteId || "").trim();
-          const assignedDocenteName = String(course.docente || "").toLowerCase().trim();
-
-          for (const u of teachers) {
-            if (!["docente", "profesor", "profesora"].includes(String(u.rol || "").toLowerCase())) continue;
-            const currentAssigned = parseList(u.cursosAsignados);
-            const fullName = `${u.nombres || ""} ${u.apellidos || ""}`.toLowerCase().trim();
-            const isAssignedTeacher =
-              (assignedDocenteId && String(u.id) === assignedDocenteId) ||
-              (assignedDocenteName && fullName && (assignedDocenteName.includes(fullName) || fullName.includes(assignedDocenteName)));
-
-            if (isAssignedTeacher && !currentAssigned.includes(courseIdStr)) {
-              const updatedList = [...currentAssigned, courseIdStr];
-              await insforge.database.from("users").update({ cursosAsignados: updatedList }).eq("id", u.id);
-            } else if (!isAssignedTeacher && currentAssigned.includes(courseIdStr)) {
-              const updatedList = currentAssigned.filter((id) => id !== courseIdStr);
-              await insforge.database.from("users").update({ cursosAsignados: updatedList }).eq("id", u.id);
-            }
-          }
-        }
-      }
-    } catch (syncErr) {
-      console.warn("[courseService] Advertencia al sincronizar cursosAsignados en users:", syncErr);
-    }
-
-    return savedCourses;
+    return normalizeCourse(body?.curso || payload);
   },
 
-  async saveCourse(course) {
-    const list = await courseService.saveCourses([course]);
-    return list[0] || normalizeCourse(course);
+  async saveCourses(courses) {
+    if (!Array.isArray(courses) || courses.length === 0) return [];
+    const saved = [];
+    for (const c of courses) {
+      saved.push(await courseService.saveCourse(c));
+    }
+    return saved;
   },
 
   async deleteCourse(id) {
-    const { error } = await insforge.database
-      .from("courses")
-      .delete()
-      .eq("id", id);
-    if (error) {
-      console.error(`❌ [Cursos] Ocurrió un error al eliminar el curso "${id}". Motivo: ${error.message}`);
+    const res = await fetch(`${getApiBaseUrl()}/horarios/cursos/${encodeURIComponent(id)}`, {
+      method: "DELETE",
+      headers: authHeaders()
+    });
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({}));
+      throw new Error(body?.detail || `No se pudo eliminar el curso "${id}".`);
     }
-    throwIfError(error, "eliminar curso");
-    console.log(`✅ [Cursos] Curso "${id}" eliminado correctamente.`);
   },
 
   async countStudentsForTeacher(courseIds) {
     if (!courseIds || courseIds.length === 0) return 0;
     try {
-      const { data, error } = await insforge.database.rpc("get_teacher_student_count", {
-        course_ids: courseIds
+      const res = await fetch(`${getApiBaseUrl()}/usuarios/`, {
+        headers: authHeaders()
       });
-      if (!error && data !== null && data !== undefined) {
-        return Number(data || 0);
-      }
+      if (!res.ok) return 0;
+      const users = await res.json();
+      if (!Array.isArray(users)) return 0;
+
+      const stringIds = new Set(courseIds.map(String));
+      return users.filter((u) => {
+        if (String(u.rol || "").toLowerCase() !== "estudiante") return false;
+        if (String(u.estado || "").toLowerCase() !== "activo") return false;
+        const raw = u.cursosInscritos || u.cursos_inscritos || [];
+        const sCourses = Array.isArray(raw) ? raw.map(String) : [];
+        return sCourses.some((cid) => stringIds.has(cid));
+      }).length;
     } catch {
-      // Si la función RPC no existe en la BD, calculamos con los usuarios inscritos
+      return 0;
     }
-
-    try {
-      const { data: students } = await insforge.database
-        .from("users")
-        .select("id, cursosInscritos, rol, areaAcademica, carreraObjetivo")
-        .eq("estado", "Activo");
-
-      if (Array.isArray(students)) {
-        const studentList = students.filter((u) =>
-          String(u.rol || "").toLowerCase() === "estudiante"
-        );
-        const stringIds = courseIds.map(String);
-
-        const enrolled = studentList.filter((s) => {
-          const raw = s.cursosInscritos || s.cursos_inscritos || s.CursosInscritos;
-          let sCourses = [];
-          if (Array.isArray(raw)) {
-            sCourses = raw.map((c) => (typeof c === "object" && c !== null ? c.id : c)).filter(Boolean).map(String);
-          } else if (typeof raw === "string") {
-            sCourses = raw.replace(/^\{|\}$|^\[|\]$/g, "").split(",").map((x) => x.trim().replace(/^["']|["']$/g, "")).filter(Boolean);
-          }
-
-          return sCourses.some((cid) => stringIds.includes(String(cid)));
-        });
-        return enrolled.length;
-      }
-    } catch (e) {
-      console.warn("Fallback count students error:", e);
-    }
-    return 0;
   },
 
   async validarCruce(nuevoCurso, existingCourses = null) {
-    const courses = existingCourses || await courseService.getCourses();
+    const courses = existingCourses || (await courseService.getCourses().catch(() => []));
     const newDays = Array.isArray(nuevoCurso.dias) ? nuevoCurso.dias : [];
     const newStart = String(nuevoCurso.horaInicio || "").trim();
     const newEnd = String(nuevoCurso.horaFin || "").trim();
@@ -292,10 +218,11 @@ export const courseService = {
       return { cruce: false, valido: true, mensaje: null, curso: null };
     }
 
-    const cleanName = (val) => String(val || "")
-      .toLowerCase()
-      .replace(/^(prof\.|dra\.|dr\.|ing\.|lic\.)\s*/i, "")
-      .trim();
+    const cleanName = (val) =>
+      String(val || "")
+        .toLowerCase()
+        .replace(/^(prof\.|dra\.|dr\.|ing\.|lic\.)\s*/i, "")
+        .trim();
 
     const targetDocName = cleanName(nuevoCurso.docente);
     const targetDocId = nuevoCurso.docenteId ? String(nuevoCurso.docenteId).trim() : "";
@@ -303,44 +230,33 @@ export const courseService = {
     const cleanCurrentCodigo = nuevoCurso.codigo ? String(nuevoCurso.codigo).trim() : "";
 
     const collision = (courses || []).find((course) => {
-      // Ignorar el mismo curso cuando estamos editando
       const courseId = course.id ? String(course.id).trim() : "";
       const courseCodigo = course.codigo ? String(course.codigo).trim() : "";
       if (cleanCurrentId && courseId && cleanCurrentId === courseId) return false;
       if (cleanCurrentCodigo && courseCodigo && cleanCurrentCodigo === courseCodigo) return false;
+      if (course.estado && String(course.estado).toLowerCase() !== "activo") return false;
 
-      // Solo comparar con cursos con estado Activo
-      if (course.estado && String(course.estado).toLowerCase() !== "activo") {
-        return false;
-      }
-
-      // 1. ¿Es el mismo docente? (por docenteId o por nombre completo)
       const courseDocId = course.docenteId ? String(course.docenteId).trim() : "";
       const courseDocName = cleanName(course.docente);
-
       const isSameTeacher =
         (targetDocId && courseDocId && targetDocId === courseDocId) ||
-        (targetDocName && courseDocName && (
-          targetDocName === courseDocName ||
-          targetDocName.startsWith(courseDocName) ||
-          courseDocName.startsWith(targetDocName)
-        ));
+        (targetDocName &&
+          courseDocName &&
+          (targetDocName === courseDocName ||
+            targetDocName.startsWith(courseDocName) ||
+            courseDocName.startsWith(targetDocName)));
 
       if (!isSameTeacher) return false;
 
-      // 2. ¿Coincide al menos un día de clase en la semana?
       const courseDays = Array.isArray(course.dias) ? course.dias : [];
       const commonDays = courseDays.filter((d) => newDays.includes(d));
       if (commonDays.length === 0) return false;
 
-      // 3. ¿Existe solapamiento en el rango de horas?
       const cStart = String(course.horaInicio || "").trim();
       const cEnd = String(course.horaFin || "").trim();
       if (!cStart || !cEnd) return false;
 
-      // Dos intervalos [A, B] y [C, D] se solapan si A < D && B > C
-      const overlaps = newStart < cEnd && newEnd > cStart;
-      if (overlaps) {
+      if (newStart < cEnd && newEnd > cStart) {
         course._commonDays = commonDays;
         return true;
       }
@@ -353,16 +269,11 @@ export const courseService = {
       return {
         cruce: true,
         valido: false,
-        mensaje: `Conflicto de horario: El docente ${docNombre} ya tiene asignado el curso "${collision.asignatura}" (${diasCoincidentes} de ${collision.horaInicio} a ${collision.horaFin}). Un docente no puede dictar 2 cursos al mismo tiempo.`,
+        mensaje: `Conflicto de horario: El docente ${docNombre} ya tiene asignado el curso "${collision.asignatura}" (${diasCoincidentes} de ${collision.horaInicio} a ${collision.horaFin}).`,
         curso: collision
       };
     }
 
-    return {
-      cruce: false,
-      valido: true,
-      mensaje: null,
-      curso: null
-    };
+    return { cruce: false, valido: true, mensaje: null, curso: null };
   }
 };

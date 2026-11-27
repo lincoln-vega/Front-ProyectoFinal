@@ -169,7 +169,7 @@ export default function AdminReportesPage() {
       } catch (err) {
         if (!cancelled) {
           console.error("Error al cargar datos de nómina y auditoría:", err);
-          setError(err.message || "No se pudieron consultar los reportes en InsForge.");
+          setError(err.message || "No se pudieron consultar los reportes en Supabase.");
         }
       } finally {
         if (!cancelled) {
@@ -234,7 +234,7 @@ export default function AdminReportesPage() {
       )}
       {loading && (
         <p className="text-sm text-slate-500">
-          Consultando nómina y reporte de horas en InsForge...
+          Consultando nómina y reporte de horas en Supabase...
         </p>
       )}
 
@@ -371,7 +371,7 @@ export default function AdminReportesPage() {
               {loading ? (
                 <tr>
                   <td colSpan={8} className="py-8 text-center text-slate-400">
-                    Cargando registros de nómina desde InsForge...
+                    Cargando registros de nómina desde Supabase...
                   </td>
                 </tr>
               ) : filteredData.length > 0 ? (

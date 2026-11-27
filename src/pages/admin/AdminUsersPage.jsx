@@ -247,7 +247,7 @@ function AdminUsersContent() {
       if (!isEditing && pending) {
         setPendingAuthAccount(pending);
         setError(
-          `La cuenta de InsForge Auth ya fue creada, pero no se pudo guardar su perfil. ` +
+          `La cuenta de Supabase Auth ya fue creada, pero no se pudo guardar su perfil. ` +
           `Reintenta para enviar solo el perfil con la misma cuenta. ${err.message}`
         );
       } else {
@@ -301,7 +301,7 @@ function AdminUsersContent() {
               type="button"
               onClick={handleResetData}
               className="inline-flex items-center space-x-1.5 px-3 py-2 border border-slate-300 dark:border-white/10 text-slate-700 dark:text-slate-200 bg-white dark:bg-white/5 hover:bg-slate-50 dark:hover:bg-white/10 rounded-lg text-xs font-medium shadow-2xs transition-colors cursor-pointer"
-              title="Volver a consultar usuarios en InsForge"
+              title="Volver a consultar usuarios en Supabase"
             >
               <RotateCcw className="w-3.5 h-3.5 text-slate-500 dark:text-slate-400" />
               <span>Actualizar usuarios</span>
@@ -380,7 +380,7 @@ function AdminUsersContent() {
         onEdit={handleEdit}
         onDelete={handleDelete}
       />
-      {loading && <p className="text-sm text-slate-500">Consultando usuarios en InsForge...</p>}
+      {loading && <p className="text-sm text-slate-500">Consultando usuarios en Supabase...</p>}
 
       {isModalOpen && (
         <UserFormModal

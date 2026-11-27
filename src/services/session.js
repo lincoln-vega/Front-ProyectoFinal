@@ -1,7 +1,7 @@
 import {
   getApiAccessToken,
   setApiAccessToken
-} from "../lib/insforge";
+} from "../lib/supabase";
 import { userService } from "./api";
 
 const SESSION_KEYS = [
@@ -26,7 +26,7 @@ export async function getCurrentSessionProfile() {
 
   const profile = await userService.getUserByEmail(email);
   if (!profile) {
-    throw new Error("La cuenta no tiene un perfil docente en InsForge.");
+    throw new Error("La cuenta no tiene un perfil docente registrado en la plataforma.");
   }
   if (String(profile.estado || "").toLowerCase() !== "activo") {
     throw new Error("La cuenta docente se encuentra inactiva.");

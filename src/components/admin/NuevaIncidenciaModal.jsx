@@ -147,7 +147,7 @@ export default function NuevaIncidenciaModal({ isOpen, onClose, onSave }) {
       });
       onClose();
     } catch (err) {
-      setFormError(err.message || "Error al guardar la justificación en InsForge.");
+      setFormError(err.message || "Error al guardar la justificación en Supabase.");
     } finally {
       setSubmitting(false);
     }

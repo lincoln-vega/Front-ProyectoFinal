@@ -18,7 +18,8 @@ export default function DocenteChatModal({
   onClose,
   docenteName = "Docente Titular",
   docenteId = "DOC-TITULAR",
-  docenteEmail = ""
+  docenteEmail = "",
+  targetMessageId = null
 }) {
   const [filter, setFilter] = useState("todos"); // "todos" | "pendientes" | "respondidos"
   const [messages, setMessages] = useState([]);
@@ -27,6 +28,10 @@ export default function DocenteChatModal({
 
   useEffect(() => {
     if (!isOpen) return;
+
+    if (targetMessageId) {
+      setFilter("todos");
+    }
 
     const loadMessages = async () => {
       await chatAcademicService.fetchMessages();
@@ -41,7 +46,17 @@ export default function DocenteChatModal({
     loadMessages();
     window.addEventListener("storage", loadMessages);
     return () => window.removeEventListener("storage", loadMessages);
-  }, [isOpen, docenteId, docenteName, docenteEmail]);
+  }, [isOpen, docenteId, docenteName, docenteEmail, targetMessageId]);
+
+  // Bloquear el scroll del fondo mientras el modal está abierto
+  useEffect(() => {
+    if (!isOpen) return;
+    const originalOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = originalOverflow;
+    };
+  }, [isOpen]);
 
   if (!isOpen) return null;
 
@@ -78,8 +93,13 @@ export default function DocenteChatModal({
   const pendientesCount = messages.filter((m) => m.estado === "Pendiente").length;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 backdrop-blur-xs p-4 animate-fade-in">
-      <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-2xl border border-slate-200 dark:border-white/10 max-w-2xl w-full flex flex-col max-h-[90vh] overflow-hidden">
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 backdrop-blur-xs p-4 animate-fade-in overscroll-contain"
+      onClick={(e) => {
+        if (e.target === e.currentTarget) onClose();
+      }}
+    >
+      <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-2xl border border-slate-200 dark:border-white/10 max-w-2xl w-full flex flex-col max-h-[90vh] overflow-hidden overscroll-contain">
         
         {/* ENCABEZADO DEL MODAL */}
         <div className="p-5 border-b border-slate-100 dark:border-white/10 flex items-center justify-between shrink-0 bg-slate-50/50 dark:bg-white/5">
@@ -140,7 +160,7 @@ export default function DocenteChatModal({
         </div>
 
         {/* LISTADO DE MENSAJES DE ESTUDIANTES */}
-        <div className="p-5 overflow-y-auto space-y-4 flex-1">
+        <div className="p-5 overflow-y-auto space-y-4 flex-1 overscroll-contain">
           {filteredMessages.length === 0 ? (
             <div className="text-center py-12 text-slate-400 space-y-2">
               <MessageSquare className="w-8 h-8 mx-auto opacity-30" />
@@ -148,10 +168,17 @@ export default function DocenteChatModal({
               <p className="text-xs">Los mensajes de tus alumnos matriculados aparecerán aquí en tiempo real.</p>
             </div>
           ) : (
-            filteredMessages.map((msg) => (
+            filteredMessages.map((msg) => {
+              const isTargeted = targetMessageId && String(msg.id) === String(targetMessageId);
+              return (
               <div
                 key={msg.id}
-                className="p-4 rounded-xl border border-slate-200/90 dark:border-white/10 bg-slate-50/50 dark:bg-white/5 space-y-3 transition-all hover:border-blue-300 dark:hover:border-blue-700/60"
+                id={`chat-msg-${msg.id}`}
+                className={`p-4 rounded-xl border space-y-3 transition-all ${
+                  isTargeted
+                    ? "border-blue-500 ring-2 ring-blue-500/30 bg-blue-50/40 dark:bg-blue-950/20"
+                    : "border-slate-200/90 dark:border-white/10 bg-slate-50/50 dark:bg-white/5 hover:border-blue-300 dark:hover:border-blue-700/60"
+                }`}
               >
                 {/* Cabecera del Mensaje */}
                 <div className="flex items-start justify-between gap-2">
@@ -243,7 +270,8 @@ export default function DocenteChatModal({
                   </div>
                 )}
               </div>
-            ))
+              );
+            })
           )}
         </div>
 

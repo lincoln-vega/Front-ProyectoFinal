@@ -70,7 +70,7 @@ export default function HorariosSalonesPage() {
     return (
         <div className="space-y-6">
             {error && <p role="alert" className="rounded-lg border border-red-300 bg-red-50 p-3 text-sm text-red-700">{error}</p>}
-            {loading && <p className="text-sm text-slate-500">Consultando calendario académico en InsForge...</p>}
+            {loading && <p className="text-sm text-slate-500">Consultando calendario académico en Supabase...</p>}
 
             <div className="bg-white/60 dark:bg-white/5 backdrop-blur-2xl p-5 rounded-xl shadow-2xs border border-slate-200 dark:border-white/10 flex flex-col lg:flex-row lg:items-center justify-between gap-4">
                 <div>

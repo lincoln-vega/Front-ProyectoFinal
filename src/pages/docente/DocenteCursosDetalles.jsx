@@ -194,7 +194,7 @@ export default function DocenteCursosDetalles({ cursoId, initialTab = "clase", o
     try {
       const record = await registerMeetEntry(cursoId);
       await loadAttendance();
-      setNotice("Entrada registrada correctamente en Google Meet e InsForge.");
+      setNotice("Entrada registrada correctamente en Google Meet e Supabase.");
       const meetUrl = record?.meetUrl || curso?.meetUrl;
       if (validMeetUrl(meetUrl)) window.open(meetUrl, "_blank", "noopener,noreferrer");
     } catch (err) {

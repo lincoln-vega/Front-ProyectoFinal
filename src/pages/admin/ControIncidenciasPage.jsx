@@ -126,7 +126,7 @@ export default function ControlAsistenciasPage() {
             setReplacementModalIncident(null);
             showNotification(`Reemplazo confirmado: ${substituteTeacherName} asignado al curso y horario actualizado.`);
         } catch (err) {
-            showNotification(`No se pudo confirmar el reemplazo en InsForge: ${err.message}`);
+            showNotification(`No se pudo confirmar el reemplazo en Supabase: ${err.message}`);
         }
     };
 
@@ -144,7 +144,7 @@ export default function ControlAsistenciasPage() {
             {notification && (
                 <Notification message={notification} onClose={() => setNotification(null)} />
             )}
-            {loading && <p className="text-sm text-slate-500">Consultando incidencias en InsForge...</p>}
+            {loading && <p className="text-sm text-slate-500">Consultando incidencias en Supabase...</p>}
             {error && <p role="alert" className="rounded-lg border border-red-300 bg-red-50 p-3 text-sm text-red-700">{error}</p>}
 
             {/* BANNER SUPERIOR */}

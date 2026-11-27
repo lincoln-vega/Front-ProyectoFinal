@@ -1,4 +1,4 @@
-import { insforge } from "../lib/insforge";
+import { getApiAccessToken } from "../lib/supabase";
 import { getApiBaseUrl } from "../lib/apiUrl";
 
 export const DEFAULT_AREAS = [
@@ -417,12 +417,15 @@ let localTurnos = [...DEFAULT_TURNOS];
 
 async function apiFetch(path, options = {}) {
   const url = `${getApiBaseUrl()}${path}`;
+  const token = getApiAccessToken();
+  const headers = {
+    "Content-Type": "application/json",
+    ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    ...(options.headers || {})
+  };
   const response = await fetch(url, {
-    headers: {
-      "Content-Type": "application/json",
-      ...(options.headers || {})
-    },
-    ...options
+    ...options,
+    headers
   });
 
   if (!response.ok) {
@@ -438,24 +441,13 @@ export const academicosService = {
   // Áreas Académicas
   async getAreas() {
     try {
-      const { data, error } = await insforge.database
-        .from("areas_academicas")
-        .select("*")
-        .order("nombre");
-      if (!error && Array.isArray(data) && data.length > 0) {
-        localAreas = data;
-        return data;
-      }
-    } catch {}
-
-    try {
       const data = await apiFetch("/academicos/areas");
       if (Array.isArray(data) && data.length > 0) {
         localAreas = data;
         return data;
       }
     } catch (err) {
-      console.warn("[AcademicosService] Usando fallback local para áreas:", err.message);
+      console.warn("[AcademicosService] Usando respaldo local para áreas:", err.message);
     }
     return localAreas;
   },
@@ -470,37 +462,16 @@ export const academicosService = {
       estado: areaData.estado || "Activo"
     };
 
-    try {
-      await insforge.database.from("areas_academicas").upsert([payload]);
-    } catch {}
-
-    try {
-      const created = await apiFetch("/academicos/areas", {
-        method: "POST",
-        body: JSON.stringify(payload)
-      });
-      localAreas = [created, ...localAreas.filter(a => a.id !== created.id)];
-      return created;
-    } catch (err) {
-      console.warn("[AcademicosService] Fallback local para guardar área:", err.message);
-      localAreas = [payload, ...localAreas.filter(a => a.id !== payload.id)];
-      return payload;
-    }
+    const created = await apiFetch("/academicos/areas", {
+      method: "POST",
+      body: JSON.stringify(payload)
+    });
+    localAreas = [created, ...localAreas.filter((a) => a.id !== created.id)];
+    return created;
   },
 
   // Carreras
   async getCarreras() {
-    try {
-      const { data, error } = await insforge.database
-        .from("carreras")
-        .select("*")
-        .order("nombre");
-      if (!error && Array.isArray(data) && data.length > 0) {
-        localCarreras = data;
-        return data;
-      }
-    } catch {}
-
     try {
       const data = await apiFetch("/academicos/carreras");
       if (Array.isArray(data) && data.length > 0) {
@@ -508,7 +479,7 @@ export const academicosService = {
         return data;
       }
     } catch (err) {
-      console.warn("[AcademicosService] Usando fallback local para carreras:", err.message);
+      console.warn("[AcademicosService] Usando respaldo local para carreras:", err.message);
     }
     return localCarreras;
   },
@@ -524,41 +495,20 @@ export const academicosService = {
       grado_academico: carreraData.grado_academico || "Bachiller / Título Profesional",
       universidades_objetivo: Array.isArray(carreraData.universidades_objetivo)
         ? carreraData.universidades_objetivo
-        : (carreraData.universidades_objetivo || "").split(",").map(u => u.trim()).filter(Boolean),
+        : (carreraData.universidades_objetivo || "").split(",").map((u) => u.trim()).filter(Boolean),
       estado: carreraData.estado || "Activo"
     };
 
-    try {
-      await insforge.database.from("carreras").upsert([payload]);
-    } catch {}
-
-    try {
-      const created = await apiFetch("/academicos/carreras", {
-        method: "POST",
-        body: JSON.stringify(payload)
-      });
-      localCarreras = [created, ...localCarreras.filter(c => c.id !== created.id)];
-      return created;
-    } catch (err) {
-      console.warn("[AcademicosService] Fallback local para guardar carrera:", err.message);
-      localCarreras = [payload, ...localCarreras.filter(c => c.id !== payload.id)];
-      return payload;
-    }
+    const created = await apiFetch("/academicos/carreras", {
+      method: "POST",
+      body: JSON.stringify(payload)
+    });
+    localCarreras = [created, ...localCarreras.filter((c) => c.id !== created.id)];
+    return created;
   },
 
   // Tipos de Ciclo
   async getTiposCiclo() {
-    try {
-      const { data, error } = await insforge.database
-        .from("tipos_ciclo")
-        .select("*")
-        .order("nombre");
-      if (!error && Array.isArray(data) && data.length > 0) {
-        localTiposCiclo = data;
-        return data;
-      }
-    } catch {}
-
     try {
       const data = await apiFetch("/academicos/tipos-ciclo");
       if (Array.isArray(data) && data.length > 0) {
@@ -566,7 +516,7 @@ export const academicosService = {
         return data;
       }
     } catch (err) {
-      console.warn("[AcademicosService] Usando fallback local para tipos de ciclo:", err.message);
+      console.warn("[AcademicosService] Usando respaldo local para tipos de ciclo:", err.message);
     }
     return localTiposCiclo;
   },
@@ -582,37 +532,16 @@ export const academicosService = {
       estado: tipoCicloData.estado || "Activo"
     };
 
-    try {
-      await insforge.database.from("tipos_ciclo").upsert([payload]);
-    } catch {}
-
-    try {
-      const created = await apiFetch("/academicos/tipos-ciclo", {
-        method: "POST",
-        body: JSON.stringify(payload)
-      });
-      localTiposCiclo = [created, ...localTiposCiclo.filter(t => t.id !== created.id)];
-      return created;
-    } catch (err) {
-      console.warn("[AcademicosService] Fallback local para guardar tipo ciclo:", err.message);
-      localTiposCiclo = [payload, ...localTiposCiclo.filter(t => t.id !== payload.id)];
-      return payload;
-    }
+    const created = await apiFetch("/academicos/tipos-ciclo", {
+      method: "POST",
+      body: JSON.stringify(payload)
+    });
+    localTiposCiclo = [created, ...localTiposCiclo.filter((t) => t.id !== created.id)];
+    return created;
   },
 
   // Ciclos Académicos
   async getCiclos() {
-    try {
-      const { data, error } = await insforge.database
-        .from("ciclos_academicos")
-        .select("*")
-        .order("nombre");
-      if (!error && Array.isArray(data) && data.length > 0) {
-        localCiclos = data;
-        return data;
-      }
-    } catch {}
-
     try {
       const data = await apiFetch("/academicos/ciclos");
       if (Array.isArray(data) && data.length > 0) {
@@ -620,7 +549,7 @@ export const academicosService = {
         return data;
       }
     } catch (err) {
-      console.warn("[AcademicosService] Usando fallback local para ciclos:", err.message);
+      console.warn("[AcademicosService] Usando respaldo local para ciclos:", err.message);
     }
     return localCiclos;
   },
@@ -642,37 +571,16 @@ export const academicosService = {
       estado: cicloData.estado || "En Curso"
     };
 
-    try {
-      await insforge.database.from("ciclos_academicos").upsert([payload]);
-    } catch {}
-
-    try {
-      const created = await apiFetch("/academicos/ciclos", {
-        method: "POST",
-        body: JSON.stringify(payload)
-      });
-      localCiclos = [created, ...localCiclos.filter(c => c.id !== created.id)];
-      return created;
-    } catch (err) {
-      console.warn("[AcademicosService] Fallback local para guardar ciclo:", err.message);
-      localCiclos = [payload, ...localCiclos.filter(c => c.id !== payload.id)];
-      return payload;
-    }
+    const created = await apiFetch("/academicos/ciclos", {
+      method: "POST",
+      body: JSON.stringify(payload)
+    });
+    localCiclos = [created, ...localCiclos.filter((c) => c.id !== created.id)];
+    return created;
   },
 
   // Turnos
   async getTurnos() {
-    try {
-      const { data, error } = await insforge.database
-        .from("turnos")
-        .select("*")
-        .order("nombre");
-      if (!error && Array.isArray(data) && data.length > 0) {
-        localTurnos = data;
-        return data;
-      }
-    } catch {}
-
     try {
       const data = await apiFetch("/academicos/turnos");
       if (Array.isArray(data) && data.length > 0) {
@@ -680,7 +588,7 @@ export const academicosService = {
         return data;
       }
     } catch (err) {
-      console.warn("[AcademicosService] Usando fallback local para turnos:", err.message);
+      console.warn("[AcademicosService] Usando respaldo local para turnos:", err.message);
     }
     return localTurnos;
   },

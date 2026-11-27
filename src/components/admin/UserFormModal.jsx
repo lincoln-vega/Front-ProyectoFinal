@@ -8,7 +8,7 @@ const DOCUMENT_TYPES = [
   { id: "Pasaporte", label: "Pasaporte (6-12 caracteres)", max: 12 }
 ];
 
-// Traduce los errores técnicos de PostgreSQL / InsForge a mensajes entendibles
+// Traduce los errores técnicos de PostgreSQL / Supabase a mensajes entendibles
 function formatBackendError(rawError) {
   if (!rawError) return "";
   let msg = "";

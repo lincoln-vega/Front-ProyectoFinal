@@ -137,7 +137,7 @@ export default function SolicitudPermutaModal({ isOpen, onClose, onSuccess, curr
       onClose();
     } catch (err) {
       console.error("Error al registrar solicitud de permuta:", err);
-      setError(err.message || "No se pudo registrar la solicitud en InsForge.");
+      setError(err.message || "No se pudo registrar la solicitud en Supabase.");
     } finally {
       setSubmitting(false);
     }

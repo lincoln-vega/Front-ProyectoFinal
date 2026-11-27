@@ -67,7 +67,7 @@ export default function HorariosView() {
       } catch (err) {
         if (!cancelled) {
           console.error('Error al cargar cursos para el horario:', err);
-          setError(err.message || "Error al cargar los cursos desde InsForge.");
+          setError(err.message || "Error al cargar los cursos desde Supabase.");
         }
       } finally {
         if (!cancelled) {

@@ -109,7 +109,7 @@ export default function StudentDashboardPage() {
         if (cancelled) return;
 
         setListaCursosGlobal(cursos || []);
-        if (!perfil) throw new Error("No se encontró el perfil del estudiante en InsForge.");
+        if (!perfil) throw new Error("No se encontró el perfil del estudiante en Supabase.");
         setEstudianteActivo(perfil);
       } catch (err) {
         if (!cancelled) {
@@ -172,7 +172,7 @@ export default function StudentDashboardPage() {
       hora: horaActual
     });
 
-    // 3. Registrar asistencia puntual en InsForge en segundo plano
+    // 3. Registrar asistencia puntual en Supabase en segundo plano
     saveAttendanceRecord({
       cursoId: course.id,
       curso: course.asignatura,

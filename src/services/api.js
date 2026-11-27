@@ -1,35 +1,11 @@
-import {
-  createIsolatedAuthClient,
-  getApiAccessToken,
-  insforge
-} from "../lib/insforge";
+import { getApiAccessToken } from "../lib/supabase";
 import { getApiBaseUrl } from "../lib/apiUrl";
 export { courseService } from "./cursosServices";
 export { academicosService } from "./academicosService";
 
 const STORAGE_KEY_USERS = "academia_users";
-
 const SYSTEM_ROLES = ["Admin", "Docente", "Estudiante"];
-const USER_COLUMNS = [
-  "id",
-  "apellidos",
-  "nombres",
-  "tipoDocumento",
-  "dni",
-  "fechaNacimiento",
-  "correo",
-  "celular",
-  "carreraObjetivo",
-  "areaAcademica",
-  "rol",
-  "estado",
-  "cursosAsignados",
-  "cursosInscritos",
-  "created_at",
-  "ciclovirtual",
-  "salario",
-  "especialidad"
-].join(", ");
+const ADMIN_USER_ROLES = ["admin", "docente", "estudiante"];
 
 export const parseCourseList = (value) => {
   if (!value) return [];
@@ -103,37 +79,15 @@ const getStoredUsers = () => {
 };
 
 const cacheUsers = (users) => {
-  if (typeof window !== "undefined") {
+  if (typeof window !== "undefined" && Array.isArray(users)) {
     const safeUsers = users.map(({ password, ...user }) => user);
     localStorage.setItem(STORAGE_KEY_USERS, JSON.stringify(safeUsers));
   }
 };
 
-const throwIfError = (error, operation) => {
-  if (error) {
-    console.error(`[InsForge] ${operation}:`, error);
-    let msg = error.message || `No se pudo completar: ${operation}`;
-    
-    // Mapeo amigable de restricciones de integridad de PostgreSQL (Capa 3)
-    if (msg.includes("check_users_dni")) {
-      msg = "Error de Base de Datos: El DNI debe contener exactamente 8 dígitos numéricos sin letras.";
-    } else if (msg.includes("check_users_celular")) {
-      msg = "Error de Base de Datos: El celular debe contener exactamente 9 dígitos numéricos e iniciar con 9.";
-    } else if (msg.includes("check_matriculas_dni")) {
-      msg = "Error de Base de Datos: El DNI de la matrícula no cumple el formato peruano de 8 dígitos.";
-    } else if (msg.includes("check_matriculas_celular")) {
-      msg = "Error de Base de Datos: El celular de la matrícula debe contener 9 dígitos e iniciar con 9.";
-    }
-    
-    throw new Error(msg);
-  }
-};
-
 const getApiErrorMessage = (body, status) => {
   const detail = body?.detail;
-  const errorCode = String(
-    body?.code || body?.error_code || detail?.code || ""
-  ).toUpperCase();
+  const errorCode = String(body?.code || body?.error_code || detail?.code || "").toUpperCase();
   let message = "";
 
   if (detail?.errores && typeof detail.errores === "object") {
@@ -169,10 +123,10 @@ const getApiErrorMessage = (body, status) => {
     return "La sesión expiró o las credenciales no son válidas. Inicia sesión nuevamente.";
   }
   if (status === 403) {
-    return "No tienes permisos para realizar esta operación. Se requiere una sesión de administrador.";
+    return message || "No tienes permisos para realizar esta operación.";
   }
   if (status === 409) {
-    return "El correo o el perfil ya existe en el backend. Revisa los datos antes de reintentar.";
+    return message || "El correo o documento ya existe en la plataforma.";
   }
   return message || `El backend respondió con el código HTTP ${status}.`;
 };
@@ -187,13 +141,26 @@ const parseApiResponseBody = async (response) => {
   }
 };
 
-const requestBackend = async (path, options = {}) => {
+export const buildAuthHeaders = (extra = {}) => {
+  const headers = { "Content-Type": "application/json", ...extra };
+  const token = getApiAccessToken();
+  if (token && !headers.Authorization) {
+    headers.Authorization = `Bearer ${token}`;
+  }
+  return headers;
+};
+
+export const requestBackend = async (path, options = {}) => {
   let response;
+  const headers = buildAuthHeaders(options.headers || {});
   try {
-    response = await fetch(`${getApiBaseUrl()}${path}`, options);
+    response = await fetch(`${getApiBaseUrl()}${path}`, {
+      ...options,
+      headers
+    });
   } catch (error) {
     if (error instanceof TypeError) {
-      throw new Error("No se pudo conectar con el backend. Verifica VITE_API_URL, DNS y CORS.");
+      throw new Error("No se pudo conectar con el backend. Verifica VITE_API_URL y que el servidor esté encendido.");
     }
     throw error;
   }
@@ -206,25 +173,18 @@ const requestBackend = async (path, options = {}) => {
 
 export const authService = {
   async login(email, password) {
-    try {
-      const body = await requestBackend("/usuarios/login", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          correo: String(email || "").trim().toLowerCase(),
-          password
-        })
-      });
+    const body = await requestBackend("/usuarios/login", {
+      method: "POST",
+      body: JSON.stringify({
+        correo: String(email || "").trim().toLowerCase(),
+        password
+      })
+    });
 
-      if (!body?.access_token || !body?.role) {
-        throw new Error("El backend no devolvió access_token y role para iniciar sesión.");
-      }
-      console.log(`✅ [Auth] Usuario "${body.name || email}" (Rol: ${body.role}) inició sesión correctamente.`);
-      return body;
-    } catch (err) {
-      console.error(`❌ [Auth] Ocurrió un error al iniciar sesión para "${email}". Motivo: ${err.message}`);
-      throw err;
+    if (!body?.access_token || !body?.role) {
+      throw new Error("El backend no devolvió access_token y role para iniciar sesión.");
     }
+    return body;
   }
 };
 
@@ -249,29 +209,12 @@ const formatIdForDb = (id) => {
   return `USR-${digits}`;
 };
 
-/**
- * Validador contra el Backend FastAPI (Capa 2)
- */
 export const validateWithBackend = async ({ tipoDocumento = "DNI", dni, celular, correo }) => {
-  const accessToken = getApiAccessToken();
-  const headers = { "Content-Type": "application/json" };
-  if (accessToken) headers.Authorization = `Bearer ${accessToken}`;
-
-  try {
-    const res = await requestBackend("/usuarios/validar", {
-      method: "POST",
-      headers,
-      body: JSON.stringify({ tipoDocumento, dni, celular, correo })
-    });
-    console.log(`✅ [Validación] Datos de usuario (${tipoDocumento}: ${dni}, Correo: ${correo || "N/A"}) validados correctamente.`);
-    return res;
-  } catch (err) {
-    console.error(`❌ [Validación] Ocurrió un error al validar los datos (${tipoDocumento}: ${dni}). Motivo: ${err.message}`);
-    throw err;
-  }
+  return requestBackend("/usuarios/validar", {
+    method: "POST",
+    body: JSON.stringify({ tipoDocumento, dni, celular, correo })
+  });
 };
-
-const ADMIN_USER_ROLES = ["admin", "docente", "estudiante"];
 
 const assertAllowedAdminUserRole = (role) => {
   const normalizedRole = String(role || "").trim().toLowerCase();
@@ -279,28 +222,6 @@ const assertAllowedAdminUserRole = (role) => {
     throw new Error("El rol debe ser admin, docente o estudiante.");
   }
   return normalizedRole;
-};
-
-const formatAuthCreationError = (error) => {
-  const code = String(error?.error || error?.code || "").toUpperCase();
-  const message = String(error?.message || "");
-
-  if (code === "AUTH_EMAIL_EXISTS" || /email.*(already|exists)|correo.*(registrad|existe)/i.test(message)) {
-    return "Ya existe una cuenta de InsForge Auth con ese correo.";
-  }
-  if (code === "AUTH_NEED_VERIFICATION") {
-    return "La cuenta ya existe, pero el correo necesita verificación antes de iniciar sesión.";
-  }
-  if (code === "AUTH_WEAK_PASSWORD") {
-    return "La contraseña no cumple los requisitos de InsForge Auth.";
-  }
-  if (code === "AUTH_INVALID_EMAIL") {
-    return "El correo no tiene un formato válido.";
-  }
-  if (code === "AUTH_SIGNUP_DISABLED") {
-    return "InsForge Auth no permite crear cuentas en este momento.";
-  }
-  return message || "No se pudo crear la cuenta en InsForge Auth.";
 };
 
 export const adminUserRegistrationService = {
@@ -312,10 +233,7 @@ export const adminUserRegistrationService = {
 
     await requestBackend("/usuarios/validar", {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${adminAccessToken}`
-      },
+      headers: { Authorization: `Bearer ${adminAccessToken}` },
       body: JSON.stringify({
         tipoDocumento: formData.tipoDocumento || "DNI",
         dni: formData.dni,
@@ -326,47 +244,25 @@ export const adminUserRegistrationService = {
   },
 
   async createAuthAccount(formData) {
-    const isolatedClient = createIsolatedAuthClient();
+    const adminAccessToken = getApiAccessToken();
+    if (!adminAccessToken) {
+      throw new Error("No se encontró el token de administrador para crear la cuenta en Supabase Auth.");
+    }
+
     const email = String(formData.correo || "").trim().toLowerCase();
-    const { data, error } = await isolatedClient.auth.signUp({
-      email,
-      password: formData.password,
-      name: `${formData.nombres || ""} ${formData.apellidos || ""}`.trim()
+    const role = assertAllowedAdminUserRole(formData.rol);
+    const fullName = `${formData.nombres || ""} ${formData.apellidos || ""}`.trim();
+
+    return requestBackend("/usuarios/auth-account", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${adminAccessToken}` },
+      body: JSON.stringify({
+        correo: email,
+        password: formData.password,
+        nombre: fullName,
+        rol: role
+      })
     });
-
-    if (error) {
-      const errMsg = String(error.message || "").toLowerCase();
-      if (
-        errMsg.includes("already registered") ||
-        errMsg.includes("already exists") ||
-        errMsg.includes("ya existe")
-      ) {
-        // Si la cuenta Auth ya existe (por ejemplo, usuario eliminado y recreado), recuperar el authUserId
-        const { data: loginData, error: loginErr } = await isolatedClient.auth.signInWithPassword({
-          email,
-          password: formData.password
-        });
-        if (!loginErr && loginData?.user?.id) {
-          return {
-            authUserId: loginData.user.id,
-            emailVerified: loginData.user.emailVerified === true,
-            requiresEmailVerification: false
-          };
-        }
-      }
-      throw new Error(formatAuthCreationError(error));
-    }
-    if (!data?.user?.id) {
-      throw new Error(
-        "InsForge no devolvió el ID de la cuenta creada. Verifica Auth antes de volver a intentarlo."
-      );
-    }
-
-    return {
-      authUserId: data.user.id,
-      emailVerified: data.user.emailVerified === true,
-      requiresEmailVerification: data.requireEmailVerification === true
-    };
   },
 
   buildProfilePayload(formData, authUserId) {
@@ -391,6 +287,12 @@ export const adminUserRegistrationService = {
 
     if (formData.fechaNacimiento) payload.fechaNacimiento = formData.fechaNacimiento;
     if (formData.celular) payload.celular = formData.celular;
+    if (formData.salario !== undefined && formData.salario !== "") {
+      payload.salario = Number(formData.salario) || 0;
+    }
+    if (formData.especialidad) payload.especialidad = formData.especialidad;
+    if (Array.isArray(formData.cursosAsignados)) payload.cursosAsignados = formData.cursosAsignados;
+    if (Array.isArray(formData.cursosInscritos)) payload.cursosInscritos = formData.cursosInscritos;
 
     return payload;
   },
@@ -403,22 +305,12 @@ export const adminUserRegistrationService = {
     const safeProfile = { ...profilePayload };
     delete safeProfile.password;
     delete safeProfile.universidad;
-    const fullName = `${safeProfile.nombres || ""} ${safeProfile.apellidos || ""}`.trim();
 
-    let savedProfile;
-    try {
-      savedProfile = await requestBackend("/usuarios/", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${adminAccessToken}`
-        },
-        body: JSON.stringify(safeProfile)
-      });
-    } catch (err) {
-      console.error(`❌ [Usuarios] Ocurrió un error al registrar al usuario "${fullName}" (${safeProfile.correo}). Motivo: ${err.message}`);
-      throw err;
-    }
+    const savedProfile = await requestBackend("/usuarios/", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${adminAccessToken}` },
+      body: JSON.stringify(safeProfile)
+    });
 
     const returnedUser =
       savedProfile?.user ||
@@ -426,15 +318,13 @@ export const adminUserRegistrationService = {
       savedProfile?.usuario ||
       (savedProfile && typeof savedProfile === "object" ? savedProfile : {});
 
-    const finalUser = normalizeUser({
+    return normalizeUser({
       ...safeProfile,
       ...(returnedUser && typeof returnedUser === "object" ? returnedUser : {}),
       id: returnedUser?.id || safeProfile.id || formatIdForDb(safeProfile.id),
       rol: formatRoleForDb(returnedUser?.rol || safeProfile.rol),
       estado: formatEstadoForDb(returnedUser?.estado || safeProfile.estado)
     });
-    console.log(`✅ [Usuarios] Usuario "${finalUser.nombres} ${finalUser.apellidos}" (ID: ${finalUser.id}, Rol: ${finalUser.rol}) registrado correctamente.`);
-    return finalUser;
   }
 };
 
@@ -442,54 +332,12 @@ export const userService = {
   getStoredUsers,
 
   async getUsers() {
-    // 1. Consultar primero la base de datos PostgreSQL de InsForge (contiene cursosInscritos, cursosAsignados, etc.)
-    try {
-      const { data, error } = await insforge.database
-        .from("users")
-        .select(USER_COLUMNS)
-        .order("created_at", { ascending: false })
-        .limit(500);
-
-      if (!error && Array.isArray(data) && data.length > 0) {
-        const users = data.map(normalizeUser);
-        cacheUsers(users);
-        return users;
-      }
-    } catch (dbErr) {
-      console.warn("[userService] Fallback de InsForge DB a backend FastAPI:", dbErr);
+    const backUsers = await requestBackend("/usuarios/");
+    if (Array.isArray(backUsers)) {
+      const users = backUsers.map(normalizeUser);
+      cacheUsers(users);
+      return users;
     }
-
-    // 2. Respaldo secundario: endpoint del Backend FastAPI
-    try {
-      const base = getApiBaseUrl();
-      if (base) {
-        const token = getApiAccessToken();
-        const res = await fetch(`${base.replace(/\/+$/, "")}/usuarios/`, {
-          headers: token ? { Authorization: `Bearer ${token}` } : {},
-          signal: AbortSignal.timeout(3000)
-        });
-        if (res.ok) {
-          const backUsers = await res.json();
-          if (Array.isArray(backUsers) && backUsers.length > 0) {
-            // Preservar cursosInscritos y cursosAsignados del caché local si el backend no los incluye
-            const cachedMap = new Map((getStoredUsers() || []).map((u) => [u.id, u]));
-            const users = backUsers.map((u) => {
-              const cached = cachedMap.get(u.id);
-              return normalizeUser({
-                ...u,
-                cursosInscritos: u.cursosInscritos || u.CursosInscritos || cached?.cursosInscritos || [],
-                cursosAsignados: u.cursosAsignados || u.CursosAsignados || cached?.cursosAsignados || []
-              });
-            });
-            cacheUsers(users);
-            return users;
-          }
-        }
-      }
-    } catch (err) {
-      console.warn("[userService] Error al consultar backend FastAPI:", err);
-    }
-
     return getStoredUsers();
   },
 
@@ -498,77 +346,49 @@ export const userService = {
   },
 
   async getUserByEmail(email) {
-    const { data, error } = await insforge.database
-      .from("users")
-      .select(USER_COLUMNS)
-      .eq("correo", email.trim().toLowerCase())
-      .limit(1);
-    throwIfError(error, "cargar perfil");
-    return data?.[0] ? normalizeUser(data[0]) : null;
+    const cleanEmail = String(email || "").trim().toLowerCase();
+    if (!cleanEmail) return null;
+    try {
+      const user = await requestBackend(`/usuarios/${encodeURIComponent(cleanEmail)}`);
+      return user ? normalizeUser(user) : null;
+    } catch {
+      const all = await userService.getUsers();
+      return all.find((u) => String(u.correo || "").toLowerCase() === cleanEmail) || null;
+    }
   },
 
   async saveUsers(users) {
-    const safeUsers = users.map(({ password, created_at, cicloVirtual, universidad, ...safeUser }) => {
-      const ciclo = cicloVirtual || safeUser.ciclovirtual || "Semestral";
-      const payload = {
-        id: formatIdForDb(safeUser.id),
-        nombres: safeUser.nombres || "",
-        apellidos: safeUser.apellidos || "",
-        rol: formatRoleForDb(safeUser.rol),
-        estado: formatEstadoForDb(safeUser.estado),
-        tipoDocumento: safeUser.tipoDocumento || "DNI",
-        dni: safeUser.dni ? String(safeUser.dni).trim() : "",
-        celular: safeUser.celular ? String(safeUser.celular).trim() : "",
-        correo: safeUser.correo ? String(safeUser.correo).trim().toLowerCase() : "",
-        fechaNacimiento: safeUser.fechaNacimiento || "",
-        carreraObjetivo: safeUser.carreraObjetivo || "",
-        areaAcademica: safeUser.areaAcademica || "",
-        cursosAsignados: safeUser.cursosAsignados || [],
-        cursosInscritos: safeUser.cursosInscritos || [],
-        ciclovirtual: ciclo,
-        salario: Number(safeUser.salario) || (formatRoleForDb(safeUser.rol) === "Docente" ? 3200 : 0),
-        especialidad: safeUser.especialidad || safeUser.carreraObjetivo || safeUser.areaAcademica || ""
-      };
-      if (safeUser.auth_user_id) payload.auth_user_id = safeUser.auth_user_id;
-      return payload;
-    });
-    if (safeUsers.length === 0) return [];
-
-    const { data, error } = await insforge.database
-      .from("users")
-      .upsert(safeUsers)
-      .select(USER_COLUMNS);
-    throwIfError(error, "guardar usuarios");
-    const savedUsers = (data || []).map(normalizeUser);
-    cacheUsers(savedUsers);
-    return savedUsers;
+    if (!Array.isArray(users) || users.length === 0) return [];
+    const results = [];
+    for (const u of users) {
+      const saved = await userService.saveUser(u);
+      if (saved) results.push(saved);
+    }
+    return results;
   },
 
   async saveUser(user) {
-    const { password, created_at, cicloVirtual, universidad, ...safeUser } = user;
-    const ciclo = cicloVirtual || safeUser.ciclovirtual || "Semestral";
+    const { password, created_at, universidad, id, ...rest } = user || {};
+    const targetId = id || formatIdForDb(id);
     const payload = {
-      id: formatIdForDb(safeUser.id),
-      nombres: safeUser.nombres || "",
-      apellidos: safeUser.apellidos || "",
-      rol: formatRoleForDb(safeUser.rol),
-      estado: formatEstadoForDb(safeUser.estado),
-      tipoDocumento: safeUser.tipoDocumento || "DNI",
-      dni: safeUser.dni ? String(safeUser.dni).trim() : "",
-      celular: safeUser.celular ? String(safeUser.celular).trim() : "",
-      correo: safeUser.correo ? String(safeUser.correo).trim().toLowerCase() : "",
-      fechaNacimiento: safeUser.fechaNacimiento || "",
-      carreraObjetivo: safeUser.carreraObjetivo || "",
-      areaAcademica: safeUser.areaAcademica || "",
-      cursosAsignados: safeUser.cursosAsignados || [],
-      cursosInscritos: safeUser.cursosInscritos || [],
-      ciclovirtual: ciclo,
-      salario: Number(safeUser.salario) || (formatRoleForDb(safeUser.rol) === "Docente" ? 3200 : 0),
-      especialidad: safeUser.especialidad || safeUser.carreraObjetivo || safeUser.areaAcademica || ""
+      nombres: rest.nombres || "",
+      apellidos: rest.apellidos || "",
+      correo: rest.correo ? String(rest.correo).trim().toLowerCase() : "",
+      rol: String(rest.rol || "estudiante").toLowerCase(),
+      estado: formatEstadoForDb(rest.estado),
+      tipoDocumento: rest.tipoDocumento || "DNI",
+      dni: rest.dni ? String(rest.dni).trim() : "",
+      celular: rest.celular ? String(rest.celular).trim() : null,
+      fechaNacimiento: rest.fechaNacimiento || null,
+      carreraObjetivo: rest.carreraObjetivo || "",
+      cicloVirtual: rest.cicloVirtual || rest.ciclovirtual || "Semestral",
+      areaAcademica: rest.areaAcademica || "",
+      salario: Number(rest.salario) || (formatRoleForDb(rest.rol) === "Docente" ? 3200 : 0),
+      especialidad: rest.especialidad || rest.areaAcademica || rest.carreraObjetivo || "",
+      cursosAsignados: parseCourseList(rest.cursosAsignados),
+      cursosInscritos: parseCourseList(rest.cursosInscritos)
     };
-    if (safeUser.auth_user_id) payload.auth_user_id = safeUser.auth_user_id;
 
-    // Validación Capa 2 (FastAPI Backend)
     await validateWithBackend({
       tipoDocumento: payload.tipoDocumento,
       dni: payload.dni,
@@ -576,59 +396,23 @@ export const userService = {
       correo: payload.correo
     });
 
-    const { data, error } = await insforge.database
-      .from("users")
-      .upsert([payload])
-      .select(USER_COLUMNS);
-    if (error) {
-      console.error(`❌ [Usuarios] Ocurrió un error al guardar/actualizar al usuario "${payload.nombres} ${payload.apellidos}". Motivo: ${error.message}`);
-    }
-    throwIfError(error, "guardar usuario");
-    const savedUser = data?.[0] ? normalizeUser(data[0]) : null;
-    if (savedUser) {
-      const current = getStoredUsers();
-      const updated = [
-        savedUser,
-        ...current.filter((stored) => stored.id !== savedUser.id)
-      ];
-      cacheUsers(updated);
-      console.log(`✅ [Usuarios] Usuario "${savedUser.nombres} ${savedUser.apellidos}" (ID: ${savedUser.id}, Rol: ${savedUser.rol}) guardado/actualizado correctamente.`);
-    }
+    const res = await requestBackend(`/usuarios/${encodeURIComponent(targetId)}`, {
+      method: "PUT",
+      body: JSON.stringify(payload)
+    });
+
+    const returned = res?.usuario || res;
+    const savedUser = normalizeUser({ id: targetId, ...payload, ...(returned || {}) });
+    const current = getStoredUsers();
+    cacheUsers([savedUser, ...current.filter((stored) => stored.id !== savedUser.id)]);
     return savedUser;
   },
 
   async deleteUser(id) {
-    // 1. Intentar borrado seguro vía Backend FastAPI para limpiar public.users y auth.users
-    try {
-      const token = getApiAccessToken();
-      const base = getApiBaseUrl();
-      if (base) {
-        const res = await fetch(`${base.replace(/\/+$/, "")}/usuarios/${encodeURIComponent(id)}`, {
-          method: "DELETE",
-          headers: token ? { Authorization: `Bearer ${token}` } : {},
-          signal: AbortSignal.timeout(4000)
-        });
-        if (res.ok) {
-          cacheUsers(getStoredUsers().filter((user) => user.id !== id));
-          console.log(`✅ [Usuarios] Usuario (ID: ${id}) eliminado correctamente de la base de datos y de Auth.`);
-          return;
-        }
-      }
-    } catch (e) {
-      console.warn("[userService] Fallback delete a PostgREST:", e);
-    }
-
-    // 2. Eliminación directa en PostgREST como respaldo
-    const { error } = await insforge.database
-      .from("users")
-      .delete()
-      .eq("id", id);
-    if (error) {
-      console.error(`❌ [Usuarios] Ocurrió un error al eliminar al usuario (ID: ${id}). Motivo: ${error.message}`);
-    }
-    throwIfError(error, "eliminar usuario");
+    await requestBackend(`/usuarios/${encodeURIComponent(id)}`, {
+      method: "DELETE"
+    });
     cacheUsers(getStoredUsers().filter((user) => user.id !== id));
-    console.log(`✅ [Usuarios] Usuario (ID: ${id}) eliminado correctamente.`);
   },
 
   async resetUsers() {
@@ -644,13 +428,8 @@ export const roleService = {
 
 export const incidentService = {
   async getIncidents() {
-    const { data, error } = await insforge.database
-      .from("incidents")
-      .select("id, docente, docenteid, cursoid, dni, correo, tipo, fechaPresentacion, materia, horario, motivo, archivoNombre, estado, docentepropuesto, docentereemplazo, horarioactualizado, created_at")
-      .order("created_at", { ascending: false })
-      .limit(500);
-    throwIfError(error, "cargar incidencias");
-    return (data || []).map((row) => ({
+    const data = await requestBackend("/incidencias");
+    return (Array.isArray(data) ? data : []).map((row) => ({
       ...row,
       docenteId: row.docenteid || row.docenteId || null,
       cursoId: row.cursoid || row.cursoId || null,
@@ -661,98 +440,71 @@ export const incidentService = {
   },
 
   async updateIncidentStatus(id, estado) {
-    const { error } = await insforge.database
-      .from("incidents")
-      .update({ estado })
-      .eq("id", id);
-    throwIfError(error, "actualizar incidencia");
+    return incidentService.cambiarEstadoBackend(id, { nuevoEstado: estado });
   },
 
   async updateIncident(id, fields) {
-    const { error } = await insforge.database
-      .from("incidents")
-      .update(fields)
-      .eq("id", id);
-    throwIfError(error, "actualizar incidencia");
+    if (fields?.estado) {
+      return incidentService.cambiarEstadoBackend(id, {
+        nuevoEstado: fields.estado,
+        docenteReemplazo: fields.docenteReemplazo || fields.docentereemplazo,
+        horarioActualizado: fields.horarioActualizado || fields.horarioactualizado,
+        observaciones: fields.observaciones
+      });
+    }
+    return fields;
   },
 
-    async saveIncident(incident) {
-    const {
-      created_at,
-      docenteId,
-      cursoId,
-      docentePropuesto,
-      docenteReemplazo,
-      horarioActualizado,
-      ...row
-    } = incident;
-
+  async saveIncident(incident) {
     const payload = {
-      ...row,
-      docenteid: docenteId || row.docenteid,
-      cursoid: cursoId || row.cursoid,
-      docentepropuesto: docentePropuesto || row.docentepropuesto,
-      docentereemplazo: docenteReemplazo || row.docentereemplazo,
-      horarioactualizado: horarioActualizado || row.horarioactualizado
+      id: incident.id,
+      docenteId: incident.docenteId || incident.docenteid || null,
+      docente: incident.docente,
+      dni: incident.dni || null,
+      correo: incident.correo || null,
+      tipo: incident.tipo,
+      materia: incident.materia || "General",
+      cursoId: incident.cursoId || incident.cursoid || null,
+      horario: incident.horario || "",
+      motivo: incident.motivo || "",
+      archivoNombre: incident.archivoNombre || null,
+      docentePropuesto: incident.docentePropuesto || incident.docentepropuesto || null,
+      docenteReemplazo: incident.docenteReemplazo || incident.docentereemplazo || null,
+      horarioActualizado: incident.horarioActualizado || incident.horarioactualizado || null,
+      observaciones: incident.observaciones || null,
+      fechaPresentacion: incident.fechaPresentacion || null
     };
-
-    // Eliminar claves undefined para evitar enviar campos invalidos
-    Object.keys(payload).forEach(key => payload[key] === undefined && delete payload[key]);
-
-    const { data, error } = await insforge.database
-      .from("incidents")
-      .upsert([payload])
-      .select();
-    if (error) {
-      console.error(`❌ [Incidencias] Ocurrió un error al registrar la incidencia de "${payload.docente}". Motivo: ${error.message}`);
-    }
-    throwIfError(error, "guardar incidencia");
-    console.log(`✅ [Incidencias] Incidencia "${payload.tipo}" del docente "${payload.docente}" (Curso: ${payload.materia || "General"}) registrada correctamente.`);
-    return data?.[0] || null;
+    const res = await requestBackend("/incidencias", {
+      method: "POST",
+      body: JSON.stringify(payload)
+    });
+    return res?.incidencia || res;
   },
 
   async saveIncidents(incidents) {
-    if (incidents.length === 0) return [];
-    const rows = incidents.map(({ created_at, ...inc }) => inc);
-    const { data, error } = await insforge.database
-      .from("incidents")
-      .upsert(rows)
-      .select();
-    throwIfError(error, "guardar incidencias");
-    return data || [];
+    const results = [];
+    for (const inc of incidents || []) {
+      results.push(await incidentService.saveIncident(inc));
+    }
+    return results;
   },
 
   async cambiarEstadoBackend(incidenciaId, { nuevoEstado, docenteReemplazo, docenteReemplazoId, horarioActualizado, observaciones }) {
-    const accessToken = getApiAccessToken();
-    const headers = { "Content-Type": "application/json" };
-    if (accessToken) headers.Authorization = `Bearer ${accessToken}`;
-
-    try {
-      return await requestBackend(`/incidencias/${incidenciaId}/estado`, {
-        method: "PATCH",
-        headers,
-        body: JSON.stringify({
-          nuevoEstado,
-          docenteReemplazo: docenteReemplazo || null,
-          docenteReemplazoId: docenteReemplazoId || null,
-          horarioActualizado: horarioActualizado || null,
-          observaciones: observaciones || null
-        })
-      });
-    } catch (error) {
-      console.warn("[Backend] Error al notificar transición de estado al backend:", error);
-      return null;
-    }
+    return requestBackend(`/incidencias/${encodeURIComponent(incidenciaId)}/estado`, {
+      method: "PATCH",
+      body: JSON.stringify({
+        nuevoEstado,
+        docenteReemplazo: docenteReemplazo || null,
+        docenteReemplazoId: docenteReemplazoId || null,
+        horarioActualizado: horarioActualizado || null,
+        observaciones: observaciones || null
+      })
+    });
   },
 
   async calcularCruceNomina({ periodo, tarifaHoraDefault = 50, docenteId = null }) {
-    const accessToken = getApiAccessToken();
-    const headers = { "Content-Type": "application/json" };
-    if (accessToken) headers.Authorization = `Bearer ${accessToken}`;
-
     return requestBackend("/incidencias/nomina/cruce", {
       method: "POST",
-      headers,
       body: JSON.stringify({
         periodo,
         tarifaHoraDefault: Number(tarifaHoraDefault) || 50,
@@ -768,108 +520,73 @@ export const incidentService = {
 
 export const matriculaService = {
   async getMatriculas() {
-    const { data, error } = await insforge.database
-      .from("matriculas")
-      .select("id, estudiante, dni, correo, celular, programa, ciclo, turno, fechaMatricula, modalidadPago, montoTotal, montoPagado, saldoPendiente, estado, created_at")
-      .order("created_at", { ascending: false })
-      .limit(500);
-    throwIfError(error, "cargar matrículas");
-    return data || [];
+    const data = await requestBackend("/matriculas/");
+    return Array.isArray(data) ? data : [];
   },
 
   async saveMatriculas(matriculas) {
-    if (matriculas.length === 0) return [];
-    const rows = matriculas.map(({ estudianteId, created_at, ...matricula }) => matricula);
-    const { data, error } = await insforge.database
-      .from("matriculas")
-      .upsert(rows)
-      .select();
-    throwIfError(error, "guardar matrículas");
-    return data || [];
+    const results = [];
+    for (const m of matriculas || []) {
+      results.push(await matriculaService.saveMatricula(m));
+    }
+    return results;
   },
 
   async saveMatricula(matricula) {
-    const { estudianteId, created_at, ...row } = matricula;
-    const { data, error } = await insforge.database
-      .from("matriculas")
-      .upsert([row])
-      .select();
-    if (error) {
-      console.error(`❌ [Matrículas] Ocurrió un error al registrar la matrícula "${row.id}" de "${row.estudiante}". Motivo: ${error.message}`);
+    const existing = await matriculaService.getMatriculas().catch(() => []);
+    const isUpdate = existing.some((m) => m.id === matricula.id);
+    if (isUpdate) {
+      return requestBackend(`/matriculas/${encodeURIComponent(matricula.id)}`, {
+        method: "PUT",
+        body: JSON.stringify(matricula)
+      });
     }
-    throwIfError(error, "guardar matrícula");
-    console.log(`✅ [Matrículas] Matrícula "${row.id}" del estudiante "${row.estudiante}" (Programa: ${row.programa}) registrada correctamente.`);
-    return data?.[0] || null;
+    const res = await requestBackend("/matriculas/", {
+      method: "POST",
+      body: JSON.stringify(matricula)
+    });
+    return res?.matricula || res;
   },
 
   async deleteMatricula(id) {
-    const { error } = await insforge.database
-      .from("matriculas")
-      .delete()
-      .eq("id", id);
-    if (error) {
-      console.error(`❌ [Matrículas] Ocurrió un error al eliminar la matrícula "${id}". Motivo: ${error.message}`);
-    }
-    throwIfError(error, "eliminar matrícula");
-    console.log(`✅ [Matrículas] Matrícula "${id}" eliminada correctamente.`);
+    return requestBackend(`/matriculas/${encodeURIComponent(id)}`, {
+      method: "DELETE"
+    });
   }
 };
 
 export const pagoService = {
   async getPagos() {
-    const { data, error } = await insforge.database
-      .from("pagos")
-      .select("id, matriculaId, estudiante, concepto, monto, metodo, operacion, comprobante, fecha, estado, created_at")
-      .order("created_at", { ascending: false })
-      .limit(500);
-    throwIfError(error, "cargar pagos");
-    return data || [];
+    const data = await requestBackend("/matriculas/pagos");
+    return Array.isArray(data) ? data : [];
   },
 
   async savePagos(pagos) {
-    if (pagos.length === 0) return [];
-    const rows = pagos.map(({ created_at, ...pago }) => pago);
-    const { data, error } = await insforge.database
-      .from("pagos")
-      .upsert(rows)
-      .select();
-    throwIfError(error, "guardar pagos");
-    return data || [];
+    const results = [];
+    for (const p of pagos || []) {
+      results.push(await pagoService.savePago(p));
+    }
+    return results;
   },
 
   async savePago(pago) {
-    const { created_at, ...row } = pago;
-    const { data, error } = await insforge.database
-      .from("pagos")
-      .upsert([row])
-      .select();
-    if (error) {
-      console.error(`❌ [Pagos] Ocurrió un error al registrar el pago "${row.id}" de "${row.estudiante}". Motivo: ${error.message}`);
-    }
-    throwIfError(error, "guardar pago");
-    console.log(`✅ [Pagos] Pago "${row.id}" (Comprobante: ${row.comprobante}, Monto: S/ ${row.monto}) del estudiante "${row.estudiante}" registrado correctamente.`);
-    return data?.[0] || null;
+    const res = await requestBackend("/matriculas/pagos", {
+      method: "POST",
+      body: JSON.stringify(pago)
+    });
+    return res?.pago || res;
   }
 };
 
 export const configService = {
   async getConfig() {
-    const { data, error } = await insforge.database
-      .from("configuracion")
-      .select("*")
-      .eq("id", "general")
-      .limit(1);
-    throwIfError(error, "cargar configuración");
-    return data?.[0] || null;
+    return requestBackend("/configuracion");
   },
 
   async saveConfig(config) {
-    const { updated_at, ...row } = config;
-    const { data, error } = await insforge.database
-      .from("configuracion")
-      .upsert([{ id: "general", ...row, updated_at: new Date().toISOString() }])
-      .select();
-    throwIfError(error, "guardar configuración");
-    return data?.[0] || null;
+    return requestBackend("/configuracion", {
+      method: "PUT",
+      body: JSON.stringify(config)
+    });
   }
 };

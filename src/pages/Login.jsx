@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { ShieldCheck, User, Lock, ArrowRight, Loader2 } from "lucide-react";
 import ThemeToggle from "../components/ThemeToggle";
-import { setApiAccessToken } from "../lib/insforge";
+import { setApiAccessToken } from "../lib/supabase";
 import { authService } from "../services/api";
 
 const normalizeLoginRole = (role) => {
