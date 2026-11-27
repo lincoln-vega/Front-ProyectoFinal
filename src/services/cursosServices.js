@@ -135,6 +135,7 @@ export const courseService = {
       asignatura: normalized.asignatura,
       area: normalized.area,
       carrera: normalized.carrera,
+      cicloId: normalized.cicloId || normalized.ciclo_id || null,
       docenteId: normalized.docenteId,
       docente: normalized.docente,
       dias: Array.isArray(normalized.dias) ? normalized.dias : [],

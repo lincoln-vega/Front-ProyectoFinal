@@ -13,7 +13,7 @@ import {
   User
 } from "lucide-react";
 
-export default function StudentTaskModal({ task, isOpen, onClose, onDeliver }) {
+export default function StudentTaskModal({ task, isOpen, onClose, onDeliver, isReadOnly = false }) {
   const [selectedFile, setSelectedFile] = useState(null);
   const [comments, setComments] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -124,6 +124,16 @@ export default function StudentTaskModal({ task, isOpen, onClose, onDeliver }) {
                 Tu archivo está registrado en el sistema y se encuentra a la espera de calificación por parte del docente.
               </p>
             </div>
+          ) : isReadOnly ? (
+            <div className="p-4 rounded-xl bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800/50 text-center space-y-1.5">
+              <AlertCircle className="w-7 h-7 text-amber-500 mx-auto" />
+              <p className="text-xs font-extrabold text-amber-900 dark:text-amber-300">
+                Ciclo Concluido — Modo Historial (Solo Lectura)
+              </p>
+              <p className="text-[11px] text-amber-800 dark:text-amber-400">
+                Este periodo académico ya finalizó, por lo que no se reciben nuevas entregas de tareas.
+              </p>
+            </div>
           ) : (
             <div className="space-y-3 pt-2">
               <label className="block text-xs font-bold text-slate-700 dark:text-slate-300">
@@ -187,7 +197,7 @@ export default function StudentTaskModal({ task, isOpen, onClose, onDeliver }) {
               Cerrar
             </button>
 
-            {!isDelivered && (
+            {!isDelivered && !isReadOnly && (
               <button
                 type="submit"
                 disabled={isSubmitting}

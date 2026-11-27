@@ -16,7 +16,7 @@ import {
 } from "lucide-react";
 import { getCurrentSessionProfile } from "../../services/session";
 import { courseService } from "../../services/cursosServices";
-import { userService, parseCourseList } from "../../services/api";
+import { userService, academicosService, parseCourseList } from "../../services/api";
 
 const normalizeName = (value) =>
   String(value || "")
@@ -42,10 +42,12 @@ const matchesTeacherName = (courseName, userName) => {
 export default function DocenteEstudiantesPage() {
   const [profile, setProfile] = useState(null);
   const [courses, setCourses] = useState([]);
+  const [ciclosList, setCiclosList] = useState([]);
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
+  const [selectedCycleFilter, setSelectedCycleFilter] = useState("vigentes");
   const [selectedCourseFilter, setSelectedCourseFilter] = useState("todos");
   const [searchQuery, setSearchQuery] = useState("");
 
@@ -57,16 +59,18 @@ export default function DocenteEstudiantesPage() {
         setLoading(true);
         setError("");
 
-        const [{ profile: currentProfile }, allCourses, allUsers] = await Promise.all([
+        const [{ profile: currentProfile }, allCourses, allUsers, ciclos] = await Promise.all([
           getCurrentSessionProfile(),
           courseService.getCourses(),
-          userService.getUsers().catch(() => [])
+          userService.getUsers().catch(() => []),
+          academicosService.getCiclos().catch(() => [])
         ]);
 
         if (!cancelled) {
           setProfile(currentProfile);
           setCourses(allCourses || []);
           setUsers(allUsers || []);
+          setCiclosList(Array.isArray(ciclos) ? ciclos : []);
         }
       } catch (err) {
         if (!cancelled) {
@@ -85,7 +89,7 @@ export default function DocenteEstudiantesPage() {
     };
   }, []);
 
-  // Cursos asignados al docente
+  // Cursos asignados al docente filtrados por el ciclo seleccionado
   const myAssignedCourses = useMemo(() => {
     if (!profile) return [];
     const fullName = `${profile.nombres || ""} ${profile.apellidos || ""}`.trim();
@@ -96,14 +100,23 @@ export default function DocenteEstudiantesPage() {
         .map(String)
     );
 
-    return courses.filter(
-      (course) =>
-        course.estado === "Activo" &&
-        (idsAsignados.has(String(course.id)) ||
-          course.docenteId === profile.id ||
-          matchesTeacherName(course.docente, fullName))
-    );
-  }, [courses, profile]);
+    return courses.filter((course) => {
+      if (String(course.estado || "").toLowerCase() === "inactivo") return false;
+      const belongsToTeacher =
+        idsAsignados.has(String(course.id)) ||
+        course.docenteId === profile.id ||
+        matchesTeacherName(course.docente, fullName);
+      if (!belongsToTeacher) return false;
+
+      const isClosedCourse =
+        String(course.estado || "").toLowerCase() === "finalizado" ||
+        String(course.cicloEstado || "").toLowerCase() === "finalizado";
+
+      if (selectedCycleFilter === "vigentes") return !isClosedCourse;
+      if (selectedCycleFilter === "todos") return true;
+      return String(course.cicloId || "") === String(selectedCycleFilter);
+    });
+  }, [courses, profile, selectedCycleFilter]);
 
   // Cruzar estudiantes con los cursos asignados a este docente
   const studentsWithCourses = useMemo(() => {
@@ -182,11 +195,28 @@ export default function DocenteEstudiantesPage() {
             <span>Nómina de Alumnos Matriculados</span>
           </h2>
           <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
-            Consulta los estudiantes activos asignados a tus materias dictadas en el Ciclo Intensivo 2026-I.
+            Consulta los estudiantes asignados a tus materias filtrando por ciclo académico vigente o histórico.
           </p>
         </div>
 
-        <div className="flex items-center gap-2 self-start sm:self-auto">
+        <div className="flex flex-wrap items-center gap-2 self-start sm:self-auto">
+          <select
+            value={selectedCycleFilter}
+            onChange={(e) => {
+              setSelectedCycleFilter(e.target.value);
+              setSelectedCourseFilter("todos");
+            }}
+            aria-label="Filtrar alumnos por periodo académico"
+            className="text-xs font-bold px-3 py-1.5 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/10 text-slate-700 dark:text-slate-200 cursor-pointer"
+          >
+            <option value="vigentes">Ciclos Vigentes (En Curso)</option>
+            {ciclosList.map((cic) => (
+              <option key={cic.id} value={cic.id}>
+                {cic.nombre} ({cic.estado})
+              </option>
+            ))}
+            <option value="todos">Todos los Periodos</option>
+          </select>
           <span className="text-xs font-extrabold px-3 py-1.5 rounded-xl bg-blue-50 dark:bg-blue-950/60 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800">
             {studentsWithCourses.length} Alumnos a Cargo
           </span>

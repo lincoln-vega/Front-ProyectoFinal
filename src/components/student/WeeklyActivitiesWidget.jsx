@@ -14,7 +14,7 @@ import {
 } from "lucide-react";
 import { academicActivitiesService } from "../../services/academicActivitiesService";
 
-export default function WeeklyActivitiesWidget({ activeCourses = [], onJoinMeet }) {
+export default function WeeklyActivitiesWidget({ activeCourses = [], onJoinMeet, isReadOnly = false }) {
   const [filter, setFilter] = useState("pendientes");
   const [selectedTask, setSelectedTask] = useState(null);
   const [activities, setActivities] = useState(() => academicActivitiesService.getTasks());
@@ -84,8 +84,8 @@ export default function WeeklyActivitiesWidget({ activeCourses = [], onJoinMeet 
 
   return (
     <div className="space-y-5 animate-fade-in">
-      {/* TARJETA PRÓXIMA CLASE EN VIVO */}
-      {nextClass && (
+      {/* TARJETA PRÓXIMA CLASE EN VIVO (Solo en ciclos activos) */}
+      {nextClass && !isReadOnly && (
         <div className="bg-gradient-to-br from-indigo-900 via-blue-900 to-[#1E3A8A] text-white rounded-2xl p-5 shadow-lg border border-indigo-700/40 relative overflow-hidden">
           <div className="absolute right-0 bottom-0 translate-x-4 translate-y-4 w-32 h-32 bg-white/10 rounded-full blur-xl pointer-events-none" />
           
@@ -132,7 +132,7 @@ export default function WeeklyActivitiesWidget({ activeCourses = [], onJoinMeet 
               </h3>
             </div>
             <span className="text-[11px] font-bold px-2 py-0.5 rounded-full bg-amber-100 dark:bg-amber-950/50 text-amber-800 dark:text-amber-300 border border-amber-200 dark:border-amber-900/50">
-              {activities.filter(a => a.estado === "Por entregar").length} pendientes
+              {relevantActivities.filter((a) => a.estado === "Por entregar").length} pendientes
             </span>
           </div>
 
@@ -284,7 +284,7 @@ export default function WeeklyActivitiesWidget({ activeCourses = [], onJoinMeet 
               >
                 Cerrar
               </button>
-              {selectedTask.estado === "Por entregar" && (
+              {selectedTask.estado === "Por entregar" && !isReadOnly && (
                 <button
                   type="button"
                   onClick={() => handleDeliverTask(selectedTask.id)}
@@ -293,6 +293,11 @@ export default function WeeklyActivitiesWidget({ activeCourses = [], onJoinMeet 
                   <CheckCircle2 className="w-4 h-4" />
                   <span>Subir Entrega (PDF)</span>
                 </button>
+              )}
+              {isReadOnly && (
+                <span className="w-full py-2.5 px-3 rounded-xl bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 text-amber-800 dark:text-amber-300 font-bold text-[11px] flex items-center justify-center">
+                  Ciclo Concluido (Solo Lectura)
+                </span>
               )}
             </div>
           </div>

@@ -31,8 +31,25 @@ import { userService } from "../services/api";
 import { courseService } from "../services/cursosServices";
 import StudentTaskModal from "./student/StudentTaskModal";
 import StudentAnnouncementModal from "./student/StudentAnnouncementModal";
+import { StudentCycleProvider, useStudentCycle } from "../context/StudentCycleContext";
 
 export default function StudentLayout() {
+  return (
+    <StudentCycleProvider>
+      <StudentLayoutInner />
+    </StudentCycleProvider>
+  );
+}
+
+function StudentLayoutInner() {
+  const {
+    selectedCycle,
+    availableStudentCycles,
+    selectedCycleId,
+    setSelectedCycleId,
+    selectActiveCycle,
+    isReadOnlyHistory
+  } = useStudentCycle();
   const navigate = useNavigate();
   const location = useLocation();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -745,7 +762,36 @@ export default function StudentLayout() {
 
       {/* 3. ÁREA DE CONTENIDO PRINCIPAL */}
       <main className="flex-1 md:pl-20 w-full transition-all">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-5">
+          {isReadOnlyHistory && selectedCycle && (
+            <div
+              role="status"
+              className="rounded-2xl border border-amber-300 dark:border-amber-700/60 bg-amber-50/90 dark:bg-amber-950/40 px-4 py-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-xs animate-fade-in"
+            >
+              <div className="flex items-start sm:items-center gap-3">
+                <div className="p-2 rounded-xl bg-amber-500/20 text-amber-700 dark:text-amber-300 shrink-0">
+                  <Clock className="w-4 h-4" />
+                </div>
+                <div className="text-xs">
+                  <p className="font-extrabold text-amber-950 dark:text-amber-200">
+                    Modo Historial (Solo Lectura) — {selectedCycle.nombre}
+                  </p>
+                  <p className="text-amber-800 dark:text-amber-300/90 mt-0.5">
+                    Estás consultando un ciclo académico finalizado. Puedes revisar asignaturas, separatas, boletas y notas históricas, pero las salas en vivo y entregas están cerradas.
+                  </p>
+                </div>
+              </div>
+              {availableStudentCycles.some((c) => !c.isReadOnly) && (
+                <button
+                  type="button"
+                  onClick={selectActiveCycle}
+                  className="shrink-0 px-3.5 py-2 rounded-xl bg-amber-600 hover:bg-amber-700 text-white text-xs font-extrabold shadow-xs transition-colors cursor-pointer"
+                >
+                  Volver a mi ciclo actual
+                </button>
+              )}
+            </div>
+          )}
           <Outlet />
         </div>
       </main>
@@ -846,18 +892,24 @@ export default function StudentLayout() {
               >
                 Cerrar
               </button>
-              <button
-                type="button"
-                disabled={isSubmittingQuestion}
-                onClick={handleSubmitQuestion}
-                className="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-extrabold shadow-md cursor-pointer disabled:opacity-50"
-              >
-                {isSubmittingQuestion
-                  ? "Enviando..."
-                  : selectedContactKey.startsWith("classmate-")
-                  ? "Enviar a Compañero"
-                  : "Enviar Consulta al Docente"}
-              </button>
+              {isReadOnlyHistory ? (
+                <span className="px-4 py-2 rounded-xl bg-amber-100 dark:bg-amber-950/50 text-amber-800 dark:text-amber-300 text-xs font-bold">
+                  Ciclo Finalizado (Solo lectura)
+                </span>
+              ) : (
+                <button
+                  type="button"
+                  disabled={isSubmittingQuestion}
+                  onClick={handleSubmitQuestion}
+                  className="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-extrabold shadow-md cursor-pointer disabled:opacity-50"
+                >
+                  {isSubmittingQuestion
+                    ? "Enviando..."
+                    : selectedContactKey.startsWith("classmate-")
+                    ? "Enviar a Compañero"
+                    : "Enviar Consulta al Docente"}
+                </button>
+              )}
             </div>
 
             {/* HISTORIAL DE CONSULTAS Y RESPUESTAS DEL DOCENTE */}
@@ -1042,6 +1094,7 @@ export default function StudentLayout() {
       <StudentTaskModal
         task={selectedTaskModal}
         isOpen={Boolean(selectedTaskModal)}
+        isReadOnly={isReadOnlyHistory}
         onClose={() => setSelectedTaskModal(null)}
         onDeliver={async (taskId) => {
           await academicActivitiesService.toggleTaskStatus(taskId);

@@ -1,8 +1,7 @@
-import React, { useState, useEffect, useMemo } from "react";
-import { courseService } from "../../services/cursosServices";
-import { userService, parseCourseList } from "../../services/api";
+import React, { useState, useEffect } from "react";
 import { saveAttendanceRecord } from "../../services/asistencia";
 import WeeklyActivitiesWidget from "../../components/student/WeeklyActivitiesWidget";
+import { useStudentCycle } from "../../context/StudentCycleContext";
 
 import {
   Video,
@@ -27,22 +26,29 @@ import {
 } from "lucide-react";
 
 export default function StudentDashboardPage() {
+  const {
+    loadingCycle: loading,
+    errorCycle: error,
+    studentProfile: estudianteActivo,
+    availableStudentCycles,
+    selectedCycle,
+    selectedCycleId,
+    setSelectedCycleId,
+    isReadOnlyHistory,
+    cycleCourses: misCursosInscritos
+  } = useStudentCycle();
+
   const [activeMeetModal, setActiveMeetModal] = useState(null);
   const [attendanceNotice, setAttendanceNotice] = useState(null);
-  const [listaCursosGlobal, setListaCursosGlobal] = useState([]);
-  const [estudianteActivo, setEstudianteActivo] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
 
   // Estado para el carrusel de banners académicos
   const [activeSlide, setActiveSlide] = useState(0);
   const [isCarouselPlaying, setIsCarouselPlaying] = useState(true);
-  const [selectedPeriod, setSelectedPeriod] = useState("actual");
 
   const slides = [
     {
       id: 1,
-      badge: "Ciclo 2026-I • Refuerzo Académico",
+      badge: `${selectedCycle?.nombre || "Ciclo Preuniversitario"} • Preparación Integral`,
       title: "Talleres y Tutorías de Refuerzo Académico",
       subtitle: "Conoce la programación de la semana y consolida tu preparación con docentes de alto rendimiento.",
       items: [
@@ -90,71 +96,16 @@ export default function StudentDashboardPage() {
     return () => clearInterval(interval);
   }, [isCarouselPlaying, slides.length]);
 
-  useEffect(() => {
-    let cancelled = false;
-
-    async function cargarDatosEstudiante() {
-      try {
-        setLoading(true);
-        setError("");
-
-        const userEmail = localStorage.getItem("userEmail");
-        if (!userEmail) throw new Error("No se encontró el correo de la sesión.");
-
-        const [cursos, perfil] = await Promise.all([
-          courseService.getCourses(),
-          userService.getUserByEmail(userEmail)
-        ]);
-
-        if (cancelled) return;
-
-        setListaCursosGlobal(cursos || []);
-        if (!perfil) throw new Error("No se encontró el perfil del estudiante en Supabase.");
-        setEstudianteActivo(perfil);
-      } catch (err) {
-        if (!cancelled) {
-          console.error("Error al cargar datos del estudiante:", err);
-          setError(err.message || "Error al cargar los cursos del estudiante.");
-        }
-      } finally {
-        if (!cancelled) {
-          setLoading(false);
-        }
-      }
-    }
-
-    cargarDatosEstudiante();
-    return () => { cancelled = true; };
-  }, []);
-
   // Construcción limpia del nombre completo
   const studentName = estudianteActivo
-    ? `${estudianteActivo.nombres || ''} ${estudianteActivo.apellidos || ''}`.trim()
-    : (localStorage.getItem("userName") || "Lincoln Jhoel");
+    ? `${estudianteActivo.nombres || ""} ${estudianteActivo.apellidos || ""}`.trim()
+    : (localStorage.getItem("userName") || "Estudiante");
 
-  const carreraObjetivo = estudianteActivo?.carreraObjetivo || "Ingeniería de Sistemas";
-  const universidadObjetivo = estudianteActivo?.universidad || "UNI / San Marcos";
-
-  // Cruce estricto de cursosInscritos de la sesión con la lista global de cursos en la BD
-  const misCursosInscritos = useMemo(() => {
-    if (!estudianteActivo) return [];
-
-    const inscritos = parseCourseList(
-      estudianteActivo.cursosInscritos ||
-      estudianteActivo.cursos_inscritos ||
-      estudianteActivo.CursosInscritos
-    );
-    if (inscritos.length === 0) return [];
-
-    const idsInscritos = new Set(
-      inscritos.map((c) => (typeof c === "object" && c !== null ? String(c.id).trim() : String(c).trim()))
-    );
-    return (listaCursosGlobal || []).filter(
-      (curso) => idsInscritos.has(String(curso.id).trim()) && curso.estado === "Activo"
-    );
-  }, [estudianteActivo, listaCursosGlobal]);
+  const carreraObjetivo = selectedCycle?.programa || estudianteActivo?.carreraObjetivo || "Preparación Preuniversitaria";
+  const universidadObjetivo = estudianteActivo?.universidad || "UNMSM / UNI";
 
   const handleJoinMeet = (course) => {
+    if (isReadOnlyHistory) return;
     if (!course?.meetUrl) {
       alert("El curso seleccionado no tiene un enlace de Google Meet asignado.");
       return;
@@ -354,32 +305,40 @@ export default function StudentDashboardPage() {
         </div>
       )}
 
-      {/* 3. BARRA DE CABECERA: TÍTULO Y FILTRADO POR PERÍODO */}
+      {/* 3. BARRA DE CABECERA: TÍTULO Y FILTRADO REAL POR CICLO / PERÍODO */}
       <div id="mis-cursos-section" className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-200 dark:border-white/10 pb-4">
         <div>
           <h2 className="text-2xl font-black text-slate-900 dark:text-white tracking-tight flex items-center gap-2">
             <span>Mis cursos</span>
-            <span className="text-xs px-2.5 py-0.5 font-bold rounded-full bg-blue-100 dark:bg-blue-900/50 text-blue-800 dark:text-blue-300">
-              {misCursosInscritos.length} activos
+            <span className={`text-xs px-2.5 py-0.5 font-bold rounded-full ${
+              isReadOnlyHistory
+                ? "bg-amber-100 dark:bg-amber-950/60 text-amber-800 dark:text-amber-300"
+                : "bg-blue-100 dark:bg-blue-900/50 text-blue-800 dark:text-blue-300"
+            }`}>
+              {misCursosInscritos.length} {isReadOnlyHistory ? "históricos" : "activos"}
             </span>
           </h2>
           <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 mt-0.5">
-            Selecciona tu asignatura para acceder a la sala de Google Meet o consultar materiales.
+            {isReadOnlyHistory
+              ? "Consultando el registro histórico de un ciclo concluido (modo solo lectura)."
+              : "Selecciona tu asignatura para acceder a la sala de Google Meet o consultar materiales."}
           </p>
         </div>
 
-        {/* Selector de Período como en el portal de la universidad */}
+        {/* Selector Real de Ciclo Académico */}
         <div className="flex items-center gap-2 text-xs">
-          <span className="font-bold text-slate-600 dark:text-slate-400 hidden sm:inline">Filtrar por período:</span>
+          <span className="font-bold text-slate-600 dark:text-slate-400 hidden sm:inline">Ciclo / Período:</span>
           <div className="relative">
             <select
-              value={selectedPeriod}
-              onChange={(e) => setSelectedPeriod(e.target.value)}
+              value={selectedCycleId}
+              onChange={(e) => setSelectedCycleId(e.target.value)}
               className="appearance-none bg-white dark:bg-slate-900 border border-slate-300 dark:border-white/10 text-slate-800 dark:text-white font-bold py-2 pl-3.5 pr-8 rounded-xl shadow-xs text-xs focus:ring-2 focus:ring-blue-500 focus:outline-none cursor-pointer"
             >
-              <option value="actual">Período actual (Ciclo Intensivo 2026-I)</option>
-              <option value="anual">Ciclo Anual 2026 (Mañana)</option>
-              <option value="verano">Ciclo Repaso Verano 2026</option>
+              {availableStudentCycles.map((cic) => (
+                <option key={cic.id} value={cic.id}>
+                  {cic.nombre} ({cic.isReadOnly ? "Historial • Finalizado" : "En Curso"})
+                </option>
+              ))}
             </select>
             <ChevronDown className="w-4 h-4 text-slate-400 absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
           </div>
@@ -392,13 +351,20 @@ export default function StudentDashboardPage() {
         {/* COLUMNA IZQUIERDA / CENTRAL: CATÁLOGO DE CURSOS (8 COLUMNAS) */}
         <div className="lg:col-span-8 space-y-6">
           
-          {/* Subtítulo del Ciclo Académico */}
+          {/* Subtítulo Dinámico del Ciclo Académico */}
           <div className="flex items-center justify-between border-b border-slate-200/80 dark:border-white/10 pb-2">
-            <div className="text-xs sm:text-sm font-extrabold text-slate-700 dark:text-slate-300 tracking-wide uppercase">
-              2026 - Ciclo Intensivo de Admisión (001) (Actual)
+            <div className="text-xs sm:text-sm font-extrabold text-slate-700 dark:text-slate-300 tracking-wide uppercase flex items-center gap-2">
+              <span>{selectedCycle?.nombre || "Ciclo Académico"}</span>
+              <span className={`text-[10px] px-2 py-0.5 rounded-full font-extrabold ${
+                isReadOnlyHistory
+                  ? "bg-amber-100 dark:bg-amber-950/60 text-amber-800 dark:text-amber-300"
+                  : "bg-emerald-100 dark:bg-emerald-950/60 text-emerald-800 dark:text-emerald-300"
+              }`}>
+                {isReadOnlyHistory ? "Finalizado • Solo Lectura" : "En Curso"}
+              </span>
             </div>
             <span className="text-[11px] font-mono text-slate-400">
-              {carreraObjetivo} • {universidadObjetivo}
+              {carreraObjetivo}
             </span>
           </div>
 
@@ -423,10 +389,16 @@ export default function StudentDashboardPage() {
                         <span className={`text-[10px] font-extrabold px-2 py-0.5 rounded-full ${theme.badge}`}>
                           {theme.progress} Asistencia
                         </span>
-                        <span className="text-[10px] font-bold text-emerald-700 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/50 px-2 py-0.5 rounded-full border border-emerald-200 dark:border-emerald-800/60 flex items-center gap-1">
-                          <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                          Virtual en vivo
-                        </span>
+                        {isReadOnlyHistory ? (
+                          <span className="text-[10px] font-bold text-amber-700 dark:text-amber-300 bg-amber-50 dark:bg-amber-950/50 px-2 py-0.5 rounded-full border border-amber-200 dark:border-amber-800/60">
+                            Ciclo Concluido
+                          </span>
+                        ) : (
+                          <span className="text-[10px] font-bold text-emerald-700 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/50 px-2 py-0.5 rounded-full border border-emerald-200 dark:border-emerald-800/60 flex items-center gap-1">
+                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                            Virtual en vivo
+                          </span>
+                        )}
                       </div>
 
                       <h3 className="text-base font-extrabold text-slate-900 dark:text-white mt-3 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors leading-snug">
@@ -459,24 +431,35 @@ export default function StudentDashboardPage() {
 
                     {/* Botones de acción inferiores */}
                     <div className="p-4 pt-0 space-y-2">
-                      <button
-                        type="button"
-                        onClick={() => handleJoinMeet(course)}
-                        className="w-full bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white font-extrabold py-2.5 px-3 rounded-xl shadow-sm text-xs flex items-center justify-center space-x-1.5 cursor-pointer transition-all hover:scale-[1.01]"
-                        title="Unirse inmediatamente a la sala de Google Meet"
-                      >
-                        <Video className="w-4 h-4 shrink-0" />
-                        <span>Unirse a Sala Virtual (Meet)</span>
-                      </button>
+                      {isReadOnlyHistory ? (
+                        <button
+                          type="button"
+                          disabled
+                          className="w-full bg-slate-200 dark:bg-slate-800 text-slate-500 dark:text-slate-400 font-bold py-2.5 px-3 rounded-xl text-xs flex items-center justify-center space-x-1.5 cursor-not-allowed"
+                        >
+                          <Clock className="w-4 h-4 shrink-0" />
+                          <span>Sala Cerrada (Ciclo Finalizado)</span>
+                        </button>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => handleJoinMeet(course)}
+                          className="w-full bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white font-extrabold py-2.5 px-3 rounded-xl shadow-sm text-xs flex items-center justify-center space-x-1.5 cursor-pointer transition-all hover:scale-[1.01]"
+                          title="Unirse inmediatamente a la sala de Google Meet"
+                        >
+                          <Video className="w-4 h-4 shrink-0" />
+                          <span>Unirse a Sala Virtual (Meet)</span>
+                        </button>
+                      )}
 
                       <button
                         type="button"
                         onClick={() => setActiveMeetModal(course)}
                         className="w-full py-2 px-3 rounded-xl border border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-white/5 hover:bg-slate-100 dark:hover:bg-white/10 text-xs font-bold text-slate-700 dark:text-slate-300 flex items-center justify-center gap-1.5 transition-all cursor-pointer"
-                        title="Ver detalles de la sala y materiales"
+                        title="Ver detalles de la asignatura y materiales"
                       >
                         <ExternalLink className="w-3.5 h-3.5 text-slate-400" />
-                        <span>Ver detalles y enlace</span>
+                        <span>{isReadOnlyHistory ? "Consultar sílabo y materiales" : "Ver detalles y enlace"}</span>
                       </button>
                     </div>
                   </div>
@@ -492,6 +475,7 @@ export default function StudentDashboardPage() {
             <WeeklyActivitiesWidget
               activeCourses={misCursosInscritos}
               onJoinMeet={handleJoinMeet}
+              isReadOnly={isReadOnlyHistory}
             />
           </div>
         </div>
@@ -533,17 +517,19 @@ export default function StudentDashboardPage() {
               >
                 Volver
               </button>
-              <button
-                type="button"
-                onClick={() => {
-                  handleJoinMeet(activeMeetModal);
-                  setActiveMeetModal(null);
-                }}
-                className="w-full py-2.5 px-4 bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold rounded-xl text-xs flex items-center justify-center space-x-1.5 shadow-md cursor-pointer"
-              >
-                <span>Entrar a la Sala</span>
-                <ExternalLink className="w-3.5 h-3.5" />
-              </button>
+              {!isReadOnlyHistory && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    handleJoinMeet(activeMeetModal);
+                    setActiveMeetModal(null);
+                  }}
+                  className="w-full py-2.5 px-4 bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold rounded-xl text-xs flex items-center justify-center space-x-1.5 shadow-md cursor-pointer"
+                >
+                  <span>Entrar a la Sala</span>
+                  <ExternalLink className="w-3.5 h-3.5" />
+                </button>
+              )}
             </div>
           </div>
         </div>

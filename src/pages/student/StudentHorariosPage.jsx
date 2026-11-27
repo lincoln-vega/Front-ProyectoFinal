@@ -12,8 +12,7 @@ import {
   Layers,
   GraduationCap
 } from "lucide-react";
-import { courseService } from "../../services/cursosServices";
-import { userService, parseCourseList } from "../../services/api";
+import { useStudentCycle } from "../../context/StudentCycleContext";
 
 const DAYS = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado"];
 const START_HOUR = 7;
@@ -64,68 +63,23 @@ function expandCourseSchedule(course) {
 }
 
 export default function StudentHorariosPage() {
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
-  const [listaCursosGlobal, setListaCursosGlobal] = useState([]);
-  const [estudianteActivo, setEstudianteActivo] = useState(null);
+  const {
+    loadingCycle: loading,
+    errorCycle,
+    studentProfile: estudianteActivo,
+    availableStudentCycles,
+    selectedCycle,
+    selectedCycleId,
+    setSelectedCycleId,
+    isReadOnlyHistory,
+    cycleCourses: misCursosInscritos
+  } = useStudentCycle();
+
+  const [localError, setLocalError] = useState("");
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedMobileDay, setSelectedMobileDay] = useState("Lunes");
 
-  useEffect(() => {
-    let cancelled = false;
-
-    async function cargarHorarioEstudiante() {
-      try {
-        setLoading(true);
-        setError("");
-
-        const userEmail = localStorage.getItem("userEmail");
-        if (!userEmail) throw new Error("No se encontró el correo de la sesión.");
-
-        const [cursos, perfil] = await Promise.all([
-          courseService.getCourses(),
-          userService.getUserByEmail(userEmail)
-        ]);
-
-        if (cancelled) return;
-
-        setListaCursosGlobal(cursos || []);
-        if (!perfil) throw new Error("No se encontró el perfil del estudiante en Supabase.");
-        setEstudianteActivo(perfil);
-      } catch (err) {
-        if (!cancelled) {
-          console.error("Error al cargar horario del estudiante:", err);
-          setError(err.message || "Error al cargar el horario escolar.");
-        }
-      } finally {
-        if (!cancelled) {
-          setLoading(false);
-        }
-      }
-    }
-
-    cargarHorarioEstudiante();
-    return () => { cancelled = true; };
-  }, []);
-
-  // Extraer estrictamente los cursos inscritos del estudiante en la BD
-  const misCursosInscritos = useMemo(() => {
-    if (!estudianteActivo) return [];
-
-    const inscritos = parseCourseList(
-      estudianteActivo.cursosInscritos ||
-      estudianteActivo.cursos_inscritos ||
-      estudianteActivo.CursosInscritos
-    );
-    if (inscritos.length === 0) return [];
-
-    const idsInscritos = new Set(
-      inscritos.map((c) => (typeof c === "object" && c !== null ? String(c.id).trim() : String(c).trim()))
-    );
-    return (listaCursosGlobal || []).filter(
-      (curso) => idsInscritos.has(String(curso.id).trim()) && curso.estado === "Activo"
-    );
-  }, [estudianteActivo, listaCursosGlobal]);
+  const error = localError || errorCycle;
 
   // Expandir a bloques de horario
   const scheduleItems = useMemo(() => {
@@ -149,13 +103,19 @@ export default function StudentHorariosPage() {
     ? `${estudianteActivo.nombres || ""} ${estudianteActivo.apellidos || ""}`.trim()
     : "Estudiante";
 
-  const cicloVirtual = estudianteActivo?.cicloVirtual || estudianteActivo?.ciclovirtual || "Semestral";
+  const cicloVirtual = selectedCycle?.nombre || estudianteActivo?.cicloVirtual || estudianteActivo?.ciclovirtual || "Semestral";
 
   const handleOpenRoom = (course) => {
+    if (isReadOnlyHistory) {
+      setLocalError("Este horario pertenece a un ciclo finalizado (Modo Historial). Las salas en vivo están cerradas.");
+      setTimeout(() => setLocalError(""), 4000);
+      return;
+    }
     if (course.meetUrl) {
       window.open(course.meetUrl, "_blank", "noopener,noreferrer");
     } else {
-      setError(`No hay enlace de sala virtual configurado para la materia "${course.asignatura}".`); setTimeout(() => setError(""), 4000);
+      setLocalError(`No hay enlace de sala virtual configurado para la materia "${course.asignatura}".`);
+      setTimeout(() => setLocalError(""), 4000);
     }
   };
 
@@ -196,9 +156,24 @@ export default function StudentHorariosPage() {
                 <span className="text-blue-200 text-[10px] uppercase font-bold block">Horas / Sem</span>
                 <strong className="text-emerald-300 text-base">{totalHorasSemanales} hrs</strong>
               </div>
-              <div className="bg-white/10 backdrop-blur-md px-3.5 py-2 rounded-xl border border-white/15 text-center min-w-[100px]">
-                <span className="text-blue-200 text-[10px] uppercase font-bold block">Ciclo</span>
-                <strong className="text-white text-xs">{cicloVirtual}</strong>
+              <div className="bg-white/10 backdrop-blur-md px-3.5 py-2 rounded-xl border border-white/15 text-center min-w-[140px]">
+                <span className="text-blue-200 text-[10px] uppercase font-bold block">Ciclo Seleccionado</span>
+                {availableStudentCycles.length > 1 ? (
+                  <select
+                    value={selectedCycleId}
+                    onChange={(e) => setSelectedCycleId(e.target.value)}
+                    aria-label="Cambiar ciclo en horario"
+                    className="bg-transparent text-white font-bold text-xs focus:outline-none cursor-pointer mt-0.5"
+                  >
+                    {availableStudentCycles.map((cic) => (
+                      <option key={cic.id} value={cic.id} className="bg-slate-900 text-white">
+                        {cic.nombre} {cic.isReadOnly ? "(Historial)" : ""}
+                      </option>
+                    ))}
+                  </select>
+                ) : (
+                  <strong className="text-white text-xs">{cicloVirtual}</strong>
+                )}
               </div>
             </div>
           </div>
