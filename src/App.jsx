@@ -3,6 +3,7 @@ import { Routes, Route, Navigate } from "react-router-dom";
 import Login from "./pages/Login";
 import ProtectedRoute from "./components/ProtectedRoute";
 import AdminLayout from "./components/AdminLayout";
+import AdminDashboardPage from "./pages/admin/AdminDashboardPage";
 import AdminUsersPage from "./pages/admin/AdminUsersPage";
 import CursoPage from "./pages/admin/CursoPage";
 import HorariosSalonesPage from "./pages/admin/HorariosSalonesPage";
@@ -36,7 +37,7 @@ export default function App() {
           <Navigate
             to={
               localStorage.getItem("userRole") === "admin"
-                ? "/admin/usuarios"
+                ? "/admin/inicio"
                 : localStorage.getItem("userRole") === "docente"
                 ? "/docente/panel"
                 : localStorage.getItem("userRole") === "estudiante"
@@ -51,7 +52,8 @@ export default function App() {
       {/* 2. Rutas de Administrador Protegidas (Solo rol "admin") */}
       <Route element={<ProtectedRoute allowedRoles={["admin"]} />}>
         <Route path="/admin" element={<AdminLayout />}>
-          <Route index element={<Navigate to="/admin/usuarios" replace />} />
+          <Route index element={<Navigate to="/admin/inicio" replace />} />
+          <Route path="inicio" element={<AdminDashboardPage />} />
           <Route path="usuarios" element={<AdminUsersPage />} />
           <Route path="cursos" element={<CursoPage />} />
           <Route path="horarios" element={<HorariosSalonesPage />} />

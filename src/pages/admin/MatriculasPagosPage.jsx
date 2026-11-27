@@ -29,6 +29,7 @@ import {
 } from "lucide-react";
 import { userService, matriculaService, pagoService, courseService, parseCourseList, validateWithBackend } from "../../services/api";
 import { exportToCSV } from "../../utils/exportUtils";
+import SearchableSelect from "../../components/shared/SearchableSelect";
 
 const STORAGE_KEYS = {
   MATRICULAS: "academia_matriculas_data",
@@ -1251,24 +1252,22 @@ export default function MatriculasPagosPage({ defaultTab = "matriculas" }) {
                   <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-1">
                     Programa Académico (Carrera) *
                   </label>
-                  <select
+                  <SearchableSelect
                     value={formMatricula.programa}
-                    onChange={(e) => {
-                      const sel = PROGRAMAS_ACADEMICOS.find((p) => p.nombre === e.target.value);
+                    onChange={(val) => {
+                      const sel = PROGRAMAS_ACADEMICOS.find((p) => p.nombre === val);
                       setFormMatricula({
                         ...formMatricula,
-                        programa: e.target.value,
-                        montoTotal: sel ? sel.costo : formMatricula.montoTotal,
+                        programa: val,
+                        montoTotal: sel ? sel.costo : formMatricula.montoTotal
                       });
                     }}
-                    className="w-full px-3 py-2 text-xs border border-slate-200 dark:border-white/10 rounded-xl focus:outline-none focus:border-[#1E3A8A] bg-white dark:bg-slate-800 text-slate-800 dark:text-white"
-                  >
-                    {PROGRAMAS_ACADEMICOS.map((p) => (
-                      <option key={p.nombre} value={p.nombre}>
-                        {p.nombre} — (S/. {p.costo}.00)
-                      </option>
-                    ))}
-                  </select>
+                    options={PROGRAMAS_ACADEMICOS.map((p) => ({
+                      value: p.nombre,
+                      label: p.nombre,
+                      sublabel: `Costo total: S/. ${p.costo}.00 (${p.cuotasSugeridas} cuotas sugeridas)`
+                    }))}
+                  />
                 </div>
 
                 <div>
@@ -1462,26 +1461,29 @@ export default function MatriculasPagosPage({ defaultTab = "matriculas" }) {
                 <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-1">
                   Matrícula / Estudiante *
                 </label>
-                <select
-                  required
+                <SearchableSelect
                   value={formPago.matriculaId}
-                  onChange={(e) => {
-                    const mat = matriculas.find((m) => m.id === e.target.value);
+                  placeholder="Escribe nombre del postulante, DNI o código MAT-..."
+                  onChange={(val) => {
+                    const mat = matriculas.find((m) => m.id === val);
                     setFormPago({
                       ...formPago,
-                      matriculaId: e.target.value,
-                      monto: mat && mat.saldoPendiente > 0 ? Math.min(mat.saldoPendiente, 400) : formPago.monto,
+                      matriculaId: val,
+                      monto:
+                        mat && mat.saldoPendiente > 0
+                          ? Math.min(mat.saldoPendiente, 400)
+                          : formPago.monto
                     });
                   }}
-                  className="w-full px-3 py-2 text-xs border border-slate-200 dark:border-white/10 rounded-xl focus:outline-none focus:border-emerald-600 bg-white dark:bg-slate-800 text-slate-800 dark:text-white"
-                >
-                  <option value="">-- Seleccionar Estudiante --</option>
-                  {matriculas.map((m) => (
-                    <option key={m.id} value={m.id}>
-                      {m.id} - {m.estudiante} (Saldo: S/. {m.saldoPendiente.toFixed(2)})
-                    </option>
-                  ))}
-                </select>
+                  options={matriculas.map((m) => ({
+                    value: m.id,
+                    label: `${m.estudiante} (${m.id})`,
+                    sublabel: `DNI: ${m.dni || "S/D"} • Saldo pendiente: S/. ${Number(
+                      m.saldoPendiente || 0
+                    ).toFixed(2)}`,
+                    searchText: `${m.dni || ""} ${m.correo || ""} ${m.programa || ""}`
+                  }))}
+                />
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

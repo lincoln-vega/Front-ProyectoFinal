@@ -3,6 +3,7 @@ import { X, BookOpen, User, Clock, Video, FolderOpen, AlertTriangle, CheckCircle
 import { academicosService, DEFAULT_AREAS, DEFAULT_CARRERAS, matchArea, getCareersForArea } from "../../services/academicosService";
 import { userService } from "../../services/api";
 import { courseService } from "../../services/cursosServices";
+import SearchableSelect from "../shared/SearchableSelect";
 
 const WEEK_DAYS = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado"];
 
@@ -464,54 +465,39 @@ export default function CursoRegistroModal({
               <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
                 Área Académica *
               </label>
-              <select
-                name="area"
+              <SearchableSelect
                 value={formData.area}
-                onChange={handleAreaChange}
-                required
-                className="w-full px-3 py-2 border border-slate-200 dark:border-white/10 rounded-lg text-xs focus:ring-2 focus:ring-blue-500 focus:outline-hidden bg-white dark:bg-slate-900 dark:text-white cursor-pointer"
-              >
-                <option value="">
-                  {loadingCatalog ? "-- Cargando áreas de la BD... --" : "-- Seleccionar Área Académica --"}
-                </option>
-                {formData.area && !dbAreas.some(a => (a.nombre || "").toLowerCase() === formData.area.toLowerCase()) && (
-                  <option value={formData.area}>{formData.area}</option>
-                )}
-                {dbAreas.map((area) => (
-                  <option key={area.id || area.nombre} value={area.nombre}>
-                    {area.nombre}
-                  </option>
-                ))}
-              </select>
+                onChange={(val) => handleAreaChange({ target: { value: val } })}
+                placeholder={
+                  loadingCatalog ? "Cargando áreas de la BD..." : "Seleccionar o escribir área académica..."
+                }
+                options={dbAreas.map((area) => ({
+                  value: area.nombre,
+                  label: area.nombre,
+                  sublabel: area.codigo ? `Código: ${area.codigo}` : ""
+                }))}
+              />
             </div>
             <div>
               <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
                 Carrera Asociada *
               </label>
-              <select
-                name="carrera"
+              <SearchableSelect
                 value={formData.carrera}
-                onChange={handleChange}
-                required
                 disabled={!formData.area || availableCareers.length === 0}
-                className="w-full px-3 py-2 border border-slate-200 dark:border-white/10 rounded-lg text-xs focus:ring-2 focus:ring-blue-500 focus:outline-hidden bg-white dark:bg-slate-900 dark:text-white cursor-pointer disabled:opacity-50"
-              >
-                <option value="">
-                  {!formData.area
-                    ? "-- Primero selecciona un área académica --"
+                onChange={(val) => handleChange({ target: { name: "carrera", value: val } })}
+                placeholder={
+                  !formData.area
+                    ? "Primero selecciona un área académica"
                     : availableCareers.length === 0
-                    ? "-- No hay carreras para esta área en la BD --"
-                    : "-- Seleccionar Carrera Asociada --"}
-                </option>
-                {formData.carrera && !availableCareers.some(car => (car.nombre || "").toLowerCase() === formData.carrera.toLowerCase()) && (
-                  <option value={formData.carrera}>{formData.carrera}</option>
-                )}
-                {availableCareers.map((car) => (
-                  <option key={car.id || car.nombre} value={car.nombre}>
-                    {car.nombre}
-                  </option>
-                ))}
-              </select>
+                    ? "No hay carreras para esta área"
+                    : "Escribe para filtrar carrera..."
+                }
+                options={availableCareers.map((car) => ({
+                  value: car.nombre,
+                  label: car.nombre
+                }))}
+              />
             </div>
           </div>
 
@@ -521,23 +507,17 @@ export default function CursoRegistroModal({
               <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
                 Seleccionar Docente Titular *
               </label>
-              <select
+              <SearchableSelect
                 value={formData.docenteId}
-                onChange={handleTeacherSelect}
-                className="w-full px-3 py-2 border border-slate-200 dark:border-white/10 rounded-lg text-xs focus:ring-2 focus:ring-blue-500 focus:outline-hidden bg-white dark:bg-slate-900 dark:text-white"
-              >
-                <option value="">-- Seleccionar de la nómina docente --</option>
-                {formData.docenteId && !teachers.some(t => t.id === formData.docenteId) && (
-                  <option value={formData.docenteId}>
-                    {formData.docente ? `${formData.docente} (${formData.docenteId})` : formData.docenteId}
-                  </option>
-                )}
-                {teachers.map((t) => (
-                  <option key={t.id} value={t.id}>
-                    {t.nombres} {t.apellidos} ({t.areaAcademica})
-                  </option>
-                ))}
-              </select>
+                onChange={(val) => handleTeacherSelect({ target: { value: val } })}
+                placeholder="Escribe nombre, DNI o especialidad del docente..."
+                options={teachers.map((t) => ({
+                  value: t.id,
+                  label: `${t.nombres} ${t.apellidos}`,
+                  sublabel: `${t.areaAcademica || "Cátedra"} • DNI: ${t.dni || "S/D"}`,
+                  searchText: `${t.dni || ""} ${t.correo || ""} ${t.areaAcademica || ""}`
+                }))}
+              />
             </div>
           </div>
 

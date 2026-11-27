@@ -11,6 +11,7 @@ import {
 import { userService, courseService } from "../../services/api";
 import { uploadFileToStorage } from "../../lib/supabase";
 import FilePreviewModal from "../shared/FilePreviewModal";
+import SearchableSelect from "../shared/SearchableSelect";
 
 const TIPOS_INCIDENCIA = [
   "Tardanza (15 min)",
@@ -228,34 +229,34 @@ export default function NuevaIncidenciaModal({ isOpen, onClose, onSave }) {
                   <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">
                     Docente *
                   </label>
-                  <select
+                  <SearchableSelect
                     value={formData.docenteId}
-                    onChange={handleTeacherChange}
-                    className="w-full px-3 py-2 border border-slate-200 dark:border-white/10 rounded-lg bg-slate-50 dark:bg-slate-800 dark:text-white"
-                  >
-                    {teachers.map((t) => (
-                      <option key={t.id} value={t.id}>
-                        {t.nombres} {t.apellidos}
-                      </option>
-                    ))}
-                  </select>
+                    onChange={(val) => handleTeacherChange({ target: { value: val } })}
+                    placeholder="Buscar docente por nombre o DNI..."
+                    options={teachers.map((t) => ({
+                      value: t.id,
+                      label: `${t.nombres} ${t.apellidos}`,
+                      sublabel: `DNI: ${t.dni || "S/D"} • ${t.correo}`,
+                      searchText: `${t.dni || ""} ${t.correo || ""}`
+                    }))}
+                  />
                 </div>
 
                 <div>
                   <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">
                     Asignatura *
                   </label>
-                  <select
+                  <SearchableSelect
                     value={formData.cursoId}
-                    onChange={handleCourseChange}
-                    className="w-full px-3 py-2 border border-slate-200 dark:border-white/10 rounded-lg bg-slate-50 dark:bg-slate-800 dark:text-white"
-                  >
-                    {courses.map((c) => (
-                      <option key={c.id} value={c.id}>
-                        {c.asignatura}
-                      </option>
-                    ))}
-                  </select>
+                    onChange={(val) => handleCourseChange({ target: { value: val } })}
+                    placeholder="Buscar asignatura..."
+                    options={courses.map((c) => ({
+                      value: c.id,
+                      label: c.asignatura,
+                      sublabel: `${c.docente || ""} • ${c.id}`,
+                      searchText: `${c.docente || ""} ${c.id}`
+                    }))}
+                  />
                 </div>
               </div>
 

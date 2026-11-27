@@ -49,7 +49,7 @@ export default function Login() {
       localStorage.setItem("usuarioLogueado", JSON.stringify(user));
       setPassword("");
 
-      if (role === "admin") navigate("/admin/usuarios");
+      if (role === "admin") navigate("/admin/inicio");
       else if (role === "docente") navigate("/docente/panel");
       else navigate("/estudiante/panel");
 
