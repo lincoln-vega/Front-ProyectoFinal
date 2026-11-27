@@ -1,6 +1,14 @@
-import { AlertCircle, Edit2, Trash2 } from "lucide-react";
+import { AlertCircle, Edit2, FileText, Trash2 } from "lucide-react";
 
-export default function UsersTable({ users, totalUsers, activeUsers, inactiveUsers, onEdit, onDelete }) {
+export default function UsersTable({
+  users,
+  totalUsers,
+  activeUsers,
+  inactiveUsers,
+  onEdit,
+  onDelete,
+  onOpenReport
+}) {
   return (
     <div className="bg-white dark:bg-white/5 rounded-xl border border-slate-200 dark:border-white/10 shadow-xs overflow-hidden">
       <div className="px-5 py-3 border-b border-slate-200 dark:border-white/10 bg-slate-50/80 dark:bg-white/5 flex items-center justify-between text-xs text-slate-600 dark:text-slate-400">
@@ -93,7 +101,21 @@ export default function UsersTable({ users, totalUsers, activeUsers, inactiveUse
                     </span>
                   </td>
                   <td className="py-2.5 px-3.5 whitespace-nowrap text-center">
-                    <div className="flex items-center justify-center space-x-2">
+                    <div className="flex items-center justify-center space-x-1.5">
+                      {onOpenReport && String(user.rol || "").toLowerCase() !== "admin" && (
+                        <button
+                          type="button"
+                          onClick={() => onOpenReport(user)}
+                          title={
+                            ["docente", "profesor"].includes(String(user.rol || "").toLowerCase())
+                              ? "Emitir Récord y Liquidación Docente (PDF)"
+                              : "Emitir Kardex Académico del Alumno (PDF)"
+                          }
+                          className="p-1.5 text-indigo-700 dark:text-indigo-300 bg-indigo-50 dark:bg-indigo-950/40 hover:bg-indigo-100 dark:hover:bg-indigo-900/60 border border-indigo-200 dark:border-indigo-800/60 rounded-lg transition-all cursor-pointer shadow-2xs hover:scale-105 active:scale-95"
+                        >
+                          <FileText className="w-3.5 h-3.5" />
+                        </button>
+                      )}
                       <button
                         type="button"
                         onClick={() => onEdit(user)}

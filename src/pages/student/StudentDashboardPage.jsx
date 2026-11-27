@@ -3,6 +3,7 @@ import { saveAttendanceRecord } from "../../services/asistencia";
 import { clasesVivoService } from "../../services/clasesVivoService";
 import { academicActivitiesService } from "../../services/academicActivitiesService";
 import WeeklyActivitiesWidget from "../../components/student/WeeklyActivitiesWidget";
+import FilePreviewModal from "../../components/shared/FilePreviewModal";
 import { useStudentCycle } from "../../context/StudentCycleContext";
 
 import {
@@ -45,6 +46,7 @@ export default function StudentDashboardPage() {
   const [liveSessionsByCourse, setLiveSessionsByCourse] = useState({});
   const [resumenAsistencia, setResumenAsistencia] = useState({});
   const [courseMaterials, setCourseMaterials] = useState([]);
+  const [previewMaterial, setPreviewMaterial] = useState(null);
   const [liveTracker, setLiveTracker] = useState(() => clasesVivoService.getStudentTrackerState());
 
   useEffect(() => {
@@ -524,14 +526,13 @@ export default function StudentDashboardPage() {
                       </div>
 
                       {latestMat && (
-                        <a
-                          href={latestMat.archivoUrl}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="block rounded-lg bg-blue-50/80 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-800/60 px-2.5 py-1.5 text-[11px] font-bold text-blue-700 dark:text-blue-300 truncate hover:underline"
+                        <button
+                          type="button"
+                          onClick={() => setPreviewMaterial(latestMat)}
+                          className="w-full text-left block rounded-lg bg-blue-50/80 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-800/60 px-2.5 py-1.5 text-[11px] font-bold text-blue-700 dark:text-blue-300 truncate hover:bg-blue-100/80 cursor-pointer transition-colors"
                         >
-                          📎 Material disponible: {latestMat.archivoNombre || latestMat.titulo}
-                        </a>
+                          📎 Previsualizar material: {latestMat.archivoNombre || latestMat.titulo}
+                        </button>
                       )}
                     </div>
 
@@ -655,6 +656,17 @@ export default function StudentDashboardPage() {
           </div>
         </div>
       )}
+
+      <FilePreviewModal
+        isOpen={Boolean(previewMaterial)}
+        onClose={() => setPreviewMaterial(null)}
+        title={previewMaterial?.titulo || "Material de Clase"}
+        subtitle={`${previewMaterial?.curso || ""} • ${previewMaterial?.docente || ""}`}
+        fileName={previewMaterial?.archivoNombre || "material_clase.pdf"}
+        bucket="materiales-clase"
+        path={previewMaterial?.archivoPath}
+        fallbackUrl={previewMaterial?.archivoUrl}
+      />
     </div>
   );
 }

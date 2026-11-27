@@ -14,6 +14,7 @@ import {
   CheckCircle2,
   Clock,
   ExternalLink,
+  Eye,
   FileUp,
   Loader2,
   PictureInPicture2,
@@ -30,6 +31,7 @@ import ThemeToggle from "../../components/ThemeToggle";
 import { uploadFileToStorage } from "../../lib/supabase";
 import { academicActivitiesService } from "../../services/academicActivitiesService";
 import { clasesVivoService, formatDurationHMS } from "../../services/clasesVivoService";
+import FilePreviewModal from "../../components/shared/FilePreviewModal";
 
 const STATUS_OPTIONS = [
   { val: "Presente", label: "Presente", activeCls: "bg-emerald-600 text-white border-emerald-500" },
@@ -293,6 +295,7 @@ export default function DocenteAulaVivoPage() {
   const [estudiantes, setEstudiantes] = useState([]);
   const [loading, setLoading] = useState(() => !coursePreview);
   const [syncingRoster, setSyncingRoster] = useState(true);
+  const [previewLiveMatOpen, setPreviewLiveMatOpen] = useState(false);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
 
@@ -974,6 +977,26 @@ export default function DocenteAulaVivoPage() {
                     onChange={(e) => setMatFile(e.target.files?.[0] || null)}
                   />
                 </label>
+
+                {matFile && (
+                  <div className="flex items-center justify-end gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setPreviewLiveMatOpen(true)}
+                      className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg bg-indigo-50 dark:bg-indigo-950/50 border border-indigo-200 dark:border-indigo-800 text-indigo-700 dark:text-indigo-300 text-[11px] font-extrabold cursor-pointer"
+                    >
+                      <Eye className="w-3.5 h-3.5" />
+                      <span>Previsualizar separata</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setMatFile(null)}
+                      className="text-[11px] font-bold text-rose-500 hover:underline cursor-pointer"
+                    >
+                      Quitar
+                    </button>
+                  </div>
+                )}
               </div>
 
               <button
@@ -1217,6 +1240,15 @@ export default function DocenteAulaVivoPage() {
           </div>
         </div>
       )}
+
+      <FilePreviewModal
+        isOpen={previewLiveMatOpen}
+        onClose={() => setPreviewLiveMatOpen(false)}
+        title={`Separata en Vivo — ${matTitulo || matFile?.name || "Material"}`}
+        subtitle={`${sesion?.asignatura || ""} • Revisión previa a publicación`}
+        fileName={matFile?.name || "separata.pdf"}
+        localFile={matFile}
+      />
     </div>
   );
 }

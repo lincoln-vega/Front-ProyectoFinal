@@ -520,6 +520,8 @@ export const incidentService = {
       horario: incident.horario || "",
       motivo: incident.motivo || "",
       archivoNombre: incident.archivoNombre || null,
+      archivoUrl: incident.archivoUrl || incident.archivo_url || null,
+      archivoPath: incident.archivoPath || incident.archivo_path || null,
       docentePropuesto: incident.docentePropuesto || incident.docentepropuesto || null,
       docenteReemplazo: incident.docenteReemplazo || incident.docentereemplazo || null,
       horarioActualizado: incident.horarioActualizado || incident.horarioactualizado || null,

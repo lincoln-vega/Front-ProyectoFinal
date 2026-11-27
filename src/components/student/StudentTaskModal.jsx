@@ -15,10 +15,12 @@ import {
   RefreshCw,
   MessageSquare,
   Loader2,
-  User
+  User,
+  Eye
 } from "lucide-react";
-import { openStorageFile, uploadFileToStorage } from "../../lib/supabase";
+import { uploadFileToStorage } from "../../lib/supabase";
 import { academicActivitiesService } from "../../services/academicActivitiesService";
+import FilePreviewModal from "../shared/FilePreviewModal";
 
 const MAX_DELIVERY_BYTES = 15 * 1024 * 1024; // 15 MB límite real del bucket tareas-entregas
 const ALLOWED_EXT_REGEX = /\.(pdf|doc|docx|ppt|pptx|xls|xlsx|zip|png|jpg|jpeg|webp)$/i;
@@ -43,6 +45,7 @@ export default function StudentTaskModal({
   const [stepStatus, setStepStatus] = useState(""); // "" | "uploading" | "saving"
   const [errorMsg, setErrorMsg] = useState("");
   const [isReplacing, setIsReplacing] = useState(false);
+  const [previewTarget, setPreviewTarget] = useState(null);
 
   useEffect(() => {
     if (isOpen && task) {
@@ -51,6 +54,7 @@ export default function StudentTaskModal({
       setStepStatus("");
       setErrorMsg("");
       setIsReplacing(false);
+      setPreviewTarget(null);
     }
   }, [isOpen, task?.id]);
 
@@ -88,20 +92,36 @@ export default function StudentTaskModal({
     setSelectedFile(file);
   };
 
-  const handleOpenTeacherGuide = async () => {
-    try {
-      await openStorageFile("materiales-clase", task.archivoPath, task.archivoUrl);
-    } catch (err) {
-      setErrorMsg(err.message);
-    }
+  const handleOpenTeacherGuide = () => {
+    setPreviewTarget({
+      title: `Guía Docente — ${task.titulo}`,
+      subtitle: `${task.curso} • ${task.docente || "Cátedra"}`,
+      fileName: task.archivoNombre || "guia_docente.pdf",
+      bucket: "materiales-clase",
+      path: task.archivoPath,
+      fallbackUrl: task.archivoUrl
+    });
   };
 
-  const handleOpenMyFile = async () => {
-    try {
-      await openStorageFile("tareas-entregas", miEntrega?.archivoPath, miEntrega?.archivoUrl);
-    } catch (err) {
-      setErrorMsg(err.message);
-    }
+  const handleOpenMyFile = () => {
+    setPreviewTarget({
+      title: `Mi Entrega — ${task.titulo}`,
+      subtitle: `${task.curso} • Archivo registrado`,
+      fileName: miEntrega?.archivoNombre || "mi_entrega.pdf",
+      bucket: "tareas-entregas",
+      path: miEntrega?.archivoPath,
+      fallbackUrl: miEntrega?.archivoUrl
+    });
+  };
+
+  const handlePreviewLocalSelection = () => {
+    if (!selectedFile) return;
+    setPreviewTarget({
+      title: `Previsualización — ${selectedFile.name}`,
+      subtitle: "Verifica tu archivo antes de confirmar la entrega",
+      fileName: selectedFile.name,
+      localFile: selectedFile
+    });
   };
 
   const handleSubmit = async (e) => {
@@ -269,7 +289,7 @@ export default function StudentTaskModal({
                   </span>
                 </span>
                 <span className="inline-flex items-center gap-1 text-[11px] font-extrabold shrink-0">
-                  <Download className="w-3.5 h-3.5" /> Abrir
+                  <Eye className="w-3.5 h-3.5" /> Previsualizar
                 </span>
               </button>
             )}
@@ -320,13 +340,13 @@ export default function StudentTaskModal({
                   <span className="text-slate-500 dark:text-slate-400 truncate">
                     Tu archivo: <strong className="text-slate-700 dark:text-slate-200">{miEntrega.archivoNombre}</strong>
                   </span>
-                  {miEntrega.archivoUrl && (
+                  {(miEntrega.archivoUrl || miEntrega.archivoPath) && (
                     <button
                       type="button"
                       onClick={handleOpenMyFile}
                       className="text-indigo-600 dark:text-indigo-400 hover:underline font-extrabold inline-flex items-center gap-1 shrink-0 cursor-pointer"
                     >
-                      <Download className="w-3.5 h-3.5" /> Ver mi entrega
+                      <Eye className="w-3.5 h-3.5" /> Previsualizar entrega
                     </button>
                   )}
                 </div>
@@ -382,13 +402,13 @@ export default function StudentTaskModal({
                   <span className="font-bold text-slate-800 dark:text-slate-200 truncate">
                     📄 {miEntrega.archivoNombre}
                   </span>
-                  {miEntrega.archivoUrl && (
+                  {(miEntrega.archivoUrl || miEntrega.archivoPath) && (
                     <button
                       type="button"
                       onClick={handleOpenMyFile}
                       className="px-2.5 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-[11px] inline-flex items-center gap-1 shrink-0 cursor-pointer"
                     >
-                      <Download className="w-3 h-3" /> Abrir archivo
+                      <Eye className="w-3 h-3" /> Previsualizar
                     </button>
                   )}
                 </div>
@@ -487,6 +507,19 @@ export default function StudentTaskModal({
                 </div>
               </div>
 
+              {selectedFile && (
+                <div className="flex justify-end">
+                  <button
+                    type="button"
+                    onClick={handlePreviewLocalSelection}
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-indigo-50 dark:bg-indigo-950/50 border border-indigo-200 dark:border-indigo-800 text-indigo-700 dark:text-indigo-300 hover:bg-indigo-100 text-xs font-extrabold cursor-pointer transition-colors"
+                  >
+                    <Eye className="w-3.5 h-3.5" />
+                    <span>Previsualizar archivo antes de enviar</span>
+                  </button>
+                </div>
+              )}
+
               <div>
                 <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
                   Comentario para el Docente (opcional):
@@ -547,6 +580,18 @@ export default function StudentTaskModal({
           </div>
         </form>
       </div>
+
+      <FilePreviewModal
+        isOpen={Boolean(previewTarget)}
+        onClose={() => setPreviewTarget(null)}
+        title={previewTarget?.title}
+        subtitle={previewTarget?.subtitle}
+        fileName={previewTarget?.fileName}
+        localFile={previewTarget?.localFile}
+        bucket={previewTarget?.bucket}
+        path={previewTarget?.path}
+        fallbackUrl={previewTarget?.fallbackUrl}
+      />
     </div>
   );
 }
