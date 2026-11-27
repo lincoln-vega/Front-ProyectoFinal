@@ -3,6 +3,7 @@ import { Outlet, NavLink, Link, useNavigate, useLocation } from "react-router-do
 import {
   Users,
   BookOpen,
+  Briefcase,
   Calendar,
   ClipboardCheck,
   CreditCard,
@@ -16,7 +17,8 @@ import {
   Bell,
   Video,
   AlertTriangle,
-  FileText
+  FileText,
+  LayoutDashboard
 } from "lucide-react";
 import ThemeToggle from "./ThemeToggle";
 import { signOutFromApp } from "../services/session";
@@ -111,10 +113,11 @@ export default function AdminLayout() {
   };
 
   const navItems = [
+    { name: "Inicio General", path: "/admin/inicio", icon: LayoutDashboard },
     { name: "Gestión de Usuarios", path: "/admin/usuarios", icon: Users },
     { name: "Cursos y Materias", path: "/admin/cursos", icon: BookOpen },
     { name: "Horarios y Salones", path: "/admin/horarios", icon: Calendar },
-    { name: "Docentes y Nóminas", path: "/admin/docentes", icon: CreditCard },
+    { name: "Docentes y Nóminas", path: "/admin/docentes", icon: Briefcase },
     { name: "Control de Asistencias", path: "/admin/incidentes", icon: ClipboardCheck },
     { name: "Matrículas y Pagos", path: "/admin/matriculas", icon: CreditCard },
     { name: "Métricas y Reportes", path: "/admin/reportes", icon: BarChart3 },
@@ -122,8 +125,8 @@ export default function AdminLayout() {
   ];
 
   const currentModule = navItems.find((item) => location.pathname.startsWith(item.path)) || {
-    name: "Panel de Administración",
-    icon: Users
+    name: "Inicio General",
+    icon: LayoutDashboard
   };
   const CurrentIcon = currentModule.icon;
 
@@ -132,9 +135,9 @@ export default function AdminLayout() {
       {/* SIDEBAR PARA ESCRITORIO (FIJO AL ALTO VISIBLE DE PANTALLA CON SALIR ANCLADO AL PIE) */}
       <aside className="hidden md:flex md:w-64 md:h-dvh md:sticky md:top-0 bg-[#1E3A8A] dark:bg-white/5 dark:backdrop-blur-2xl dark:border-r dark:border-white/10 flex-col text-white shadow-xl z-20 shrink-0 overflow-hidden">
         <Link
-          to="/admin/usuarios"
+          to="/admin/inicio"
           className="h-16 px-6 flex items-center space-x-3 border-b border-blue-800/80 bg-blue-950/40 hover:bg-blue-900/60 transition-colors cursor-pointer group shrink-0"
-          title="Ir al panel de administración"
+          title="Volver al Inicio Ejecutivo de Administración"
         >
           <div className="p-2 bg-white/10 rounded-lg backdrop-blur-xs group-hover:scale-105 transition-transform">
             <School className="w-6 h-6 text-white" />
@@ -199,7 +202,7 @@ export default function AdminLayout() {
       {/* HEADER MÓVIL */}
       <header className="md:hidden bg-[#1E3A8A] dark:bg-[#0a0a0e]/90 dark:backdrop-blur-2xl border-b border-blue-900/60 dark:border-white/10 text-white px-4 py-3 sticky top-0 z-40 flex items-center justify-between shadow-md">
         <Link
-          to="/admin/usuarios"
+          to="/admin/inicio"
           className="flex items-center space-x-2.5 min-w-0 hover:opacity-90 transition-opacity cursor-pointer group"
         >
           <div className="p-1.5 bg-white/10 rounded-lg shrink-0 group-hover:scale-105 transition-transform">
@@ -286,7 +289,18 @@ export default function AdminLayout() {
             </span>
           </div>
 
-          <div className="flex items-center space-x-3 shrink-0">
+          <div className="flex items-center space-x-2.5 shrink-0">
+            {location.pathname !== "/admin/inicio" && (
+              <Link
+                to="/admin/inicio"
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-100 dark:bg-white/10 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-white/10 hover:bg-slate-200/80 dark:hover:bg-white/15 text-xs font-extrabold transition-colors"
+                title="Volver al Inicio General con estadísticas y galería de módulos"
+              >
+                <LayoutDashboard className="w-3.5 h-3.5 text-[#1E3A8A] dark:text-amber-300" />
+                <span>Inicio</span>
+              </Link>
+            )}
+
             <Link
               to="/admin/reportes"
               className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-indigo-50 dark:bg-indigo-950/50 text-[#1E3A8A] dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800 hover:bg-indigo-100 text-xs font-extrabold transition-colors"
