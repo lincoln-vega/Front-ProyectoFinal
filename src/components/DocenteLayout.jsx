@@ -251,8 +251,8 @@ export default function DocenteLayout() {
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-[#0a0a0e] text-slate-900 dark:text-slate-100 flex flex-col font-sans transition-colors duration-500 overflow-x-hidden">
       
-      {/* 1. BARRA VERTICAL LATERAL (SLIM SIDEBAR DESKTOP) - ESTILO V2 ESTUDIANTE */}
-      <aside className="hidden md:flex flex-col fixed left-0 top-0 bottom-0 h-screen w-20 bg-[#0A1128] dark:bg-[#060814] border-r border-slate-800/80 z-40 text-white shadow-xl overflow-y-auto overflow-x-hidden transition-all">
+      {/* 1. BARRA VERTICAL LATERAL (SLIM SIDEBAR DESKTOP) - ANCLADA A 100DVH CON SALIR SIEMPRE VISIBLE */}
+      <aside className="hidden md:flex flex-col fixed inset-y-0 left-0 h-dvh w-20 bg-[#0A1128] dark:bg-[#060814] border-r border-slate-800/80 z-40 text-white shadow-xl overflow-hidden transition-all">
         {/* Brand Icon Superior en Sidebar */}
         <Link
           to="/docente/panel"
@@ -265,7 +265,7 @@ export default function DocenteLayout() {
         </Link>
 
         {/* Enlaces Principales de Navegación Vertical */}
-        <nav className="flex-1 py-4 flex flex-col items-center space-y-3 shrink-0">
+        <nav className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden py-4 flex flex-col items-center space-y-3">
           {/* Mi Panel */}
           <NavLink
             to="/docente/panel"
@@ -342,8 +342,8 @@ export default function DocenteLayout() {
           </button>
         </nav>
 
-        {/* Botón Salir Inferior */}
-        <div className="p-3 border-t border-white/10 flex flex-col items-center shrink-0">
+        {/* Botón Salir Inferior (siempre visible al pie del viewport) */}
+        <div className="p-3 border-t border-white/10 flex flex-col items-center shrink-0 mt-auto bg-[#0A1128] dark:bg-[#060814]">
           <button
             type="button"
             onClick={handleLogout}
@@ -569,41 +569,40 @@ export default function DocenteLayout() {
 
       {/* 3. DRAWER MÓVIL (MENÚ RESPONSIVE) */}
       {mobileMenuOpen && (
-        <div className="fixed inset-0 z-50 md:hidden bg-slate-900/60 backdrop-blur-xs flex">
-          <div className="w-72 bg-[#0A1128] text-white p-5 flex flex-col justify-between h-full shadow-2xl animate-slide-right">
-            <div>
-              <div className="flex items-center justify-between pb-4 border-b border-white/10">
-                <div className="flex items-center space-x-2.5">
-                  <div className="w-9 h-9 rounded-xl bg-blue-600 flex items-center justify-center text-white">
-                    <School className="w-5 h-5 text-amber-300" />
-                  </div>
-                  <div>
-                    <h3 className="font-extrabold text-sm text-white">Academia Pre</h3>
-                    <p className="text-[10px] text-amber-300 font-semibold uppercase">Portal Docente</p>
-                  </div>
+        <div className="fixed inset-0 z-50 md:hidden bg-slate-900/60 backdrop-blur-xs flex h-dvh">
+          <div className="w-72 bg-[#0A1128] text-white p-5 flex flex-col h-dvh overflow-hidden shadow-2xl animate-slide-right">
+            <div className="flex items-center justify-between pb-4 border-b border-white/10 shrink-0">
+              <div className="flex items-center space-x-2.5">
+                <div className="w-9 h-9 rounded-xl bg-blue-600 flex items-center justify-center text-white">
+                  <School className="w-5 h-5 text-amber-300" />
                 </div>
-                <button
-                  type="button"
-                  onClick={() => setMobileMenuOpen(false)}
-                  className="p-1 rounded-lg hover:bg-white/10 text-slate-400 hover:text-white"
-                >
-                  <X className="w-5 h-5" />
-                </button>
-              </div>
-
-              {/* Perfil en Drawer */}
-              <div className="py-4 border-b border-white/10 flex items-center space-x-3">
-                <div className="w-10 h-10 rounded-xl bg-blue-600 text-white font-black text-sm flex items-center justify-center">
-                  {initials}
-                </div>
-                <div className="min-w-0">
-                  <p className="text-xs font-bold text-white truncate">{userName}</p>
-                  <p className="text-[10px] text-slate-400 truncate">{userEmail}</p>
+                <div>
+                  <h3 className="font-extrabold text-sm text-white">Academia Pre</h3>
+                  <p className="text-[10px] text-amber-300 font-semibold uppercase">Portal Docente</p>
                 </div>
               </div>
+              <button
+                type="button"
+                onClick={() => setMobileMenuOpen(false)}
+                className="p-1 rounded-lg hover:bg-white/10 text-slate-400 hover:text-white"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
 
-              {/* Navegación Móvil */}
-              <nav className="py-4 space-y-1.5">
+            {/* Perfil en Drawer */}
+            <div className="py-4 border-b border-white/10 flex items-center space-x-3 shrink-0">
+              <div className="w-10 h-10 rounded-xl bg-blue-600 text-white font-black text-sm flex items-center justify-center shrink-0">
+                {initials}
+              </div>
+              <div className="min-w-0">
+                <p className="text-xs font-bold text-white truncate">{userName}</p>
+                <p className="text-[10px] text-slate-400 truncate">{userEmail}</p>
+              </div>
+            </div>
+
+            {/* Navegación Móvil */}
+            <nav className="flex-1 min-h-0 overflow-y-auto py-4 space-y-1.5">
                 <NavLink
                   to="/docente/panel"
                   onClick={() => setMobileMenuOpen(false)}
@@ -691,10 +690,9 @@ export default function DocenteLayout() {
                   <ChevronRight className="w-4 h-4 text-slate-400" />
                 </button>
               </nav>
-            </div>
 
-            {/* Salir en Drawer */}
-            <div className="pt-4 border-t border-white/10">
+            {/* Salir en Drawer (siempre anclado abajo) */}
+            <div className="pt-4 border-t border-white/10 shrink-0 mt-auto">
               <button
                 type="button"
                 onClick={handleLogout}

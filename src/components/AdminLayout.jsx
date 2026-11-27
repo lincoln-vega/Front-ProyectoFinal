@@ -128,57 +128,55 @@ export default function AdminLayout() {
   const CurrentIcon = currentModule.icon;
 
   return (
-    <div className="min-h-screen bg-slate-100 dark:bg-[#0a0a0e] flex flex-col md:flex-row transition-colors duration-500 overflow-x-hidden">
-      {/* SIDEBAR PARA ESCRITORIO */}
-      <aside className="hidden md:flex md:w-64 bg-[#1E3A8A] dark:bg-white/5 dark:backdrop-blur-2xl dark:border-r dark:border-white/10 flex-col justify-between text-white shadow-xl z-20 shrink-0">
-        <div>
-          <Link
-            to="/admin/usuarios"
-            className="h-16 px-6 flex items-center space-x-3 border-b border-blue-800/80 bg-blue-950/40 hover:bg-blue-900/60 transition-colors cursor-pointer group"
-            title="Ir al panel de administración"
-          >
-            <div className="p-2 bg-white/10 rounded-lg backdrop-blur-xs group-hover:scale-105 transition-transform">
-              <School className="w-6 h-6 text-white" />
-            </div>
-            <div>
-              <span className="font-extrabold text-base tracking-wide uppercase block leading-tight">
-                Academia Pre
-              </span>
-              <span className="text-xs text-blue-200 tracking-wider font-bold uppercase">
-                Panel Corporativo
-              </span>
-            </div>
-          </Link>
+    <div className="min-h-dvh md:h-dvh bg-slate-100 dark:bg-[#0a0a0e] flex flex-col md:flex-row transition-colors duration-500 overflow-x-hidden md:overflow-hidden">
+      {/* SIDEBAR PARA ESCRITORIO (FIJO AL ALTO VISIBLE DE PANTALLA CON SALIR ANCLADO AL PIE) */}
+      <aside className="hidden md:flex md:w-64 md:h-dvh md:sticky md:top-0 bg-[#1E3A8A] dark:bg-white/5 dark:backdrop-blur-2xl dark:border-r dark:border-white/10 flex-col text-white shadow-xl z-20 shrink-0 overflow-hidden">
+        <Link
+          to="/admin/usuarios"
+          className="h-16 px-6 flex items-center space-x-3 border-b border-blue-800/80 bg-blue-950/40 hover:bg-blue-900/60 transition-colors cursor-pointer group shrink-0"
+          title="Ir al panel de administración"
+        >
+          <div className="p-2 bg-white/10 rounded-lg backdrop-blur-xs group-hover:scale-105 transition-transform">
+            <School className="w-6 h-6 text-white" />
+          </div>
+          <div>
+            <span className="font-extrabold text-base tracking-wide uppercase block leading-tight">
+              Academia Pre
+            </span>
+            <span className="text-xs text-blue-200 tracking-wider font-bold uppercase">
+              Panel Corporativo
+            </span>
+          </div>
+        </Link>
 
-          <nav className="p-4 space-y-1.5">
-            <div className="px-3 py-2 text-xs font-bold uppercase tracking-wider text-blue-300">
-              Módulos Principales
-            </div>
-            {navItems.map((item) => {
-              const Icon = item.icon;
-              return (
-                <NavLink
-                  key={item.name}
-                  to={item.path}
-                  className={({ isActive }) =>
-                    `flex items-center justify-between px-3.5 py-2.5 rounded-xl text-xs sm:text-sm font-semibold transition-all cursor-pointer ${
-                      isActive
-                        ? "bg-blue-800 dark:bg-white/15 text-white shadow-xs border-l-4 border-amber-400 font-bold"
-                        : "text-blue-100 dark:text-slate-300 hover:bg-blue-800/50 dark:hover:bg-white/5 hover:text-white"
-                    }`
-                  }
-                >
-                  <div className="flex items-center space-x-3">
-                    <Icon className="w-4 h-4 text-amber-300" />
-                    <span>{item.name}</span>
-                  </div>
-                </NavLink>
-              );
-            })}
-          </nav>
-        </div>
+        <nav className="flex-1 min-h-0 overflow-y-auto p-4 space-y-1.5">
+          <div className="px-3 py-2 text-xs font-bold uppercase tracking-wider text-blue-300">
+            Módulos Principales
+          </div>
+          {navItems.map((item) => {
+            const Icon = item.icon;
+            return (
+              <NavLink
+                key={item.name}
+                to={item.path}
+                className={({ isActive }) =>
+                  `flex items-center justify-between px-3.5 py-2.5 rounded-xl text-xs sm:text-sm font-semibold transition-all cursor-pointer ${
+                    isActive
+                      ? "bg-blue-800 dark:bg-white/15 text-white shadow-xs border-l-4 border-amber-400 font-bold"
+                      : "text-blue-100 dark:text-slate-300 hover:bg-blue-800/50 dark:hover:bg-white/5 hover:text-white"
+                  }`
+                }
+              >
+                <div className="flex items-center space-x-3">
+                  <Icon className="w-4 h-4 text-amber-300" />
+                  <span>{item.name}</span>
+                </div>
+              </NavLink>
+            );
+          })}
+        </nav>
 
-        <div className="p-4 border-t border-blue-800/80 bg-blue-950/30">
+        <div className="p-4 border-t border-blue-800/80 bg-blue-950/30 shrink-0 mt-auto">
           <div className="flex items-center space-x-3 mb-3 px-1">
             <div className="w-9 h-9 rounded-full bg-blue-700 flex items-center justify-center font-bold text-sm border-2 border-blue-400 text-white shrink-0">
               {userName.charAt(0)}
@@ -231,13 +229,13 @@ export default function AdminLayout() {
       </header>
 
       {mobileMenuOpen && (
-        <div className="md:hidden bg-blue-950/98 dark:bg-[#0a0a0e]/98 backdrop-blur-2xl text-white border-b border-blue-800/80 dark:border-white/10 p-4 space-y-3 sticky top-[57px] z-30 shadow-2xl animate-fade-in max-h-[calc(100vh-60px)] overflow-y-auto">
-          <div className="pb-3 border-b border-blue-800/50 dark:border-white/10">
+        <div className="md:hidden bg-blue-950/98 dark:bg-[#0a0a0e]/98 backdrop-blur-2xl text-white border-b border-blue-800/80 dark:border-white/10 p-4 sticky top-[57px] z-30 shadow-2xl animate-fade-in max-h-[calc(100dvh-57px)] flex flex-col overflow-hidden">
+          <div className="pb-3 border-b border-blue-800/50 dark:border-white/10 shrink-0">
             <div className="text-sm font-bold text-white">{userName}</div>
             <div className="text-xs text-blue-200 dark:text-slate-400">{userEmail}</div>
           </div>
 
-          <div className="space-y-1.5">
+          <div className="flex-1 min-h-0 overflow-y-auto py-3 space-y-1.5">
             {navItems.map((item) => {
               const Icon = item.icon;
               return (
@@ -263,7 +261,7 @@ export default function AdminLayout() {
             })}
           </div>
 
-          <div className="pt-2 border-t border-blue-800/50 dark:border-white/10">
+          <div className="pt-3 border-t border-blue-800/50 dark:border-white/10 shrink-0 mt-auto">
             <button
               onClick={handleLogout}
               className="w-full flex items-center justify-center space-x-2 px-3.5 py-2.5 rounded-xl bg-red-600/30 dark:bg-red-900/40 text-red-200 dark:text-red-400 text-xs sm:text-sm font-bold hover:bg-red-600/50 dark:hover:bg-red-900/60 transition-colors cursor-pointer border border-red-500/30"
@@ -275,9 +273,9 @@ export default function AdminLayout() {
         </div>
       )}
 
-      {/* CONTENIDO PRINCIPAL */}
-      <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
-        <header className="hidden md:flex h-16 bg-white dark:bg-white/5 dark:backdrop-blur-2xl border-b border-slate-200 dark:border-white/10 px-6 items-center justify-between shadow-2xs relative z-30">
+      {/* CONTENIDO PRINCIPAL CON SCROLL INDEPENDIENTE */}
+      <div className="flex-1 flex flex-col min-w-0 md:h-dvh md:overflow-hidden">
+        <header className="hidden md:flex h-16 shrink-0 bg-white dark:bg-white/5 dark:backdrop-blur-2xl border-b border-slate-200 dark:border-white/10 px-6 items-center justify-between shadow-2xs relative z-30">
           <div className="flex items-center space-x-3 min-w-0">
             <h1 className="text-lg font-bold text-slate-800 dark:text-white flex items-center gap-2 truncate">
               <CurrentIcon className="w-5 h-5 text-[#1E3A8A] dark:text-blue-400 shrink-0" />
@@ -379,7 +377,7 @@ export default function AdminLayout() {
           </div>
         </header>
 
-        <main className="flex-1 overflow-y-auto p-4 md:p-6 bg-slate-50 dark:bg-[#0a0a0e]/50">
+        <main className="flex-1 min-h-0 overflow-y-auto p-4 md:p-6 bg-slate-50 dark:bg-[#0a0a0e]/50">
           <Outlet />
         </main>
       </div>
