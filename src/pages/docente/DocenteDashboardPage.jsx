@@ -19,10 +19,11 @@ import {
   ShieldCheck,
   TrendingUp
 } from "lucide-react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { courseService } from "../../services/cursosServices";
 import { userService } from "../../services/api";
 import { registerMeetEntry } from "../../services/asistencia";
+import { clasesVivoService } from "../../services/clasesVivoService";
 import SolicitudPermutaModal from "../../components/docente/SolicitudPermutaModal";
 
 // Normalización para concordancia de nombres del docente
@@ -45,15 +46,20 @@ const matchesTeacherName = (courseName, userName) => {
 };
 
 export default function DocenteDashboardPage() {
+  const navigate = useNavigate();
   const userName = localStorage.getItem("userName") || "Docente";
   const userId = localStorage.getItem("userId") || "";
   const userEmail = localStorage.getItem("userEmail") || "";
 
-  const [listaCursos, setListaCursos] = useState([]);
+  const [listaCursos, setListaCursos] = useState(() => courseService.getCachedCourses());
   const [totalEstudiantes, setTotalEstudiantes] = useState(0);
-  const [loading, setLoading] = useState(true);
+  const [docenteData, setDocenteData] = useState(() =>
+    userService.getCachedLoggedProfile(userEmail)
+  );
+  const [loading, setLoading] = useState(
+    () => courseService.getCachedCourses().length === 0
+  );
   const [error, setError] = useState("");
-  const [docenteData, setDocenteData] = useState(null);
   const [isPermutaOpen, setIsPermutaOpen] = useState(false);
   const [feedbackNotice, setFeedbackNotice] = useState("");
   const [startingCourseId, setStartingCourseId] = useState(null);
@@ -63,24 +69,17 @@ export default function DocenteDashboardPage() {
 
     async function cargarDatosDashboard() {
       try {
-        setLoading(true);
+        if (listaCursos.length === 0) setLoading(true);
         setError("");
-        
-        // 1. Cargar cursos desde el servicio
-        const cursos = await courseService.getCourses();
+
+        const [cursos, profile] = await Promise.all([
+          courseService.getCourses(),
+          userEmail ? userService.getUserByEmail(userEmail).catch(() => null) : Promise.resolve(null),
+        ]);
         if (cancelled) return;
 
         setListaCursos(cursos || []);
-
-        // 2. Consultar perfil detallado desde InsForge
-        if (userEmail && !cancelled) {
-          try {
-            const profile = await userService.getUserByEmail(userEmail);
-            if (profile) setDocenteData(profile);
-          } catch (profileErr) {
-            console.warn("[DocenteDashboard] No se pudo obtener perfil detallado:", profileErr);
-          }
-        }
+        if (profile) setDocenteData(profile);
       } catch (err) {
         if (!cancelled) {
           console.error("Error al cargar datos del dashboard:", err);
@@ -142,25 +141,15 @@ export default function DocenteDashboardPage() {
     return () => { cancelled = true; };
   }, [cursosAsignados]);
 
-  const handleStartClass = async (course) => {
+  const handleStartClass = (course) => {
     if (!course?.meetUrl) {
       alert("Este curso no tiene un enlace de Google Meet asignado.");
       return;
     }
-    setStartingCourseId(course.id);
-    
-    // 1. Apertura directa en nueva pestaña (evita bloqueador del navegador)
-    window.open(course.meetUrl, "_blank", "noopener,noreferrer");
-    setFeedbackNotice(`¡Clase iniciada! Conectando a ${course.asignatura}. Sala de Google Meet abierta.`);
-
-    // 2. Registrar sesión en backend / InsForge en segundo plano
-    try {
-      await registerMeetEntry(course.id);
-    } catch (err) {
-      console.warn("[DocenteDashboard] Registro de auditoría Meet:", err);
-    } finally {
-      setStartingCourseId(null);
-    }
+    setError("");
+    clasesVivoService.launchClassOptimistically(course);
+    registerMeetEntry(course.id).catch(() => {});
+    navigate(`/docente/aula-vivo/${course.id}`, { state: { coursePreview: course } });
   };
 
   // Temas decorativos de tarjetas para asemejarse a la vista de estudiante V2
@@ -244,7 +233,7 @@ export default function DocenteDashboardPage() {
               <ul className="space-y-1.5 text-slate-200 text-[11px] leading-snug">
                 <li className="flex items-start gap-1.5">
                   <span className="text-amber-400 font-bold">•</span>
-                  <span>Asistencia sincronizada en tiempo real con InsForge.</span>
+                  <span>Asistencia sincronizada en tiempo real con Supabase.</span>
                 </li>
                 <li className="flex items-start gap-1.5">
                   <span className="text-amber-400 font-bold">•</span>

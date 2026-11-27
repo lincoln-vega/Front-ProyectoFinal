@@ -12,11 +12,15 @@ import {
   GraduationCap,
   Sparkles,
   ChevronRight,
-  Filter
+  Filter,
+  FileSpreadsheet,
+  Award
 } from "lucide-react";
 import { getCurrentSessionProfile } from "../../services/session";
 import { courseService } from "../../services/cursosServices";
-import { userService, parseCourseList } from "../../services/api";
+import { userService, academicosService, parseCourseList } from "../../services/api";
+import { exportToCSV } from "../../utils/exportUtils";
+import ReportViewerModal from "../../components/shared/ReportViewerModal";
 
 const normalizeName = (value) =>
   String(value || "")
@@ -42,12 +46,15 @@ const matchesTeacherName = (courseName, userName) => {
 export default function DocenteEstudiantesPage() {
   const [profile, setProfile] = useState(null);
   const [courses, setCourses] = useState([]);
+  const [ciclosList, setCiclosList] = useState([]);
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
+  const [selectedCycleFilter, setSelectedCycleFilter] = useState("vigentes");
   const [selectedCourseFilter, setSelectedCourseFilter] = useState("todos");
   const [searchQuery, setSearchQuery] = useState("");
+  const [reportModal, setReportModal] = useState(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -57,16 +64,18 @@ export default function DocenteEstudiantesPage() {
         setLoading(true);
         setError("");
 
-        const [{ profile: currentProfile }, allCourses, allUsers] = await Promise.all([
+        const [{ profile: currentProfile }, allCourses, allUsers, ciclos] = await Promise.all([
           getCurrentSessionProfile(),
           courseService.getCourses(),
-          userService.getUsers().catch(() => [])
+          userService.getUsers().catch(() => []),
+          academicosService.getCiclos().catch(() => [])
         ]);
 
         if (!cancelled) {
           setProfile(currentProfile);
           setCourses(allCourses || []);
           setUsers(allUsers || []);
+          setCiclosList(Array.isArray(ciclos) ? ciclos : []);
         }
       } catch (err) {
         if (!cancelled) {
@@ -85,7 +94,7 @@ export default function DocenteEstudiantesPage() {
     };
   }, []);
 
-  // Cursos asignados al docente
+  // Cursos asignados al docente filtrados por el ciclo seleccionado
   const myAssignedCourses = useMemo(() => {
     if (!profile) return [];
     const fullName = `${profile.nombres || ""} ${profile.apellidos || ""}`.trim();
@@ -96,14 +105,23 @@ export default function DocenteEstudiantesPage() {
         .map(String)
     );
 
-    return courses.filter(
-      (course) =>
-        course.estado === "Activo" &&
-        (idsAsignados.has(String(course.id)) ||
-          course.docenteId === profile.id ||
-          matchesTeacherName(course.docente, fullName))
-    );
-  }, [courses, profile]);
+    return courses.filter((course) => {
+      if (String(course.estado || "").toLowerCase() === "inactivo") return false;
+      const belongsToTeacher =
+        idsAsignados.has(String(course.id)) ||
+        course.docenteId === profile.id ||
+        matchesTeacherName(course.docente, fullName);
+      if (!belongsToTeacher) return false;
+
+      const isClosedCourse =
+        String(course.estado || "").toLowerCase() === "finalizado" ||
+        String(course.cicloEstado || "").toLowerCase() === "finalizado";
+
+      if (selectedCycleFilter === "vigentes") return !isClosedCourse;
+      if (selectedCycleFilter === "todos") return true;
+      return String(course.cicloId || "") === String(selectedCycleFilter);
+    });
+  }, [courses, profile, selectedCycleFilter]);
 
   // Cruzar estudiantes con los cursos asignados a este docente
   const studentsWithCourses = useMemo(() => {
@@ -182,11 +200,86 @@ export default function DocenteEstudiantesPage() {
             <span>Nómina de Alumnos Matriculados</span>
           </h2>
           <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
-            Consulta los estudiantes activos asignados a tus materias dictadas en el Ciclo Intensivo 2026-I.
+            Consulta los estudiantes asignados a tus materias filtrando por ciclo académico vigente o histórico.
           </p>
         </div>
 
-        <div className="flex items-center gap-2 self-start sm:self-auto">
+        <div className="flex flex-wrap items-center gap-2 self-start sm:self-auto">
+          <button
+            type="button"
+            onClick={() =>
+              setReportModal({
+                title: "Acta Consolidada de Evaluaciones y Notas",
+                subtitle:
+                  selectedCourseFilter !== "todos"
+                    ? "Filtrado por asignatura seleccionada"
+                    : "Consolidado de todas tus cátedras asignadas",
+                endpointPath: "/reportes/notas",
+                params: {
+                  curso_id: selectedCourseFilter !== "todos" ? selectedCourseFilter : undefined,
+                  ciclo_id:
+                    selectedCycleFilter !== "vigentes" && selectedCycleFilter !== "todos"
+                      ? selectedCycleFilter
+                      : undefined
+                },
+                csvFilename: "acta_notas_catedra_docente"
+              })
+            }
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-extrabold shadow-xs transition-colors cursor-pointer"
+          >
+            <Award className="w-3.5 h-3.5 text-amber-300" />
+            <span>Acta de Notas PDF</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => {
+              if (!filteredStudents.length) return;
+              exportToCSV(
+                filteredStudents.map((s) => ({
+                  id: s.id,
+                  apellidos: s.apellidos,
+                  nombres: s.nombres,
+                  dni: s.dni || "",
+                  correo: s.correo || "",
+                  carrera: s.carreraObjetivo || "",
+                  cursos: s.enrolledTeacherCourses.map((c) => c.asignatura).join(", ")
+                })),
+                "nomina_alumnos_docente",
+                [
+                  { key: "id", label: "CODIGO" },
+                  { key: "apellidos", label: "APELLIDOS" },
+                  { key: "nombres", label: "NOMBRES" },
+                  { key: "dni", label: "DNI" },
+                  { key: "correo", label: "CORREO" },
+                  { key: "carrera", label: "CARRERA OBJETIVO" },
+                  { key: "cursos", label: "CURSOS CON DOCENTE" }
+                ]
+              );
+            }}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-extrabold shadow-xs transition-colors cursor-pointer"
+          >
+            <FileSpreadsheet className="w-3.5 h-3.5" />
+            <span>Nómina Excel</span>
+          </button>
+
+          <select
+            value={selectedCycleFilter}
+            onChange={(e) => {
+              setSelectedCycleFilter(e.target.value);
+              setSelectedCourseFilter("todos");
+            }}
+            aria-label="Filtrar alumnos por periodo académico"
+            className="text-xs font-bold px-3 py-1.5 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/10 text-slate-700 dark:text-slate-200 cursor-pointer"
+          >
+            <option value="vigentes">Ciclos Vigentes (En Curso)</option>
+            {ciclosList.map((cic) => (
+              <option key={cic.id} value={cic.id}>
+                {cic.nombre} ({cic.estado})
+              </option>
+            ))}
+            <option value="todos">Todos los Periodos</option>
+          </select>
           <span className="text-xs font-extrabold px-3 py-1.5 rounded-xl bg-blue-50 dark:bg-blue-950/60 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800">
             {studentsWithCourses.length} Alumnos a Cargo
           </span>
@@ -349,22 +442,51 @@ export default function DocenteEstudiantesPage() {
                     <span className="truncate max-w-[140px]">{student.correo}</span>
                   </a>
 
-                  {student.enrolledTeacherCourses.length > 0 && (
-                    <Link
-                      to={`/docente/cursos?cursoId=${student.enrolledTeacherCourses[0].id}&tab=tareas`}
-                      className="inline-flex items-center gap-1 text-[11px] font-bold text-indigo-600 dark:text-indigo-400 hover:text-indigo-700"
-                      title="Asignar tarea para esta materia"
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setReportModal({
+                          title: `Kardex Académico — ${student.nombres} ${student.apellidos}`,
+                          subtitle: "Récord oficial en tus materias asignadas",
+                          endpointPath: `/reportes/kardex-alumno/${encodeURIComponent(student.id)}`,
+                          params: {},
+                          csvFilename: `kardex_${student.id}`
+                        })
+                      }
+                      className="inline-flex items-center gap-1 text-[11px] font-extrabold px-2.5 py-1 rounded-lg bg-indigo-50 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800 hover:bg-indigo-100 cursor-pointer"
+                      title="Emitir Kardex PDF de este alumno en tus materias"
                     >
                       <FileText className="w-3.5 h-3.5" />
-                      <span>+ Tarea</span>
-                    </Link>
-                  )}
+                      <span>Kardex PDF</span>
+                    </button>
+
+                    {student.enrolledTeacherCourses.length > 0 && (
+                      <Link
+                        to={`/docente/cursos?cursoId=${student.enrolledTeacherCourses[0].id}&tab=tareas`}
+                        className="inline-flex items-center gap-1 text-[11px] font-bold text-indigo-600 dark:text-indigo-400 hover:text-indigo-700"
+                        title="Asignar tarea para esta materia"
+                      >
+                        <span>+ Tarea</span>
+                      </Link>
+                    )}
+                  </div>
                 </div>
               </div>
             );
           })}
         </div>
       )}
+
+      <ReportViewerModal
+        isOpen={Boolean(reportModal)}
+        onClose={() => setReportModal(null)}
+        title={reportModal?.title}
+        subtitle={reportModal?.subtitle}
+        endpointPath={reportModal?.endpointPath}
+        params={reportModal?.params}
+        csvFilename={reportModal?.csvFilename}
+      />
     </div>
   );
 }

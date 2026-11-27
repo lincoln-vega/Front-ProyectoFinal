@@ -18,76 +18,64 @@ import {
   User,
   GraduationCap
 } from "lucide-react";
-import { matriculaService, pagoService, userService } from "../../services/api";
+import { pagoService, configService } from "../../services/api";
+import { useStudentCycle } from "../../context/StudentCycleContext";
 
 export default function StudentPagosPage() {
-  const [loading, setLoading] = useState(true);
+  const {
+    loadingCycle,
+    errorCycle,
+    studentProfile: estudianteActivo,
+    availableStudentCycles,
+    selectedCycle,
+    selectedCycleId,
+    setSelectedCycleId,
+    activeMatricula: matricula
+  } = useStudentCycle();
+
+  const [loadingPagos, setLoadingPagos] = useState(true);
   const [error, setError] = useState("");
-  const [matricula, setMatricula] = useState(null);
-  const [pagosList, setPagosList] = useState([]);
+  const [allPagos, setAllPagos] = useState([]);
+  const [instConfig, setInstConfig] = useState(null);
   const [selectedReceipt, setSelectedReceipt] = useState(null);
-  const [estudianteActivo, setEstudianteActivo] = useState(null);
 
   useEffect(() => {
     let cancelled = false;
 
-    async function cargarEstadoCuenta() {
+    async function cargarPagos() {
       try {
-        setLoading(true);
+        setLoadingPagos(true);
         setError("");
-
-        const userEmail = localStorage.getItem("userEmail");
-        if (!userEmail) throw new Error("No se encontró el correo de la sesión.");
-
-        const [users, remoteMatriculas, remotePagos, perfil] = await Promise.all([
-          userService.getUsers(),
-          matriculaService.getMatriculas(),
+        const [remotePagos, remoteConfig] = await Promise.all([
           pagoService.getPagos(),
-          userService.getUserByEmail(userEmail)
+          configService.getConfig().catch(() => null)
         ]);
-
-        if (cancelled) return;
-
-        setEstudianteActivo(perfil);
-
-        const studentName = perfil
-          ? `${perfil.nombres || ""} ${perfil.apellidos || ""}`.trim().toLowerCase()
-          : "";
-
-        // Encontrar la matrícula real del estudiante (sin asignar matrícula ajena si aún no tiene)
-        const userMatricula = (remoteMatriculas || []).find((m) => {
-          if (perfil?.dni && m.dni === perfil.dni) return true;
-          if (userEmail && m.correo?.toLowerCase() === userEmail.toLowerCase()) return true;
-          if (studentName && m.estudiante?.toLowerCase().includes(studentName)) return true;
-          return false;
-        }) || null;
-
-        setMatricula(userMatricula);
-
-        // Encontrar los pagos asociados a la matrícula o estudiante
-        const misPagos = (remotePagos || []).filter((p) => {
-          if (userMatricula && p.matriculaId === userMatricula.id) return true;
-          if (studentName && p.estudiante?.toLowerCase().includes(studentName)) return true;
-          if (userMatricula && p.estudiante?.toLowerCase() === userMatricula.estudiante?.toLowerCase()) return true;
-          return false;
-        });
-
-        setPagosList(misPagos);
+        if (!cancelled) {
+          setAllPagos(Array.isArray(remotePagos) ? remotePagos : []);
+          if (remoteConfig) setInstConfig(remoteConfig);
+        }
       } catch (err) {
         if (!cancelled) {
-          console.error("Error al cargar estado de cuenta del estudiante:", err);
+          console.error("Error al cargar pagos del estudiante:", err);
           setError(err.message || "Error al cargar la información de pagos.");
         }
       } finally {
         if (!cancelled) {
-          setLoading(false);
+          setLoadingPagos(false);
         }
       }
     }
 
-    cargarEstadoCuenta();
+    cargarPagos();
     return () => { cancelled = true; };
   }, []);
+
+  const loading = loadingCycle || loadingPagos;
+
+  const pagosList = useMemo(() => {
+    if (!matricula) return [];
+    return allPagos.filter((p) => String(p.matriculaId) === String(matricula.id));
+  }, [allPagos, matricula]);
 
   const studentName = estudianteActivo
     ? `${estudianteActivo.nombres || ""} ${estudianteActivo.apellidos || ""}`.trim()
@@ -144,17 +132,33 @@ export default function StudentPagosPage() {
               </p>
             </div>
 
-            {matricula && (
-              <div className="bg-white/10 backdrop-blur-md px-4 py-3 rounded-xl border border-white/15 text-xs space-y-1">
-                <div className="text-blue-200 font-medium">Programa Académico:</div>
-                <div className="text-white font-bold text-sm">{matricula.programa}</div>
-                <div className="text-blue-200 text-[11px] flex items-center gap-2">
-                  <span>{matricula.modalidadPago}</span>
-                  <span>•</span>
-                  <span>{matricula.ciclo}</span>
+            <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+              {availableStudentCycles.length > 1 && (
+                <select
+                  value={selectedCycleId}
+                  onChange={(e) => setSelectedCycleId(e.target.value)}
+                  aria-label="Seleccionar ciclo financiero"
+                  className="bg-slate-900/60 border border-white/20 text-white font-bold text-xs rounded-xl px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-amber-400 cursor-pointer"
+                >
+                  {availableStudentCycles.map((cic) => (
+                    <option key={cic.id} value={cic.id} className="bg-slate-900 text-white">
+                      {cic.nombre} ({cic.isReadOnly ? "Historial" : "En Curso"})
+                    </option>
+                  ))}
+                </select>
+              )}
+              {matricula && (
+                <div className="bg-white/10 backdrop-blur-md px-4 py-3 rounded-xl border border-white/15 text-xs space-y-1">
+                  <div className="text-blue-200 font-medium">Programa Académico:</div>
+                  <div className="text-white font-bold text-sm">{matricula.programa}</div>
+                  <div className="text-blue-200 text-[11px] flex items-center gap-2">
+                    <span>{matricula.modalidadPago}</span>
+                    <span>•</span>
+                    <span>{selectedCycle?.nombre || matricula.ciclo}</span>
+                  </div>
                 </div>
-              </div>
-            )}
+              )}
+            </div>
           </div>
 
           {/* TARJETAS DE RESUMEN ECONÓMICO */}
@@ -311,7 +315,8 @@ export default function StudentPagosPage() {
                 {selectedReceipt.comprobante}
               </h3>
               <p className="text-xs text-slate-500 dark:text-slate-400">
-                Academia Preuniversitaria S.A.C. • RUC: 20608912345
+                {instConfig?.nombre || "Academia Preuniversitaria Alto Rendimiento"} • RUC:{" "}
+                {instConfig?.ruc || "20609876543"}
               </p>
             </div>
 

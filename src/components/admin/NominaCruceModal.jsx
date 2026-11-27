@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { X, Calculator, DollarSign, Calendar, User, FileText, CheckCircle2, AlertCircle } from "lucide-react";
 import { incidentService, userService } from "../../services/api";
+import SearchableSelect from "../shared/SearchableSelect";
 
 export default function NominaCruceModal({ isOpen, onClose }) {
   const currentMonth = new Date().toISOString().slice(0, 7); // e.g. "2026-11"
@@ -132,19 +133,19 @@ export default function NominaCruceModal({ isOpen, onClose }) {
               <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
                 Filtrar por Docente
               </label>
-              <select
-                name="docenteId"
+              <SearchableSelect
                 value={formData.docenteId}
-                onChange={handleChange}
-                className="w-full px-3 py-2 border border-slate-200 dark:border-white/10 rounded-lg text-xs bg-slate-50 dark:bg-white/5 dark:text-white focus:bg-white focus:outline-hidden focus:border-emerald-500 cursor-pointer"
-              >
-                <option value="">Todos los docentes</option>
-                {teachers.map(t => (
-                  <option key={t.id} value={t.id}>
-                    {t.nombres} {t.apellidos}
-                  </option>
-                ))}
-              </select>
+                onChange={(val) =>
+                  setFormData((prev) => ({ ...prev, docenteId: val }))
+                }
+                emptyOptionLabel="Todos los docentes"
+                options={teachers.map((t) => ({
+                  value: t.id,
+                  label: `${t.nombres} ${t.apellidos}`,
+                  sublabel: `DNI: ${t.dni || "S/D"} • ${t.correo}`,
+                  searchText: `${t.dni || ""} ${t.correo || ""}`
+                }))}
+              />
             </div>
           </div>
 

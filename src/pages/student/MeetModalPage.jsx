@@ -23,9 +23,9 @@ export default function MeetModalPage({ course, onClose }) {
         estudiante: usuarioActual,
         horaRegistro: `${hours}:${minutes}`
       });
-      console.log("[InsForge] Asistencia registrada exitosamente en backend para:", usuarioActual);
+      console.log("[Supabase] Asistencia registrada exitosamente en backend para:", usuarioActual);
     } catch (err) {
-      console.error("[InsForge] Error al registrar asistencia:", err);
+      console.error("[Supabase] Error al registrar asistencia:", err);
     }
 
     onClose();

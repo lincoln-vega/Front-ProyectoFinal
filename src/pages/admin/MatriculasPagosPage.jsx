@@ -29,11 +29,7 @@ import {
 } from "lucide-react";
 import { userService, matriculaService, pagoService, courseService, parseCourseList, validateWithBackend } from "../../services/api";
 import { exportToCSV } from "../../utils/exportUtils";
-
-const STORAGE_KEYS = {
-  MATRICULAS: "academia_matriculas_data",
-  PAGOS: "academia_pagos_data",
-};
+import SearchableSelect from "../../components/shared/SearchableSelect";
 
 const PROGRAMAS_ACADEMICOS = [
   { nombre: "Semestral San Marcos - Ciencias Médicas", costo: 1200, cuotasSugeridas: 3 },
@@ -41,232 +37,6 @@ const PROGRAMAS_ACADEMICOS = [
   { nombre: "Semestral PUCP - Letras y Humanidades", costo: 1400, cuotasSugeridas: 4 },
   { nombre: "Intensivo Verano - Ciencias Exactas", costo: 850, cuotasSugeridas: 2 },
   { nombre: "Repaso Integral San Marcos / UNI", costo: 600, cuotasSugeridas: 1 },
-];
-
-const INITIAL_MATRICULAS = [
-  {
-    id: "MAT-2026-001",
-    estudiante: "Juan Carlos Flores Mendoza",
-    dni: "74839201",
-    correo: "estudiante@gmail.com",
-    celular: "987654321",
-    programa: "Semestral San Marcos - Ciencias Médicas",
-    ciclo: "Ciclo 2026-I",
-    turno: "Mañana (08:00 - 13:00)",
-    fechaMatricula: "15/01/2026",
-    modalidadPago: "Cuotas (3 cuotas)",
-    montoTotal: 1200,
-    montoPagado: 800,
-    saldoPendiente: 400,
-    estado: "Al día",
-  },
-  {
-    id: "MAT-2026-002",
-    estudiante: "Valeria Sofía Quispe Alarcón",
-    dni: "76543210",
-    correo: "v.quispe@academia.edu.pe",
-    celular: "912345678",
-    programa: "Anual UNI - Ingeniería y Ciencias",
-    ciclo: "Ciclo 2026-I",
-    turno: "Tarde (14:00 - 19:00)",
-    fechaMatricula: "18/01/2026",
-    modalidadPago: "Contado (Descuento 10%)",
-    montoTotal: 1800,
-    montoPagado: 1800,
-    saldoPendiente: 0,
-    estado: "Pagado Total",
-  },
-  {
-    id: "MAT-2026-003",
-    estudiante: "Lucía Fernanda Gómez Pérez",
-    dni: "73214569",
-    correo: "l.gomez@academia.edu.pe",
-    celular: "945612378",
-    programa: "Semestral PUCP - Letras y Humanidades",
-    ciclo: "Ciclo 2026-I",
-    turno: "Mañana (08:00 - 13:00)",
-    fechaMatricula: "20/01/2026",
-    modalidadPago: "Cuotas (4 cuotas)",
-    montoTotal: 1400,
-    montoPagado: 700,
-    saldoPendiente: 700,
-    estado: "Cuota Vencida",
-  },
-  {
-    id: "MAT-2026-004",
-    estudiante: "Diego Flores Mendoza",
-    dni: "75849302",
-    correo: "d.flores@academia.edu.pe",
-    celular: "933221144",
-    programa: "Intensivo Verano - Ciencias Exactas",
-    ciclo: "Ciclo 2026-I",
-    turno: "Noche (19:00 - 22:00)",
-    fechaMatricula: "25/01/2026",
-    modalidadPago: "Contado",
-    montoTotal: 850,
-    montoPagado: 850,
-    saldoPendiente: 0,
-    estado: "Pagado Total",
-  },
-  {
-    id: "MAT-2026-005",
-    estudiante: "Elena Morales Ruiz",
-    dni: "71928374",
-    correo: "e.morales@academia.edu.pe",
-    celular: "977889900",
-    programa: "Semestral San Marcos - Ciencias Médicas",
-    ciclo: "Ciclo 2026-I",
-    turno: "Mañana (08:00 - 13:00)",
-    fechaMatricula: "02/02/2026",
-    modalidadPago: "Cuotas (3 cuotas)",
-    montoTotal: 1200,
-    montoPagado: 400,
-    saldoPendiente: 800,
-    estado: "Pendiente",
-  },
-  {
-    id: "MAT-2026-108",
-    estudiante: "Esteban Torres",
-    dni: "72345678",
-    correo: "esteban@gmail.com",
-    celular: "987112233",
-    programa: "Semestral San Marcos - Ciencias Médicas",
-    ciclo: "Ciclo 2026-I",
-    turno: "Mañana (08:00 - 13:00)",
-    fechaMatricula: "16/01/2026",
-    modalidadPago: "Contado",
-    montoTotal: 1200,
-    montoPagado: 1200,
-    saldoPendiente: 0,
-    estado: "Al día",
-  },
-  {
-    id: "MAT-2026-3066",
-    estudiante: "Ana Paula Vargas Chavez",
-    dni: "74567890",
-    correo: "anapaula@gmail.com",
-    celular: "984556677",
-    programa: "Semestral PUCP - Letras y Humanidades",
-    ciclo: "Ciclo 2026-I",
-    turno: "Tarde (14:00 - 19:00)",
-    fechaMatricula: "18/01/2026",
-    modalidadPago: "Contado (Descuento 10%)",
-    montoTotal: 1100,
-    montoPagado: 1100,
-    saldoPendiente: 0,
-    estado: "Al día",
-  },
-];
-
-const INITIAL_PAGOS = [
-  {
-    id: "PAG-001",
-    matriculaId: "MAT-2026-001",
-    estudiante: "Juan Carlos Flores Mendoza",
-    concepto: "Matrícula + Cuota 1 (Enero)",
-    monto: 400,
-    metodo: "Yape / Plin",
-    operacion: "OP-9823412",
-    comprobante: "B001-00382",
-    fecha: "15/01/2026 10:30 AM",
-    estado: "Aprobado",
-  },
-  {
-    id: "PAG-002",
-    matriculaId: "MAT-2026-001",
-    estudiante: "Juan Carlos Flores Mendoza",
-    concepto: "Cuota 2 (Febrero)",
-    monto: 400,
-    metodo: "Transferencia BCP",
-    operacion: "BCP-5544321",
-    comprobante: "B001-00412",
-    fecha: "14/02/2026 04:15 PM",
-    estado: "Aprobado",
-  },
-  {
-    id: "PAG-003",
-    matriculaId: "MAT-2026-002",
-    estudiante: "Valeria Sofía Quispe Alarcón",
-    concepto: "Pago Único Contado Anual UNI (10% Dcto)",
-    monto: 1800,
-    metodo: "Tarjeta Débito/Crédito",
-    operacion: "VISA-44021",
-    comprobante: "B001-00395",
-    fecha: "18/01/2026 11:20 AM",
-    estado: "Aprobado",
-  },
-  {
-    id: "PAG-006",
-    matriculaId: "MAT-2026-108",
-    estudiante: "Esteban Torres",
-    concepto: "Pago Completo Semestral San Marcos",
-    monto: 1200,
-    metodo: "Yape / Plin",
-    operacion: "OP-7733221",
-    comprobante: "B001-00450",
-    fecha: "16/01/2026 11:00 AM",
-    estado: "Aprobado",
-  },
-  {
-    id: "PAG-007",
-    matriculaId: "MAT-2026-3066",
-    estudiante: "Ana Paula Vargas Chavez",
-    concepto: "Pago Matrícula y Pensión PUCP",
-    monto: 1100,
-    metodo: "Transferencia BCP",
-    operacion: "BCP-8899112",
-    comprobante: "B001-00465",
-    fecha: "18/01/2026 03:15 PM",
-    estado: "Aprobado",
-  },
-  {
-    id: "PAG-004",
-    matriculaId: "MAT-2026-003",
-    estudiante: "Lucía Fernanda Gómez Pérez",
-    concepto: "Matrícula + Cuota 1 (Enero)",
-    monto: 350,
-    metodo: "Transferencia BBVA",
-    operacion: "BBVA-88219",
-    comprobante: "B001-00401",
-    fecha: "20/01/2026 09:40 AM",
-    estado: "Aprobado",
-  },
-  {
-    id: "PAG-005",
-    matriculaId: "MAT-2026-003",
-    estudiante: "Lucía Fernanda Gómez Pérez",
-    concepto: "Cuota 2 (Febrero)",
-    monto: 350,
-    metodo: "Yape / Plin",
-    operacion: "OP-7731209",
-    comprobante: "B001-00450",
-    fecha: "22/02/2026 03:50 PM",
-    estado: "Aprobado",
-  },
-  {
-    id: "PAG-008",
-    matriculaId: "MAT-2026-004",
-    estudiante: "Diego Flores Mendoza",
-    concepto: "Pago Único Intensivo Verano",
-    monto: 850,
-    metodo: "Transferencia BCP",
-    operacion: "BCP-9912301",
-    comprobante: "B001-00422",
-    fecha: "25/01/2026 12:10 PM",
-    estado: "Aprobado",
-  },
-  {
-    id: "PAG-009",
-    matriculaId: "MAT-2026-005",
-    estudiante: "Elena Morales Ruiz",
-    concepto: "Matrícula + Cuota 1 (Febrero)",
-    monto: 400,
-    metodo: "Efectivo en Caja",
-    operacion: "CAJA-019",
-    comprobante: "B001-00465",
-    fecha: "02/02/2026 10:00 AM",
-    estado: "Aprobado",
-  },
 ];
 
 export default function MatriculasPagosPage({ defaultTab = "matriculas" }) {
@@ -345,9 +115,9 @@ export default function MatriculasPagosPage({ defaultTab = "matriculas" }) {
         setAvailableCourses((remoteCourses || []).filter((c) => c.estado === "Activo"));
       } catch (err) {
         if (!cancelled) {
-          console.error("Error al cargar matrículas y pagos desde InsForge:", err);
-          setError(err.message || "No se pudieron cargar los datos desde InsForge.");
-          showNotification(`No se pudieron cargar los datos desde InsForge: ${err.message}`);
+          console.error("Error al cargar matrículas y pagos desde Supabase:", err);
+          setError(err.message || "No se pudieron cargar los datos desde Supabase.");
+          showNotification(`No se pudieron cargar los datos desde Supabase: ${err.message}`);
         }
       } finally {
         if (!cancelled) {
@@ -635,7 +405,7 @@ export default function MatriculasPagosPage({ defaultTab = "matriculas" }) {
       try {
         await matriculaService.deleteMatricula(id);
         setMatriculas((current) => current.filter((matricula) => matricula.id !== id));
-        showNotification(`Matrícula ${id} eliminada de InsForge.`);
+        showNotification(`Matrícula ${id} eliminada de Supabase.`);
       } catch (error) {
         console.error("Error al eliminar matrícula:", error);
         showNotification(`No se pudo eliminar la matrícula: ${error.message}`);
@@ -687,7 +457,7 @@ export default function MatriculasPagosPage({ defaultTab = "matriculas" }) {
   return (
     <div className="space-y-6">
       {error && <p role="alert" className="rounded-lg border border-red-300 dark:border-red-800 bg-red-50 dark:bg-red-950/40 p-3 text-sm text-red-700 dark:text-red-300">{error}</p>}
-      {loadingData && <p className="text-sm text-slate-500 dark:text-slate-400">Consultando matrículas y pagos en InsForge...</p>}
+      {loadingData && <p className="text-sm text-slate-500 dark:text-slate-400">Consultando matrículas y pagos en Supabase...</p>}
       {/* Notificación Toast */}
       {notification && (
         <div className="fixed top-4 right-4 z-50 bg-[#1E3A8A] text-white px-5 py-3 rounded-xl shadow-lg border border-blue-400/40 flex items-center gap-3 animate-fade-in text-sm font-medium">
@@ -1251,24 +1021,22 @@ export default function MatriculasPagosPage({ defaultTab = "matriculas" }) {
                   <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-1">
                     Programa Académico (Carrera) *
                   </label>
-                  <select
+                  <SearchableSelect
                     value={formMatricula.programa}
-                    onChange={(e) => {
-                      const sel = PROGRAMAS_ACADEMICOS.find((p) => p.nombre === e.target.value);
+                    onChange={(val) => {
+                      const sel = PROGRAMAS_ACADEMICOS.find((p) => p.nombre === val);
                       setFormMatricula({
                         ...formMatricula,
-                        programa: e.target.value,
-                        montoTotal: sel ? sel.costo : formMatricula.montoTotal,
+                        programa: val,
+                        montoTotal: sel ? sel.costo : formMatricula.montoTotal
                       });
                     }}
-                    className="w-full px-3 py-2 text-xs border border-slate-200 dark:border-white/10 rounded-xl focus:outline-none focus:border-[#1E3A8A] bg-white dark:bg-slate-800 text-slate-800 dark:text-white"
-                  >
-                    {PROGRAMAS_ACADEMICOS.map((p) => (
-                      <option key={p.nombre} value={p.nombre}>
-                        {p.nombre} — (S/. {p.costo}.00)
-                      </option>
-                    ))}
-                  </select>
+                    options={PROGRAMAS_ACADEMICOS.map((p) => ({
+                      value: p.nombre,
+                      label: p.nombre,
+                      sublabel: `Costo total: S/. ${p.costo}.00 (${p.cuotasSugeridas} cuotas sugeridas)`
+                    }))}
+                  />
                 </div>
 
                 <div>
@@ -1462,26 +1230,29 @@ export default function MatriculasPagosPage({ defaultTab = "matriculas" }) {
                 <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-1">
                   Matrícula / Estudiante *
                 </label>
-                <select
-                  required
+                <SearchableSelect
                   value={formPago.matriculaId}
-                  onChange={(e) => {
-                    const mat = matriculas.find((m) => m.id === e.target.value);
+                  placeholder="Escribe nombre del postulante, DNI o código MAT-..."
+                  onChange={(val) => {
+                    const mat = matriculas.find((m) => m.id === val);
                     setFormPago({
                       ...formPago,
-                      matriculaId: e.target.value,
-                      monto: mat && mat.saldoPendiente > 0 ? Math.min(mat.saldoPendiente, 400) : formPago.monto,
+                      matriculaId: val,
+                      monto:
+                        mat && mat.saldoPendiente > 0
+                          ? Math.min(mat.saldoPendiente, 400)
+                          : formPago.monto
                     });
                   }}
-                  className="w-full px-3 py-2 text-xs border border-slate-200 dark:border-white/10 rounded-xl focus:outline-none focus:border-emerald-600 bg-white dark:bg-slate-800 text-slate-800 dark:text-white"
-                >
-                  <option value="">-- Seleccionar Estudiante --</option>
-                  {matriculas.map((m) => (
-                    <option key={m.id} value={m.id}>
-                      {m.id} - {m.estudiante} (Saldo: S/. {m.saldoPendiente.toFixed(2)})
-                    </option>
-                  ))}
-                </select>
+                  options={matriculas.map((m) => ({
+                    value: m.id,
+                    label: `${m.estudiante} (${m.id})`,
+                    sublabel: `DNI: ${m.dni || "S/D"} • Saldo pendiente: S/. ${Number(
+                      m.saldoPendiente || 0
+                    ).toFixed(2)}`,
+                    searchText: `${m.dni || ""} ${m.correo || ""} ${m.programa || ""}`
+                  }))}
+                />
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

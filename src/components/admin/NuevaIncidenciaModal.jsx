@@ -1,6 +1,17 @@
 import React, { useState, useEffect } from "react";
-import { X, AlertTriangle, User, BookOpen, Clock, FileText, CheckCircle2 } from "lucide-react";
+import {
+  X,
+  AlertTriangle,
+  FileText,
+  Upload,
+  FileCheck,
+  Eye,
+  Loader2
+} from "lucide-react";
 import { userService, courseService } from "../../services/api";
+import { uploadFileToStorage } from "../../lib/supabase";
+import FilePreviewModal from "../shared/FilePreviewModal";
+import SearchableSelect from "../shared/SearchableSelect";
 
 const TIPOS_INCIDENCIA = [
   "Tardanza (15 min)",
@@ -11,12 +22,16 @@ const TIPOS_INCIDENCIA = [
   "Solicitud de Permuta / Reemplazo"
 ];
 
+const MAX_JUSTIFICANTE_BYTES = 5 * 1024 * 1024;
+
 export default function NuevaIncidenciaModal({ isOpen, onClose, onSave }) {
   const [teachers, setTeachers] = useState([]);
   const [courses, setCourses] = useState([]);
   const [loadingResources, setLoadingResources] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [formError, setFormError] = useState("");
+  const [sustentoFile, setSustentoFile] = useState(null);
+  const [previewOpen, setPreviewOpen] = useState(false);
 
   const [formData, setFormData] = useState({
     docenteId: "",
@@ -29,14 +44,16 @@ export default function NuevaIncidenciaModal({ isOpen, onClose, onSave }) {
     tipo: TIPOS_INCIDENCIA[0],
     fechaPresentacion: new Date().toLocaleDateString("es-PE"),
     motivo: "",
-    estado: "Pendiente",
-    archivoNombre: "justificacion_administrativa.pdf"
+    estado: "Pendiente"
   });
 
   useEffect(() => {
     if (!isOpen) return;
 
     let cancelled = false;
+    setSustentoFile(null);
+    setPreviewOpen(false);
+    setFormError("");
 
     async function loadData() {
       try {
@@ -58,7 +75,9 @@ export default function NuevaIncidenciaModal({ isOpen, onClose, onSave }) {
 
         if (teacherList.length > 0) {
           const firstTeacher = teacherList[0];
-          const teacherName = `${firstTeacher.nombres || ""} ${firstTeacher.apellidos || ""}`.trim() || firstTeacher.correo;
+          const teacherName =
+            `${firstTeacher.nombres || ""} ${firstTeacher.apellidos || ""}`.trim() ||
+            firstTeacher.correo;
           const teacherCourses = (allCourses || []).filter((c) => c.docenteId === firstTeacher.id);
           const firstCourse = teacherCourses[0] || allCourses?.[0];
 
@@ -75,7 +94,7 @@ export default function NuevaIncidenciaModal({ isOpen, onClose, onSave }) {
         }
       } catch (err) {
         if (!cancelled) {
-          console.error("Error al cargar docentes o cursos para la justificación:", err);
+          console.error("Error al cargar docentes o cursos:", err);
         }
       } finally {
         if (!cancelled) {
@@ -85,7 +104,9 @@ export default function NuevaIncidenciaModal({ isOpen, onClose, onSave }) {
     }
 
     loadData();
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, [isOpen]);
 
   if (!isOpen) return null;
@@ -95,7 +116,8 @@ export default function NuevaIncidenciaModal({ isOpen, onClose, onSave }) {
     const teacher = teachers.find((t) => t.id === selectedId);
     if (!teacher) return;
 
-    const teacherName = `${teacher.nombres || ""} ${teacher.apellidos || ""}`.trim() || teacher.correo;
+    const teacherName =
+      `${teacher.nombres || ""} ${teacher.apellidos || ""}`.trim() || teacher.correo;
     const teacherCourses = courses.filter((c) => c.docenteId === teacher.id);
     const assignedCourse = teacherCourses[0] || courses[0];
 
@@ -140,14 +162,26 @@ export default function NuevaIncidenciaModal({ isOpen, onClose, onSave }) {
     setFormError("");
 
     try {
+      let uploaded = null;
+      if (sustentoFile) {
+        uploaded = await uploadFileToStorage(
+          "justificantes-docentes",
+          sustentoFile,
+          formData.cursoId || "admin"
+        );
+      }
+
       await onSave({
         ...formData,
         docenteid: formData.docenteId,
-        cursoid: formData.cursoId
+        cursoid: formData.cursoId,
+        archivoNombre: uploaded?.fileName || sustentoFile?.name || "registro_administrativo.pdf",
+        archivoUrl: uploaded?.url || null,
+        archivoPath: uploaded?.path || null
       });
       onClose();
     } catch (err) {
-      setFormError(err.message || "Error al guardar la justificación en InsForge.");
+      setFormError(err.message || "Error al guardar la justificación en Supabase.");
     } finally {
       setSubmitting(false);
     }
@@ -156,188 +190,225 @@ export default function NuevaIncidenciaModal({ isOpen, onClose, onSave }) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-xs p-4 overflow-y-auto">
       <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-2xl border border-slate-200 dark:border-white/10 w-full max-w-lg overflow-hidden animate-scale-up my-8">
-        {/* Cabecera del Modal */}
         <div className="flex items-center justify-between p-5 border-b border-slate-100 dark:border-white/10 bg-slate-50/50 dark:bg-white/5">
-          <div className="flex items-center space-x-2">
-            <div className="p-2 bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-400 rounded-lg">
+          <div className="flex items-center gap-2.5">
+            <div className="p-2 rounded-xl bg-amber-100 dark:bg-amber-950/60 text-amber-600">
               <AlertTriangle className="w-5 h-5" />
             </div>
             <div>
-              <h3 className="text-base font-bold text-slate-800 dark:text-white">
-                Registrar Justificación Manual
+              <h3 className="text-sm font-extrabold text-slate-900 dark:text-white">
+                Registrar Incidencia / Justificación Docente
               </h3>
-              <p className="text-xs text-slate-500 dark:text-slate-400">
-                Auditoría de asistencia e incidencias del personal docente
+              <p className="text-[11px] text-slate-500">
+                Con respaldo documental en Supabase Storage
               </p>
             </div>
           </div>
           <button
             type="button"
             onClick={onClose}
-            className="p-1 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 rounded-lg transition-colors cursor-pointer"
+            className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 cursor-pointer"
           >
             <X className="w-5 h-5" />
           </button>
         </div>
 
-        {/* Formulario */}
-        <form onSubmit={handleSubmit} className="p-5 space-y-4">
+        <form onSubmit={handleSubmit} className="p-5 space-y-3.5 text-xs">
           {formError && (
-            <p role="alert" className="p-3 bg-rose-50 border border-rose-200 text-rose-700 text-xs rounded-xl font-medium">
+            <div className="p-3 rounded-xl bg-rose-50 border border-rose-200 text-rose-700 font-semibold">
               {formError}
-            </p>
+            </div>
           )}
 
-          {/* Docente Titular */}
-          <div>
-            <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-              Docente Titular *
-            </label>
-            <select
-              value={formData.docenteId}
-              onChange={handleTeacherChange}
-              disabled={loadingResources}
-              className="w-full px-3 py-2 border border-slate-200 dark:border-white/10 rounded-lg text-xs bg-slate-50 dark:bg-white/5 dark:text-white focus:bg-white dark:focus:bg-slate-900 focus:outline-hidden focus:border-[#1E3A8A]"
-            >
-              {teachers.map((t) => (
-                <option key={t.id} value={t.id} className="dark:bg-slate-900 dark:text-white">
-                  {t.nombres} {t.apellidos} ({t.dni || t.id})
-                </option>
-              ))}
-            </select>
-          </div>
+          {loadingResources ? (
+            <div className="py-6 text-center text-slate-400">Cargando docentes y cursos...</div>
+          ) : (
+            <>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                    Docente *
+                  </label>
+                  <SearchableSelect
+                    value={formData.docenteId}
+                    onChange={(val) => handleTeacherChange({ target: { value: val } })}
+                    placeholder="Buscar docente por nombre o DNI..."
+                    options={teachers.map((t) => ({
+                      value: t.id,
+                      label: `${t.nombres} ${t.apellidos}`,
+                      sublabel: `DNI: ${t.dni || "S/D"} • ${t.correo}`,
+                      searchText: `${t.dni || ""} ${t.correo || ""}`
+                    }))}
+                  />
+                </div>
 
-          {/* Materia / Asignatura y Horario */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <div>
-              <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                Asignatura Afectada *
-              </label>
-              <select
-                value={formData.cursoId}
-                onChange={handleCourseChange}
-                disabled={loadingResources}
-                className="w-full px-3 py-2 border border-slate-200 dark:border-white/10 rounded-lg text-xs bg-slate-50 dark:bg-white/5 dark:text-white focus:bg-white dark:focus:bg-slate-900 focus:outline-hidden focus:border-[#1E3A8A]"
-              >
-                {courses.map((c) => (
-                  <option key={c.id} value={c.id} className="dark:bg-slate-900 dark:text-white">
-                    {c.asignatura} ({c.id})
-                  </option>
-                ))}
-              </select>
-            </div>
+                <div>
+                  <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                    Asignatura *
+                  </label>
+                  <SearchableSelect
+                    value={formData.cursoId}
+                    onChange={(val) => handleCourseChange({ target: { value: val } })}
+                    placeholder="Buscar asignatura..."
+                    options={courses.map((c) => ({
+                      value: c.id,
+                      label: c.asignatura,
+                      sublabel: `${c.docente || ""} • ${c.id}`,
+                      searchText: `${c.docente || ""} ${c.id}`
+                    }))}
+                  />
+                </div>
+              </div>
 
-            <div>
-              <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                Horario de Clase *
-              </label>
-              <input
-                type="text"
-                name="horario"
-                value={formData.horario}
-                onChange={handleChange}
-                placeholder="08:00 - 10:00 hrs"
-                required
-                className="w-full px-3 py-2 border border-slate-200 dark:border-white/10 rounded-lg text-xs bg-slate-50 dark:bg-white/5 dark:text-white focus:bg-white dark:focus:bg-slate-900 focus:outline-hidden focus:border-[#1E3A8A]"
-              />
-            </div>
-          </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                    Tipo de Incidencia *
+                  </label>
+                  <select
+                    name="tipo"
+                    value={formData.tipo}
+                    onChange={handleChange}
+                    className="w-full px-3 py-2 border border-slate-200 dark:border-white/10 rounded-lg bg-slate-50 dark:bg-slate-800 dark:text-white"
+                  >
+                    {TIPOS_INCIDENCIA.map((t) => (
+                      <option key={t} value={t}>
+                        {t}
+                      </option>
+                    ))}
+                  </select>
+                </div>
 
-          {/* Tipo de Incidencia y Fecha */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <div>
-              <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                Tipo de Incidencia *
-              </label>
-              <select
-                name="tipo"
-                value={formData.tipo}
-                onChange={handleChange}
-                className="w-full px-3 py-2 border border-slate-200 dark:border-white/10 rounded-lg text-xs bg-slate-50 dark:bg-white/5 dark:text-white focus:bg-white dark:focus:bg-slate-900 focus:outline-hidden focus:border-[#1E3A8A]"
-              >
-                {TIPOS_INCIDENCIA.map((t) => (
-                  <option key={t} value={t} className="dark:bg-slate-900 dark:text-white">
-                    {t}
-                  </option>
-                ))}
-              </select>
-            </div>
+                <div>
+                  <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                    Fecha del Suceso *
+                  </label>
+                  <input
+                    type="text"
+                    name="fechaPresentacion"
+                    value={formData.fechaPresentacion}
+                    onChange={handleChange}
+                    required
+                    className="w-full px-3 py-2 border border-slate-200 dark:border-white/10 rounded-lg bg-slate-50 dark:bg-slate-800 dark:text-white"
+                  />
+                </div>
+              </div>
 
-            <div>
-              <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                Fecha del Suceso *
-              </label>
-              <input
-                type="text"
-                name="fechaPresentacion"
-                value={formData.fechaPresentacion}
-                onChange={handleChange}
-                placeholder="DD/MM/AAAA"
-                required
-                className="w-full px-3 py-2 border border-slate-200 dark:border-white/10 rounded-lg text-xs bg-slate-50 dark:bg-white/5 dark:text-white focus:bg-white dark:focus:bg-slate-900 focus:outline-hidden focus:border-[#1E3A8A]"
-              />
-            </div>
-          </div>
+              <div>
+                <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                  Motivo / Sustento de la Incidencia *
+                </label>
+                <textarea
+                  name="motivo"
+                  value={formData.motivo}
+                  onChange={handleChange}
+                  rows={3}
+                  required
+                  placeholder="Describe la razón técnica, médica o personal..."
+                  className="w-full px-3 py-2 border border-slate-200 dark:border-white/10 rounded-lg bg-slate-50 dark:bg-slate-800 dark:text-white"
+                />
+              </div>
 
-          {/* Motivo o Sustento */}
-          <div>
-            <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-              Motivo / Sustento de la Incidencia *
-            </label>
-            <textarea
-              name="motivo"
-              value={formData.motivo}
-              onChange={handleChange}
-              rows={3}
-              placeholder="Describe la razón técnica, médica o personal comunicada por el docente..."
-              required
-              className="w-full px-3 py-2 border border-slate-200 dark:border-white/10 rounded-lg text-xs bg-slate-50 dark:bg-white/5 dark:text-white focus:bg-white dark:focus:bg-slate-900 focus:outline-hidden focus:border-[#1E3A8A]"
-            />
-          </div>
+              {/* Subida real de PDF / Imagen con previsualización */}
+              <div className="space-y-2">
+                <label className="block font-semibold text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
+                  <Upload className="w-3.5 h-3.5 text-blue-600" />
+                  Adjuntar Comprobante / Justificante (PDF o Imagen • máx. 5 MB)
+                </label>
+                <label className="flex items-center justify-between gap-2 p-2.5 rounded-xl border border-dashed border-slate-300 dark:border-white/15 bg-slate-50 dark:bg-white/5 hover:border-blue-500 cursor-pointer">
+                  <input
+                    type="file"
+                    accept=".pdf,.png,.jpg,.jpeg,.webp,.doc,.docx"
+                    className="hidden"
+                    onChange={(e) => {
+                      const f = e.target.files?.[0] || null;
+                      if (f && f.size > MAX_JUSTIFICANTE_BYTES) {
+                        setFormError("El archivo supera el límite máximo de 5 MB.");
+                        e.target.value = "";
+                        return;
+                      }
+                      setFormError("");
+                      setSustentoFile(f);
+                    }}
+                  />
+                  <span className="flex items-center gap-2 truncate text-slate-600 dark:text-slate-300">
+                    {sustentoFile ? (
+                      <>
+                        <FileCheck className="w-4 h-4 text-emerald-500 shrink-0" />
+                        <span className="font-bold text-emerald-700 dark:text-emerald-300 truncate">
+                          {sustentoFile.name}
+                        </span>
+                      </>
+                    ) : (
+                      <span>Seleccionar PDF o constancia digital...</span>
+                    )}
+                  </span>
+                  <span className="font-bold text-blue-600 underline shrink-0">
+                    {sustentoFile ? "Cambiar" : "Adjuntar"}
+                  </span>
+                </label>
 
-          {/* Estado Inicial de Resolución */}
-          <div>
-            <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-              Estado de Validación Administrativa *
-            </label>
-            <select
-              name="estado"
-              value={formData.estado}
-              onChange={handleChange}
-              className="w-full px-3 py-2 border border-slate-200 dark:border-white/10 rounded-lg text-xs bg-slate-50 dark:bg-white/5 dark:text-white focus:bg-white dark:focus:bg-slate-900 focus:outline-hidden focus:border-[#1E3A8A]"
-            >
-              <option value="Pendiente" className="dark:bg-slate-900 dark:text-white">
-                Pendiente (Por revisar)
-              </option>
-              <option value="Aprobado" className="dark:bg-slate-900 dark:text-white">
-                Aprobado (Justificado - Sin descuento)
-              </option>
-              <option value="Rechazado" className="dark:bg-slate-900 dark:text-white">
-                Rechazado (No procede - Con descuento)
-              </option>
-            </select>
-          </div>
+                {sustentoFile && (
+                  <div className="flex justify-end">
+                    <button
+                      type="button"
+                      onClick={() => setPreviewOpen(true)}
+                      className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg bg-indigo-50 dark:bg-indigo-950/50 border border-indigo-200 dark:border-indigo-800 text-indigo-700 dark:text-indigo-300 font-bold cursor-pointer"
+                    >
+                      <Eye className="w-3.5 h-3.5" />
+                      <span>Previsualizar archivo</span>
+                    </button>
+                  </div>
+                )}
+              </div>
 
-          {/* Botones de Acción */}
+              <div>
+                <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                  Estado de Validación Administrativa *
+                </label>
+                <select
+                  name="estado"
+                  value={formData.estado}
+                  onChange={handleChange}
+                  className="w-full px-3 py-2 border border-slate-200 dark:border-white/10 rounded-lg bg-slate-50 dark:bg-slate-800 dark:text-white"
+                >
+                  <option value="Pendiente">Pendiente (Por revisar)</option>
+                  <option value="Aprobado">Aprobado (Justificado - Sin descuento)</option>
+                  <option value="Rechazado">Rechazado (No procede - Con descuento)</option>
+                </select>
+              </div>
+            </>
+          )}
+
           <div className="flex justify-end space-x-2 pt-4 border-t border-slate-100 dark:border-white/10">
             <button
               type="button"
               onClick={onClose}
               disabled={submitting}
-              className="px-4 py-2 text-xs font-semibold text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-white/10 rounded-xl transition-colors cursor-pointer"
+              className="px-4 py-2 font-semibold text-slate-600 dark:text-slate-300 hover:bg-slate-100 rounded-xl cursor-pointer"
             >
               Cancelar
             </button>
             <button
               type="submit"
               disabled={submitting}
-              className="px-4 py-2 text-xs font-semibold text-white bg-[#1E3A8A] hover:bg-blue-800 rounded-xl transition-colors cursor-pointer shadow-xs disabled:opacity-50"
+              className="inline-flex items-center gap-1.5 px-4 py-2 font-semibold text-white bg-[#1E3A8A] hover:bg-blue-800 rounded-xl cursor-pointer shadow-xs disabled:opacity-50"
             >
-              {submitting ? "Registrando..." : "Guardar Incidencia"}
+              {submitting && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
+              <span>{submitting ? "Guardando..." : "Guardar Incidencia"}</span>
             </button>
           </div>
         </form>
       </div>
+
+      <FilePreviewModal
+        isOpen={previewOpen}
+        onClose={() => setPreviewOpen(false)}
+        title={`Comprobante — ${formData.docente}`}
+        subtitle={`${formData.tipo} • Vista previa antes de guardar`}
+        fileName={sustentoFile?.name || "justificante.pdf"}
+        localFile={sustentoFile}
+      />
     </div>
   );
 }

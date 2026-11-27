@@ -2,8 +2,8 @@ import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { ShieldCheck, User, Lock, ArrowRight, Loader2 } from "lucide-react";
 import ThemeToggle from "../components/ThemeToggle";
-import { setApiAccessToken } from "../lib/insforge";
-import { authService } from "../services/api";
+import { setApiAccessToken } from "../lib/supabase";
+import { authService, userService } from "../services/api";
 
 const normalizeLoginRole = (role) => {
   const normalizedRole = String(role || "").trim().toLowerCase();
@@ -38,6 +38,9 @@ export default function Login() {
       const user = { id: userId, correo: trimmedEmail, rol: role, nombres: name };
 
       setApiAccessToken(session.access_token);
+      if (session.profile) {
+        userService.cacheLoggedProfile(session.profile);
+      }
       localStorage.setItem("userRole", role);
       localStorage.setItem("userName", name);
       localStorage.setItem("userEmail", trimmedEmail);
@@ -46,7 +49,7 @@ export default function Login() {
       localStorage.setItem("usuarioLogueado", JSON.stringify(user));
       setPassword("");
 
-      if (role === "admin") navigate("/admin/usuarios");
+      if (role === "admin") navigate("/admin/inicio");
       else if (role === "docente") navigate("/docente/panel");
       else navigate("/estudiante/panel");
 

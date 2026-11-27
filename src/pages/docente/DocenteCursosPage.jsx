@@ -1,10 +1,12 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { useSearchParams } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { BookOpen, Loader2, Video, Clock, ExternalLink, Calendar, ChevronRight, Users, FileText, Bell } from "lucide-react";
 import CursoDetalleView from "./DocenteCursosDetalles";
 import { courseService } from "../../services/cursosServices";
+import { academicosService } from "../../services/academicosService";
 import { getCurrentSessionProfile } from "../../services/session";
 import { registerMeetEntry } from "../../services/asistencia";
+import { clasesVivoService } from "../../services/clasesVivoService";
 
 const normalizeName = (value) => String(value || "")
   .toLowerCase()
@@ -24,12 +26,15 @@ const matchesTeacherName = (courseName, userName) => {
 };
 
 export default function DocenteCursosPage() {
+  const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const queryCursoId = searchParams.get("cursoId");
   const queryTab = searchParams.get("tab") || "clase";
 
   const [cursoSeleccionado, setCursoSeleccionado] = useState(null);
   const [listaCursos, setListaCursos] = useState([]);
+  const [ciclosList, setCiclosList] = useState([]);
+  const [selectedCycleFilter, setSelectedCycleFilter] = useState("vigentes");
   const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -41,16 +46,18 @@ export default function DocenteCursosPage() {
       try {
         setLoading(true);
         setError("");
-        const [{ profile: currentProfile }, courses] = await Promise.all([
+        const [{ profile: currentProfile }, courses, ciclos] = await Promise.all([
           getCurrentSessionProfile(),
-          courseService.getCourses()
+          courseService.getCourses(),
+          academicosService.getCiclos().catch(() => [])
         ]);
         if (!cancelled) {
           setProfile(currentProfile);
           setListaCursos(courses || []);
+          setCiclosList(Array.isArray(ciclos) ? ciclos : []);
         }
       } catch (err) {
-        if (!cancelled) setError(err.message || "No se pudieron cargar los cursos desde InsForge.");
+        if (!cancelled) setError(err.message || "No se pudieron cargar los cursos desde Supabase.");
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -69,13 +76,27 @@ export default function DocenteCursosPage() {
         .map(String)
     );
 
-    return listaCursos.filter((course) => (
-      course.estado === "Activo" &&
-      (idsAsignados.has(String(course.id)) ||
-       course.docenteId === profile.id ||
-       matchesTeacherName(course.docente, fullName))
-    ));
-  }, [listaCursos, profile]);
+    return listaCursos.filter((course) => {
+      if (String(course.estado || "").toLowerCase() === "inactivo") return false;
+      const belongsToTeacher =
+        idsAsignados.has(String(course.id)) ||
+        course.docenteId === profile.id ||
+        matchesTeacherName(course.docente, fullName);
+      if (!belongsToTeacher) return false;
+
+      const isClosedCourse =
+        String(course.estado || "").toLowerCase() === "finalizado" ||
+        String(course.cicloEstado || "").toLowerCase() === "finalizado";
+
+      if (selectedCycleFilter === "vigentes") {
+        return !isClosedCourse;
+      }
+      if (selectedCycleFilter === "todos") {
+        return true;
+      }
+      return String(course.cicloId || "") === String(selectedCycleFilter);
+    });
+  }, [listaCursos, profile, selectedCycleFilter]);
 
   // Selección automática si viene cursoId por parámetro de URL
   useEffect(() => {
@@ -88,20 +109,15 @@ export default function DocenteCursosPage() {
     }
   }, [queryCursoId, cursoSeleccionado, cursosFiltrados, listaCursos]);
 
-  const handleStartMeet = async (curso) => {
+  const handleStartMeet = (curso) => {
     if (!curso?.meetUrl) {
       alert("El curso no tiene un enlace de Google Meet configurado.");
       return;
     }
-    setStartingCourseId(curso.id);
-    window.open(curso.meetUrl, "_blank", "noopener,noreferrer");
-    try {
-      await registerMeetEntry(curso.id);
-    } catch (err) {
-      console.warn("Registro de entrada en segundo plano:", err);
-    } finally {
-      setStartingCourseId(null);
-    }
+    setError("");
+    clasesVivoService.launchClassOptimistically(curso);
+    registerMeetEntry(curso.id).catch(() => {});
+    navigate(`/docente/aula-vivo/${curso.id}`, { state: { coursePreview: curso } });
   };
 
   const handleSelectCursoTab = (curso, tab = "clase") => {
@@ -132,16 +148,32 @@ export default function DocenteCursosPage() {
 
   return (
     <div className="space-y-6 text-slate-800 dark:text-slate-100 animate-fade-in">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-200 dark:border-white/10 pb-4">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-200 dark:border-white/10 pb-4">
         <div>
           <h2 className="text-2xl font-extrabold text-slate-800 dark:text-white">Mis Cursos Asignados</h2>
           <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
-            Administra tus asignaturas, inicia tus clases virtuales en Google Meet y consulta el historial de asistencia.
+            Administra tus asignaturas por ciclo académico, inicia clases virtuales en Meet y revisa entregas.
           </p>
         </div>
-        <span className="text-xs font-bold px-3 py-1.5 rounded-xl bg-indigo-50 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800 self-start sm:self-auto">
-          {cursosFiltrados.length} Cursos Activos
-        </span>
+        <div className="flex flex-wrap items-center gap-2 self-start sm:self-auto">
+          <select
+            value={selectedCycleFilter}
+            onChange={(e) => setSelectedCycleFilter(e.target.value)}
+            aria-label="Filtrar cursos por ciclo académico"
+            className="text-xs font-bold px-3 py-1.5 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/10 text-slate-700 dark:text-slate-200 cursor-pointer"
+          >
+            <option value="vigentes">Ciclos Vigentes (En Curso)</option>
+            {ciclosList.map((cic) => (
+              <option key={cic.id} value={cic.id}>
+                {cic.nombre} ({cic.estado})
+              </option>
+            ))}
+            <option value="todos">Todos los Periodos (Incluye Historial)</option>
+          </select>
+          <span className="text-xs font-bold px-3 py-1.5 rounded-xl bg-indigo-50 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800">
+            {cursosFiltrados.length} Cursos
+          </span>
+        </div>
       </div>
 
       {error && (
@@ -155,7 +187,7 @@ export default function DocenteCursosPage() {
           <BookOpen className="mb-4 h-16 w-16 text-slate-400" />
           <h3 className="text-xl font-bold text-slate-800 dark:text-white">No hay cursos asignados</h3>
           <p className="mt-2 text-sm text-slate-500 max-w-md">
-            No se encontraron cursos activos asignados a tu cuenta docente en InsForge.
+            No se encontraron cursos activos asignados a tu cuenta docente en Supabase.
           </p>
         </div>
       ) : (

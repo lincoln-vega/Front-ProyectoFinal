@@ -22,8 +22,9 @@ jobs:
 
       - name: Build project
         env:
-          VITE_INSFORGE_URL: ${{ secrets.VITE_INSFORGE_URL || 'https://rbxki34t.us-east.insforge.app' }}
-          VITE_INSFORGE_ANON_KEY: ${{ secrets.VITE_INSFORGE_ANON_KEY || 'ik_d0819137e3c783ce6a002a534d62e4e6' }}
+          VITE_API_URL: ${{ secrets.VITE_API_URL }}
+          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL || 'https://hgasvotbwatoznnizmzr.supabase.co' }}
+          VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
         run: npm run build
 
       - name: Deploy to Vercel (Production)

@@ -20,9 +20,11 @@ export default function CursoPage() {
   const { courses: initialCourses, loading, error, addCourse, updateCourse, refreshCourses } = useCurse();
   const [coursesList, setCoursesList] = useState([]);
   const [dbAreas, setDbAreas] = useState([]);
+  const [dbCiclos, setDbCiclos] = useState([]);
 
   const [searchTerm, setSearchTerm] = useState("");
   const [areaFilter, setAreaFilter] = useState("Todas las Áreas Académicas");
+  const [cycleFilter, setCycleFilter] = useState("Todos los Ciclos");
   const [statusFilter, setStatusFilter] = useState("Todos los Estados");
 
   // Estado para controlar el modal de registro y edición
@@ -34,17 +36,21 @@ export default function CursoPage() {
   const [isStudentsModalOpen, setIsStudentsModalOpen] = useState(false);
   const [selectedCourseForStudents, setSelectedCourseForStudents] = useState(null);
 
-  // Cargar áreas y estudiantes desde la base de datos
+  // Cargar áreas, ciclos y estudiantes desde la base de datos
   useEffect(() => {
     let isMounted = true;
     Promise.all([
       academicosService.getAreas().catch(() => []),
+      academicosService.getCiclos().catch(() => []),
       userService.getUsers().catch(() => [])
     ])
-      .then(([areasData, usersData]) => {
+      .then(([areasData, ciclosData, usersData]) => {
         if (!isMounted) return;
         if (Array.isArray(areasData) && areasData.length > 0) {
           setDbAreas(areasData);
+        }
+        if (Array.isArray(ciclosData) && ciclosData.length > 0) {
+          setDbCiclos(ciclosData);
         }
         if (Array.isArray(usersData)) {
           const onlyStudents = usersData.filter((u) => String(u.rol || "").toLowerCase() === "estudiante");
@@ -136,8 +142,12 @@ export default function CursoPage() {
       (curso.area || "").toLowerCase().includes(areaFilter.toLowerCase()) ||
       areaFilter.toLowerCase().includes((curso.area || "").toLowerCase());
     const matchesStatus = statusFilter === "Todos los Estados" || curso.estado === statusFilter;
+    const matchesCycle =
+      cycleFilter === "Todos los Ciclos" ||
+      String(curso.cicloId || "") === String(cycleFilter) ||
+      String(curso.cicloVirtual || curso.ciclovirtual || "").toLowerCase() === String(cycleFilter).toLowerCase();
 
-    return matchesSearch && matchesArea && matchesStatus;
+    return matchesSearch && matchesArea && matchesStatus && matchesCycle;
   });
 
   return (
@@ -182,7 +192,7 @@ export default function CursoPage() {
 
         {/* Barra de Búsqueda y Filtros */}
         <div className="mt-5 grid grid-cols-1 md:grid-cols-12 gap-3 pt-4 border-t border-slate-100 dark:border-white/10">
-          <div className="md:col-span-6 relative">
+          <div className="md:col-span-4 relative">
             <Search className="w-4 h-4 text-slate-400 dark:text-slate-500 absolute left-3 top-2.5" />
             <input
               type="text"
@@ -191,6 +201,21 @@ export default function CursoPage() {
               placeholder="Buscar por materia, código o docente titular..."
               className="w-full pl-9 pr-4 py-2 text-xs border border-slate-200 dark:border-white/10 rounded-lg bg-slate-50 dark:bg-white/5 dark:text-white focus:bg-white dark:focus:bg-slate-900 focus:outline-hidden focus:border-[#1E3A8A] focus:ring-1 focus:ring-[#1E3A8A] transition-all"
             />
+          </div>
+
+          <div className="md:col-span-3">
+            <select
+              value={cycleFilter}
+              onChange={(e) => setCycleFilter(e.target.value)}
+              className="w-full py-2 px-3 text-xs border border-slate-200 dark:border-white/10 rounded-lg bg-slate-50 dark:bg-white/5 dark:text-white focus:bg-white dark:focus:bg-slate-900 focus:outline-hidden focus:border-[#1E3A8A] cursor-pointer"
+            >
+              <option value="Todos los Ciclos">Todos los Ciclos</option>
+              {dbCiclos.map((ciclo) => (
+                <option key={ciclo.id} value={ciclo.id}>
+                  {ciclo.nombre} ({ciclo.estado})
+                </option>
+              ))}
+            </select>
           </div>
 
           <div className="md:col-span-3">
@@ -208,7 +233,7 @@ export default function CursoPage() {
             </select>
           </div>
 
-          <div className="md:col-span-3">
+          <div className="md:col-span-2">
             <select
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value)}
@@ -216,6 +241,7 @@ export default function CursoPage() {
             >
               <option value="Todos los Estados">Todos los Estados</option>
               <option value="Activo">Activos</option>
+              <option value="Finalizado">Finalizados (Historial)</option>
               <option value="En Revisión">En Revisión</option>
             </select>
           </div>
@@ -224,7 +250,7 @@ export default function CursoPage() {
 
       {/* CUADRÍCULA (GRID) DE CURSOS */}
       {error && <p role="alert" className="rounded-lg border border-red-300 bg-red-50 p-3 text-sm text-red-700">{error}</p>}
-      {loading && <p className="text-sm text-slate-500">Consultando cursos en InsForge...</p>}
+      {loading && <p className="text-sm text-slate-500">Consultando cursos en Supabase...</p>}
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
         {filteredCourses.length > 0 ? (
           filteredCourses.map((curso) => (

@@ -1,8 +1,10 @@
 import React, { useState, useEffect, useMemo } from "react";
-import { courseService } from "../../services/cursosServices";
-import { userService, parseCourseList } from "../../services/api";
 import { saveAttendanceRecord } from "../../services/asistencia";
+import { clasesVivoService } from "../../services/clasesVivoService";
+import { academicActivitiesService } from "../../services/academicActivitiesService";
 import WeeklyActivitiesWidget from "../../components/student/WeeklyActivitiesWidget";
+import FilePreviewModal from "../../components/shared/FilePreviewModal";
+import { useStudentCycle } from "../../context/StudentCycleContext";
 
 import {
   Video,
@@ -27,22 +29,96 @@ import {
 } from "lucide-react";
 
 export default function StudentDashboardPage() {
+  const {
+    loadingCycle: loading,
+    errorCycle: error,
+    studentProfile: estudianteActivo,
+    availableStudentCycles,
+    selectedCycle,
+    selectedCycleId,
+    setSelectedCycleId,
+    isReadOnlyHistory,
+    cycleCourses: misCursosInscritos
+  } = useStudentCycle();
+
   const [activeMeetModal, setActiveMeetModal] = useState(null);
   const [attendanceNotice, setAttendanceNotice] = useState(null);
-  const [listaCursosGlobal, setListaCursosGlobal] = useState([]);
-  const [estudianteActivo, setEstudianteActivo] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
+  const [liveSessionsByCourse, setLiveSessionsByCourse] = useState({});
+  const [resumenAsistencia, setResumenAsistencia] = useState({});
+  const [courseMaterials, setCourseMaterials] = useState([]);
+  const [previewMaterial, setPreviewMaterial] = useState(null);
+  const [liveTracker, setLiveTracker] = useState(() => clasesVivoService.getStudentTrackerState());
+
+  useEffect(() => {
+    const unsub = clasesVivoService.subscribeStudentTracker(setLiveTracker);
+    return unsub;
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    const syncLiveData = async () => {
+      try {
+        const [activasRes, resumenRes, anns] = await Promise.all([
+          clasesVivoService.listarClasesActivas(selectedCycleId).catch(() => ({ sesiones: [] })),
+          clasesVivoService.obtenerResumenAsistencia(selectedCycleId).catch(() => ({ cursos: {} })),
+          academicActivitiesService.fetchAnnouncements().catch(() => []),
+        ]);
+        if (cancelled) return;
+
+        const map = {};
+        for (const s of activasRes?.sesiones || []) {
+          if (s.cursoId) map[s.cursoId] = s;
+        }
+        setLiveSessionsByCourse(map);
+        setResumenAsistencia(resumenRes?.cursos || {});
+        setCourseMaterials(Array.isArray(anns) ? anns.filter((a) => Boolean(a.archivoUrl)) : []);
+      } catch {}
+    };
+
+    syncLiveData();
+    const id = setInterval(() => {
+      if (!document.hidden) syncLiveData();
+    }, 30000);
+    const unsub = clasesVivoService.subscribeLiveChanges((evt) => {
+      if (evt?.type === "CLASS_ENDED" && evt.cursoId) {
+        setLiveSessionsByCourse((prev) => {
+          const next = { ...prev };
+          delete next[evt.cursoId];
+          return next;
+        });
+        setAttendanceNotice(null);
+      }
+      syncLiveData();
+    });
+    const onVis = () => {
+      if (!document.hidden) syncLiveData();
+    };
+    document.addEventListener("visibilitychange", onVis);
+    return () => {
+      cancelled = true;
+      clearInterval(id);
+      unsub();
+      document.removeEventListener("visibilitychange", onVis);
+    };
+  }, [selectedCycleId]);
+
+  const latestMaterialByCourse = useMemo(() => {
+    const map = {};
+    for (const mat of courseMaterials) {
+      const cid = String(mat.cursoId || mat.curso_id || "");
+      if (cid && !map[cid]) map[cid] = mat;
+    }
+    return map;
+  }, [courseMaterials]);
 
   // Estado para el carrusel de banners académicos
   const [activeSlide, setActiveSlide] = useState(0);
   const [isCarouselPlaying, setIsCarouselPlaying] = useState(true);
-  const [selectedPeriod, setSelectedPeriod] = useState("actual");
 
   const slides = [
     {
       id: 1,
-      badge: "Ciclo 2026-I • Refuerzo Académico",
+      badge: `${selectedCycle?.nombre || "Ciclo Preuniversitario"} • Preparación Integral`,
       title: "Talleres y Tutorías de Refuerzo Académico",
       subtitle: "Conoce la programación de la semana y consolida tu preparación con docentes de alto rendimiento.",
       items: [
@@ -90,100 +166,47 @@ export default function StudentDashboardPage() {
     return () => clearInterval(interval);
   }, [isCarouselPlaying, slides.length]);
 
-  useEffect(() => {
-    let cancelled = false;
-
-    async function cargarDatosEstudiante() {
-      try {
-        setLoading(true);
-        setError("");
-
-        const userEmail = localStorage.getItem("userEmail");
-        if (!userEmail) throw new Error("No se encontró el correo de la sesión.");
-
-        const [cursos, perfil] = await Promise.all([
-          courseService.getCourses(),
-          userService.getUserByEmail(userEmail)
-        ]);
-
-        if (cancelled) return;
-
-        setListaCursosGlobal(cursos || []);
-        if (!perfil) throw new Error("No se encontró el perfil del estudiante en InsForge.");
-        setEstudianteActivo(perfil);
-      } catch (err) {
-        if (!cancelled) {
-          console.error("Error al cargar datos del estudiante:", err);
-          setError(err.message || "Error al cargar los cursos del estudiante.");
-        }
-      } finally {
-        if (!cancelled) {
-          setLoading(false);
-        }
-      }
-    }
-
-    cargarDatosEstudiante();
-    return () => { cancelled = true; };
-  }, []);
-
   // Construcción limpia del nombre completo
   const studentName = estudianteActivo
-    ? `${estudianteActivo.nombres || ''} ${estudianteActivo.apellidos || ''}`.trim()
-    : (localStorage.getItem("userName") || "Lincoln Jhoel");
+    ? `${estudianteActivo.nombres || ""} ${estudianteActivo.apellidos || ""}`.trim()
+    : (localStorage.getItem("userName") || "Estudiante");
 
-  const carreraObjetivo = estudianteActivo?.carreraObjetivo || "Ingeniería de Sistemas";
-  const universidadObjetivo = estudianteActivo?.universidad || "UNI / San Marcos";
+  const carreraObjetivo = selectedCycle?.programa || estudianteActivo?.carreraObjetivo || "Preparación Preuniversitaria";
+  const universidadObjetivo = estudianteActivo?.universidad || "UNMSM / UNI";
 
-  // Cruce estricto de cursosInscritos de la sesión con la lista global de cursos en la BD
-  const misCursosInscritos = useMemo(() => {
-    if (!estudianteActivo) return [];
-
-    const inscritos = parseCourseList(
-      estudianteActivo.cursosInscritos ||
-      estudianteActivo.cursos_inscritos ||
-      estudianteActivo.CursosInscritos
-    );
-    if (inscritos.length === 0) return [];
-
-    const idsInscritos = new Set(
-      inscritos.map((c) => (typeof c === "object" && c !== null ? String(c.id).trim() : String(c).trim()))
-    );
-    return (listaCursosGlobal || []).filter(
-      (curso) => idsInscritos.has(String(curso.id).trim()) && curso.estado === "Activo"
-    );
-  }, [estudianteActivo, listaCursosGlobal]);
-
-  const handleJoinMeet = (course) => {
-    if (!course?.meetUrl) {
-      alert("El curso seleccionado no tiene un enlace de Google Meet asignado.");
+  const handleJoinMeet = async (course) => {
+    if (isReadOnlyHistory) return;
+    const liveSession = liveSessionsByCourse[course.id];
+    if (!liveSession) {
+      alert("El docente aún no ha iniciado la sesión en vivo de esta asignatura.");
       return;
     }
 
-    // 1. Apertura directa en nueva pestaña
-    window.open(course.meetUrl, "_blank", "noopener,noreferrer");
+    try {
+      const joined = await clasesVivoService.unirseAClase(liveSession, course.asignatura);
+      const horaActual = new Date().toLocaleTimeString("es-PE", {
+        hour: "2-digit",
+        minute: "2-digit",
+      });
+      setAttendanceNotice({
+        asignatura: course.asignatura,
+        docente: course.docente || liveSession.docenteNombre || "Docente a cargo",
+        meetUrl: joined.meetUrl || course.meetUrl,
+        hora: horaActual,
+      });
 
-    // 2. Notificación en pantalla de registro exitoso
-    const horaActual = new Date().toLocaleTimeString("es-PE", { hour: "2-digit", minute: "2-digit" });
-    setAttendanceNotice({
-      asignatura: course.asignatura,
-      docente: course.docente || "Docente a cargo",
-      meetUrl: course.meetUrl,
-      hora: horaActual
-    });
-
-    // 3. Registrar asistencia puntual en InsForge en segundo plano
-    saveAttendanceRecord({
-      cursoId: course.id,
-      curso: course.asignatura,
-      docenteId: course.docenteId || "USR-002",
-      docente: course.docente || "Docente a cargo",
-      estudianteId: estudianteActivo?.id || "USR-005",
-      estudiante: studentName,
-      horaRegistro: horaActual
-    }).catch((err) => {
-      console.warn("[Asistencia Estudiante] Registro completado con advertencia:", err);
-    });
+      saveAttendanceRecord({
+        cursoId: course.id,
+        curso: course.asignatura,
+        docenteId: course.docenteId || "USR-002",
+        docente: course.docente || "Docente a cargo",
+        estudianteId: estudianteActivo?.id || "USR-005",
+        estudiante: studentName,
+        horaRegistro: horaActual,
+      }).catch(() => {});
+    } catch (err) {
+      alert(err.message || "No se pudo unir a la sesión en vivo.");
+    }
   };
 
   // Colores o temas decorativos por materia para asemejarse al diseño de tarjetas moderno
@@ -354,32 +377,40 @@ export default function StudentDashboardPage() {
         </div>
       )}
 
-      {/* 3. BARRA DE CABECERA: TÍTULO Y FILTRADO POR PERÍODO */}
+      {/* 3. BARRA DE CABECERA: TÍTULO Y FILTRADO REAL POR CICLO / PERÍODO */}
       <div id="mis-cursos-section" className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-200 dark:border-white/10 pb-4">
         <div>
           <h2 className="text-2xl font-black text-slate-900 dark:text-white tracking-tight flex items-center gap-2">
             <span>Mis cursos</span>
-            <span className="text-xs px-2.5 py-0.5 font-bold rounded-full bg-blue-100 dark:bg-blue-900/50 text-blue-800 dark:text-blue-300">
-              {misCursosInscritos.length} activos
+            <span className={`text-xs px-2.5 py-0.5 font-bold rounded-full ${
+              isReadOnlyHistory
+                ? "bg-amber-100 dark:bg-amber-950/60 text-amber-800 dark:text-amber-300"
+                : "bg-blue-100 dark:bg-blue-900/50 text-blue-800 dark:text-blue-300"
+            }`}>
+              {misCursosInscritos.length} {isReadOnlyHistory ? "históricos" : "activos"}
             </span>
           </h2>
           <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 mt-0.5">
-            Selecciona tu asignatura para acceder a la sala de Google Meet o consultar materiales.
+            {isReadOnlyHistory
+              ? "Consultando el registro histórico de un ciclo concluido (modo solo lectura)."
+              : "Selecciona tu asignatura para acceder a la sala de Google Meet o consultar materiales."}
           </p>
         </div>
 
-        {/* Selector de Período como en el portal de la universidad */}
+        {/* Selector Real de Ciclo Académico */}
         <div className="flex items-center gap-2 text-xs">
-          <span className="font-bold text-slate-600 dark:text-slate-400 hidden sm:inline">Filtrar por período:</span>
+          <span className="font-bold text-slate-600 dark:text-slate-400 hidden sm:inline">Ciclo / Período:</span>
           <div className="relative">
             <select
-              value={selectedPeriod}
-              onChange={(e) => setSelectedPeriod(e.target.value)}
+              value={selectedCycleId}
+              onChange={(e) => setSelectedCycleId(e.target.value)}
               className="appearance-none bg-white dark:bg-slate-900 border border-slate-300 dark:border-white/10 text-slate-800 dark:text-white font-bold py-2 pl-3.5 pr-8 rounded-xl shadow-xs text-xs focus:ring-2 focus:ring-blue-500 focus:outline-none cursor-pointer"
             >
-              <option value="actual">Período actual (Ciclo Intensivo 2026-I)</option>
-              <option value="anual">Ciclo Anual 2026 (Mañana)</option>
-              <option value="verano">Ciclo Repaso Verano 2026</option>
+              {availableStudentCycles.map((cic) => (
+                <option key={cic.id} value={cic.id}>
+                  {cic.nombre} ({cic.isReadOnly ? "Historial • Finalizado" : "En Curso"})
+                </option>
+              ))}
             </select>
             <ChevronDown className="w-4 h-4 text-slate-400 absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
           </div>
@@ -392,13 +423,20 @@ export default function StudentDashboardPage() {
         {/* COLUMNA IZQUIERDA / CENTRAL: CATÁLOGO DE CURSOS (8 COLUMNAS) */}
         <div className="lg:col-span-8 space-y-6">
           
-          {/* Subtítulo del Ciclo Académico */}
+          {/* Subtítulo Dinámico del Ciclo Académico */}
           <div className="flex items-center justify-between border-b border-slate-200/80 dark:border-white/10 pb-2">
-            <div className="text-xs sm:text-sm font-extrabold text-slate-700 dark:text-slate-300 tracking-wide uppercase">
-              2026 - Ciclo Intensivo de Admisión (001) (Actual)
+            <div className="text-xs sm:text-sm font-extrabold text-slate-700 dark:text-slate-300 tracking-wide uppercase flex items-center gap-2">
+              <span>{selectedCycle?.nombre || "Ciclo Académico"}</span>
+              <span className={`text-[10px] px-2 py-0.5 rounded-full font-extrabold ${
+                isReadOnlyHistory
+                  ? "bg-amber-100 dark:bg-amber-950/60 text-amber-800 dark:text-amber-300"
+                  : "bg-emerald-100 dark:bg-emerald-950/60 text-emerald-800 dark:text-emerald-300"
+              }`}>
+                {isReadOnlyHistory ? "Finalizado • Solo Lectura" : "En Curso"}
+              </span>
             </div>
             <span className="text-[11px] font-mono text-slate-400">
-              {carreraObjetivo} • {universidadObjetivo}
+              {carreraObjetivo}
             </span>
           </div>
 
@@ -412,21 +450,52 @@ export default function StudentDashboardPage() {
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
               {misCursosInscritos.map((course, idx) => {
                 const theme = getCourseTheming(idx);
+                const liveSession = liveSessionsByCourse[course.id];
+                const isLiveNow = Boolean(liveSession) && !isReadOnlyHistory;
+                const myLiveEntry =
+                  (liveTracker?.cursoId === course.id ? liveTracker : null) ||
+                  liveSession?.miAsistencia ||
+                  null;
+                const courseStats = resumenAsistencia[course.id];
+                const realPct = courseStats ? `${courseStats.porcentaje}%` : "100%";
+                const latestMat = latestMaterialByCourse[course.id];
+
                 return (
                   <div
                     key={course.id}
-                    className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/90 dark:border-white/10 shadow-xs hover:shadow-lg transition-all duration-300 flex flex-col justify-between overflow-hidden group hover:border-blue-400/60"
+                    className={`bg-white dark:bg-slate-900 rounded-2xl border shadow-xs hover:shadow-lg transition-all duration-300 flex flex-col justify-between overflow-hidden group ${
+                      isLiveNow
+                        ? "border-emerald-500 ring-2 ring-emerald-500/15"
+                        : "border-slate-200/90 dark:border-white/10 hover:border-blue-400/60"
+                    }`}
                   >
                     {/* Header temático de la tarjeta */}
                     <div className={`p-4 bg-gradient-to-r ${theme.gradient} border-b border-slate-100 dark:border-white/5 relative`}>
                       <div className="flex items-center justify-between gap-2">
-                        <span className={`text-[10px] font-extrabold px-2 py-0.5 rounded-full ${theme.badge}`}>
-                          {theme.progress} Asistencia
+                        <span
+                          className={`text-[10px] font-extrabold px-2 py-0.5 rounded-full ${theme.badge}`}
+                          title={
+                            courseStats
+                              ? `${courseStats.asistidas} de ${courseStats.totalSesiones} sesiones asistidas`
+                              : "Sin inasistencias registradas"
+                          }
+                        >
+                          {realPct} Asistencia Real
                         </span>
-                        <span className="text-[10px] font-bold text-emerald-700 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/50 px-2 py-0.5 rounded-full border border-emerald-200 dark:border-emerald-800/60 flex items-center gap-1">
-                          <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                          Virtual en vivo
-                        </span>
+                        {isReadOnlyHistory ? (
+                          <span className="text-[10px] font-bold text-amber-700 dark:text-amber-300 bg-amber-50 dark:bg-amber-950/50 px-2 py-0.5 rounded-full border border-amber-200 dark:border-amber-800/60">
+                            Ciclo Concluido
+                          </span>
+                        ) : isLiveNow ? (
+                          <span className="text-[10px] font-extrabold text-white bg-red-600 px-2.5 py-0.5 rounded-full flex items-center gap-1 shadow-xs">
+                            <span className="w-1.5 h-1.5 rounded-full bg-white animate-pulse" />
+                            EN VIVO AHORA
+                          </span>
+                        ) : (
+                          <span className="text-[10px] font-bold text-slate-600 dark:text-slate-300 bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded-full border border-slate-200 dark:border-white/10">
+                            {course.horaInicio || "08:00"} hrs
+                          </span>
+                        )}
                       </div>
 
                       <h3 className="text-base font-extrabold text-slate-900 dark:text-white mt-3 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors leading-snug">
@@ -438,8 +507,8 @@ export default function StudentDashboardPage() {
                       </p>
                     </div>
 
-                    {/* Cuerpo de la tarjeta: Información de Docente y Horario */}
-                    <div className="p-4 space-y-3 text-xs text-slate-600 dark:text-slate-300">
+                    {/* Cuerpo de la tarjeta: Información de Docente, Horario y Material */}
+                    <div className="p-4 space-y-2.5 text-xs text-slate-600 dark:text-slate-300">
                       <div className="flex items-center space-x-2">
                         <div className="w-6 h-6 rounded-full bg-blue-100 dark:bg-blue-950/60 text-blue-700 dark:text-blue-300 flex items-center justify-center font-bold text-[10px] shrink-0">
                           {course.docente ? course.docente.charAt(0) : "D"}
@@ -455,28 +524,63 @@ export default function StudentDashboardPage() {
                           {Array.isArray(course.dias) ? course.dias.join(", ") : (course.dias || "Lunes")} ({course.horaInicio || "08:00"} - {course.horaFin || "10:00"})
                         </span>
                       </div>
+
+                      {latestMat && (
+                        <button
+                          type="button"
+                          onClick={() => setPreviewMaterial(latestMat)}
+                          className="w-full text-left block rounded-lg bg-blue-50/80 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-800/60 px-2.5 py-1.5 text-[11px] font-bold text-blue-700 dark:text-blue-300 truncate hover:bg-blue-100/80 cursor-pointer transition-colors"
+                        >
+                          📎 Previsualizar material: {latestMat.archivoNombre || latestMat.titulo}
+                        </button>
+                      )}
                     </div>
 
                     {/* Botones de acción inferiores */}
                     <div className="p-4 pt-0 space-y-2">
-                      <button
-                        type="button"
-                        onClick={() => handleJoinMeet(course)}
-                        className="w-full bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white font-extrabold py-2.5 px-3 rounded-xl shadow-sm text-xs flex items-center justify-center space-x-1.5 cursor-pointer transition-all hover:scale-[1.01]"
-                        title="Unirse inmediatamente a la sala de Google Meet"
-                      >
-                        <Video className="w-4 h-4 shrink-0" />
-                        <span>Unirse a Sala Virtual (Meet)</span>
-                      </button>
+                      {isReadOnlyHistory ? (
+                        <button
+                          type="button"
+                          disabled
+                          className="w-full bg-slate-200 dark:bg-slate-800 text-slate-500 dark:text-slate-400 font-bold py-2.5 px-3 rounded-xl text-xs flex items-center justify-center space-x-1.5 cursor-not-allowed"
+                        >
+                          <Clock className="w-4 h-4 shrink-0" />
+                          <span>Sala Cerrada (Ciclo Finalizado)</span>
+                        </button>
+                      ) : isLiveNow ? (
+                        <button
+                          type="button"
+                          onClick={() => handleJoinMeet(course)}
+                          className="w-full bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white font-extrabold py-2.5 px-3 rounded-xl shadow-sm text-xs flex items-center justify-center space-x-1.5 cursor-pointer transition-all hover:scale-[1.01]"
+                          title="Se abrirá directamente Google Meet y se validará tu permanencia en 2.º plano"
+                        >
+                          <Video className="w-4 h-4 shrink-0" />
+                          <span>
+                            {myLiveEntry
+                              ? `En llamada Meet (${myLiveEntry.minutosPermanencia || 1} min validados) · Reabrir`
+                              : "Unirse a Sala Google Meet (EN VIVO)"}
+                          </span>
+                        </button>
+                      ) : (
+                        <button
+                          type="button"
+                          disabled
+                          className="w-full bg-slate-100 dark:bg-slate-800/80 text-slate-500 dark:text-slate-400 border border-slate-200 dark:border-white/10 font-bold py-2.5 px-3 rounded-xl text-xs flex items-center justify-center space-x-1.5 cursor-not-allowed"
+                          title="El botón se habilitará automáticamente apenas tu docente inicie la sesión"
+                        >
+                          <Clock className="w-3.5 h-3.5 shrink-0" />
+                          <span>Sala disponible cuando el docente inicie clase</span>
+                        </button>
+                      )}
 
                       <button
                         type="button"
                         onClick={() => setActiveMeetModal(course)}
                         className="w-full py-2 px-3 rounded-xl border border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-white/5 hover:bg-slate-100 dark:hover:bg-white/10 text-xs font-bold text-slate-700 dark:text-slate-300 flex items-center justify-center gap-1.5 transition-all cursor-pointer"
-                        title="Ver detalles de la sala y materiales"
+                        title="Ver detalles de la asignatura y materiales"
                       >
                         <ExternalLink className="w-3.5 h-3.5 text-slate-400" />
-                        <span>Ver detalles y enlace</span>
+                        <span>{isReadOnlyHistory ? "Consultar sílabo y materiales" : "Ver detalles y enlace"}</span>
                       </button>
                     </div>
                   </div>
@@ -491,7 +595,9 @@ export default function StudentDashboardPage() {
           <div className="sticky top-24">
             <WeeklyActivitiesWidget
               activeCourses={misCursosInscritos}
+              liveSessionsByCourse={liveSessionsByCourse}
               onJoinMeet={handleJoinMeet}
+              isReadOnly={isReadOnlyHistory}
             />
           </div>
         </div>
@@ -533,21 +639,34 @@ export default function StudentDashboardPage() {
               >
                 Volver
               </button>
-              <button
-                type="button"
-                onClick={() => {
-                  handleJoinMeet(activeMeetModal);
-                  setActiveMeetModal(null);
-                }}
-                className="w-full py-2.5 px-4 bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold rounded-xl text-xs flex items-center justify-center space-x-1.5 shadow-md cursor-pointer"
-              >
-                <span>Entrar a la Sala</span>
-                <ExternalLink className="w-3.5 h-3.5" />
-              </button>
+              {!isReadOnlyHistory && liveSessionsByCourse[activeMeetModal.id] && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    handleJoinMeet(activeMeetModal);
+                    setActiveMeetModal(null);
+                  }}
+                  className="w-full py-2.5 px-4 bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold rounded-xl text-xs flex items-center justify-center space-x-1.5 shadow-md cursor-pointer"
+                >
+                  <span>Entrar a la Sala en Vivo</span>
+                  <ExternalLink className="w-3.5 h-3.5" />
+                </button>
+              )}
             </div>
           </div>
         </div>
       )}
+
+      <FilePreviewModal
+        isOpen={Boolean(previewMaterial)}
+        onClose={() => setPreviewMaterial(null)}
+        title={previewMaterial?.titulo || "Material de Clase"}
+        subtitle={`${previewMaterial?.curso || ""} • ${previewMaterial?.docente || ""}`}
+        fileName={previewMaterial?.archivoNombre || "material_clase.pdf"}
+        bucket="materiales-clase"
+        path={previewMaterial?.archivoPath}
+        fallbackUrl={previewMaterial?.archivoUrl}
+      />
     </div>
   );
 }

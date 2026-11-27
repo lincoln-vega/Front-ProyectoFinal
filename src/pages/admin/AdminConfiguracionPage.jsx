@@ -100,7 +100,7 @@ export default function AdminConfiguracionPage() {
       if (saved) {
         setFormData((prev) => ({ ...prev, ...saved }));
       }
-      showNotification("Configuración del sistema actualizada correctamente en InsForge.");
+      showNotification("Configuración del sistema actualizada correctamente en Supabase.");
     } catch (err) {
       console.error("Error al guardar configuración:", err);
       setError(err.message || "No se pudo guardar la configuración.");

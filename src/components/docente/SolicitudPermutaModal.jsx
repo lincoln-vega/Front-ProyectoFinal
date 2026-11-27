@@ -1,16 +1,21 @@
 import React, { useState, useEffect } from "react";
 import {
   ArrowRightLeft,
-  Calendar,
-  Clock,
   BookOpen,
   FileText,
   Upload,
   CheckCircle2,
   X,
-  AlertCircle
+  Eye,
+  FileCheck,
+  Loader2
 } from "lucide-react";
 import { courseService, incidentService, userService } from "../../services/api";
+import { uploadFileToStorage } from "../../lib/supabase";
+import FilePreviewModal from "../shared/FilePreviewModal";
+import SearchableSelect from "../shared/SearchableSelect";
+
+const MAX_JUSTIFICANTE_BYTES = 5 * 1024 * 1024; // 5 MB bucket justificantes-docentes
 
 export default function SolicitudPermutaModal({ isOpen, onClose, onSuccess, currentTeacherName }) {
   const [courses, setCourses] = useState([]);
@@ -18,26 +23,29 @@ export default function SolicitudPermutaModal({ isOpen, onClose, onSuccess, curr
   const [loading, setLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
+  const [sustentoFile, setSustentoFile] = useState(null);
+  const [previewOpen, setPreviewOpen] = useState(false);
+
   const [formData, setFormData] = useState({
     tipo: "Solicitud de Permuta / Reemplazo",
     cursoId: "",
     materia: "",
     horario: "",
     motivo: "",
-    docentePropuesto: "",
-    archivoNombre: "comprobante_solicitud.pdf"
+    docentePropuesto: ""
   });
 
   useEffect(() => {
     if (!isOpen) return;
 
     let cancelled = false;
+    setSustentoFile(null);
+    setPreviewOpen(false);
+    setError("");
 
     async function loadData() {
       try {
         setLoading(true);
-        setError("");
-
         const [allCourses, allUsers] = await Promise.all([
           courseService.getCourses(),
           userService.getUsers()
@@ -57,11 +65,11 @@ export default function SolicitudPermutaModal({ isOpen, onClose, onSuccess, curr
 
         if (safeCourses.length > 0) {
           const firstCourse = safeCourses[0];
-          const horarioTexto = firstCourse.horario || (
-            Array.isArray(firstCourse.dias) && firstCourse.horaInicio
+          const horarioTexto =
+            firstCourse.horario ||
+            (Array.isArray(firstCourse.dias) && firstCourse.horaInicio
               ? `${firstCourse.dias.join(", ")} ${firstCourse.horaInicio} - ${firstCourse.horaFin || ""}`
-              : ""
-          );
+              : "");
 
           setFormData((prev) => ({
             ...prev,
@@ -72,7 +80,6 @@ export default function SolicitudPermutaModal({ isOpen, onClose, onSuccess, curr
         }
       } catch (err) {
         if (!cancelled) {
-          console.error("Error al cargar cursos o docentes en permuta:", err);
           setError(err.message || "No se pudieron cargar los datos de cursos y docentes.");
         }
       } finally {
@@ -83,7 +90,9 @@ export default function SolicitudPermutaModal({ isOpen, onClose, onSuccess, curr
     }
 
     loadData();
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, [isOpen]);
 
   if (!isOpen) return null;
@@ -91,11 +100,11 @@ export default function SolicitudPermutaModal({ isOpen, onClose, onSuccess, curr
   const handleCourseChange = (e) => {
     const courseId = e.target.value;
     const selected = courses.find((c) => c.id === courseId);
-    const horarioTexto = selected?.horario || (
-      selected && Array.isArray(selected.dias) && selected.horaInicio
+    const horarioTexto =
+      selected?.horario ||
+      (selected && Array.isArray(selected.dias) && selected.horaInicio
         ? `${selected.dias.join(", ")} ${selected.horaInicio} - ${selected.horaFin || ""}`
-        : ""
-    );
+        : "");
 
     setFormData((prev) => ({
       ...prev,
@@ -107,10 +116,18 @@ export default function SolicitudPermutaModal({ isOpen, onClose, onSuccess, curr
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-
     try {
       setSubmitting(true);
       setError("");
+
+      let uploaded = null;
+      if (sustentoFile) {
+        uploaded = await uploadFileToStorage(
+          "justificantes-docentes",
+          sustentoFile,
+          formData.cursoId || "permutas"
+        );
+      }
 
       const currentIncidents = (await incidentService.getIncidents()) || [];
       const newId = `INC-D${String(currentIncidents.length + 1).padStart(2, "0")}`;
@@ -119,25 +136,28 @@ export default function SolicitudPermutaModal({ isOpen, onClose, onSuccess, curr
         id: newId,
         docente: currentTeacherName || "Docente Titular",
         tipo: formData.tipo,
-        fechaPresentacion: `Hoy ${new Date().toLocaleTimeString("es-PE", { hour: "2-digit", minute: "2-digit" })}`,
+        fechaPresentacion: `Hoy ${new Date().toLocaleTimeString("es-PE", {
+          hour: "2-digit",
+          minute: "2-digit"
+        })}`,
         materia: formData.materia,
         cursoId: formData.cursoId,
         horario: formData.horario,
         motivo: formData.motivo,
-        archivoNombre: formData.archivoNombre,
+        archivoNombre: uploaded?.fileName || sustentoFile?.name || "sin_adjunto.pdf",
+        archivoUrl: uploaded?.url || null,
+        archivoPath: uploaded?.path || null,
         docentePropuesto: formData.docentePropuesto || null,
         estado: "Pendiente"
       };
 
-      await incidentService.saveIncident(newIncident);
-
+      const saved = await incidentService.saveIncident(newIncident);
       if (onSuccess) {
-        onSuccess(newIncident);
+        onSuccess(saved || newIncident);
       }
       onClose();
     } catch (err) {
-      console.error("Error al registrar solicitud de permuta:", err);
-      setError(err.message || "No se pudo registrar la solicitud en InsForge.");
+      setError(err.message || "No se pudo registrar la solicitud en Supabase.");
     } finally {
       setSubmitting(false);
     }
@@ -149,7 +169,6 @@ export default function SolicitudPermutaModal({ isOpen, onClose, onSuccess, curr
         className="bg-white dark:bg-slate-900 rounded-2xl shadow-2xl max-w-xl w-full border border-slate-200 dark:border-white/10 overflow-hidden my-8 animate-in fade-in duration-200"
         role="dialog"
         aria-modal="true"
-        aria-labelledby="solicitud-permuta-title"
       >
         {/* ENCABEZADO */}
         <div className="bg-[#1E3A8A] text-white px-6 py-4 flex items-center justify-between">
@@ -158,143 +177,157 @@ export default function SolicitudPermutaModal({ isOpen, onClose, onSuccess, curr
               <ArrowRightLeft className="w-5 h-5 text-blue-200" />
             </div>
             <div>
-              <h3 id="solicitud-permuta-title" className="text-base font-bold">
-                Nueva Solicitud de Permuta o Justificación
-              </h3>
-              <p className="text-xs text-blue-100">
-                Gestión institucional de permutas, suplencias y dispensa docente
+              <h2 className="text-base font-extrabold tracking-tight">
+                Solicitar Permuta o Justificación Docente
+              </h2>
+              <p className="text-xs text-blue-200">
+                Registra sustento digital en Supabase Storage para aprobación de Coordinación
               </p>
             </div>
           </div>
           <button
             type="button"
             onClick={onClose}
-            aria-label="Cerrar modal"
-            className="p-1.5 rounded-lg text-white/80 hover:text-white hover:bg-white/10 transition-colors"
+            className="p-1.5 rounded-lg text-white/80 hover:text-white hover:bg-white/10 cursor-pointer"
           >
             <X className="w-5 h-5" />
           </button>
         </div>
 
-        {/* FORMULARIO */}
         <form onSubmit={handleSubmit} className="p-6 space-y-4 text-xs">
           {error && (
-            <div className="p-3 bg-red-500/10 border border-red-500/20 text-red-600 dark:text-red-400 text-xs rounded-xl">
+            <div className="p-3 rounded-xl bg-rose-50 border border-rose-200 text-rose-700 font-semibold">
               {error}
             </div>
           )}
-          {loading && (
-            <div className="p-3 bg-blue-500/10 border border-blue-500/20 text-blue-600 dark:text-blue-400 text-xs rounded-xl">
-              Cargando cursos y docentes disponibles...
-            </div>
+
+          {loading ? (
+            <div className="py-6 text-center text-slate-400">Cargando cursos y docentes...</div>
+          ) : (
+            <>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block font-bold text-slate-700 dark:text-slate-200 mb-1">
+                    Tipo de Solicitud *
+                  </label>
+                  <select
+                    value={formData.tipo}
+                    onChange={(e) => setFormData({ ...formData, tipo: e.target.value })}
+                    className="w-full p-2.5 rounded-xl border border-slate-200 dark:border-white/10 bg-white dark:bg-slate-800 text-slate-800 dark:text-white"
+                  >
+                    <option value="Solicitud de Permuta / Reemplazo">Solicitud de Permuta / Reemplazo</option>
+                    <option value="Inasistencia por Salud / Médica">Justificación por Salud / Médica</option>
+                    <option value="Tardanza Justificada">Justificación de Tardanza</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block font-bold text-slate-700 dark:text-slate-200 mb-1 flex items-center gap-1">
+                    <BookOpen className="w-3.5 h-3.5 text-blue-600" />
+                    Curso Afectado *
+                  </label>
+                  <SearchableSelect
+                    value={formData.cursoId}
+                    onChange={(val) => handleCourseChange({ target: { value: val } })}
+                    placeholder="Buscar curso afectado..."
+                    options={courses.map((c) => ({
+                      value: c.id,
+                      label: c.asignatura,
+                      sublabel: `${c.docente || ""} • ${c.id}`,
+                      searchText: `${c.id} ${c.docente || ""}`
+                    }))}
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block font-bold text-slate-700 dark:text-slate-200 mb-1">
+                  Docente de Reemplazo Sugerido (opcional):
+                </label>
+                <SearchableSelect
+                  value={formData.docentePropuesto}
+                  onChange={(val) => setFormData({ ...formData, docentePropuesto: val })}
+                  emptyOptionLabel="-- Dejar que Coordinación Académica asigne --"
+                  options={teachers.map((teacher) => ({
+                    value: `Prof. ${teacher.nombres} ${teacher.apellidos}`,
+                    label: `${teacher.nombres} ${teacher.apellidos}`,
+                    sublabel: teacher.correo,
+                    searchText: `${teacher.dni || ""} ${teacher.correo || ""}`
+                  }))}
+                />
+              </div>
+
+              <div>
+                <label className="block font-bold text-slate-700 dark:text-slate-200 mb-1 flex items-center gap-1.5">
+                  <FileText className="w-3.5 h-3.5 text-blue-600" />
+                  Motivo o Sustento de la Solicitud *
+                </label>
+                <textarea
+                  required
+                  rows={3}
+                  value={formData.motivo}
+                  onChange={(e) => setFormData({ ...formData, motivo: e.target.value })}
+                  placeholder="Detalle la razón de la permuta o justificación médica/laboral..."
+                  className="w-full p-2.5 rounded-xl border border-slate-200 dark:border-white/10 bg-white dark:bg-slate-800 text-slate-800 dark:text-white"
+                />
+              </div>
+
+              {/* SUBIDA REAL DE SUSTENTO PDF / IMAGEN + PREVISUALIZADOR */}
+              <div className="space-y-2">
+                <label className="block font-bold text-slate-700 dark:text-slate-200 flex items-center gap-1.5">
+                  <Upload className="w-3.5 h-3.5 text-blue-600" />
+                  Adjuntar Documento de Sustento (PDF o Imagen • máx. 5 MB)
+                </label>
+
+                <label className="flex items-center justify-between gap-2 p-3 rounded-xl border border-dashed border-slate-300 dark:border-white/15 bg-slate-50 dark:bg-white/5 hover:border-blue-500 cursor-pointer transition-colors">
+                  <input
+                    type="file"
+                    accept=".pdf,.png,.jpg,.jpeg,.webp,.doc,.docx"
+                    className="hidden"
+                    onChange={(e) => {
+                      const f = e.target.files?.[0] || null;
+                      if (f && f.size > MAX_JUSTIFICANTE_BYTES) {
+                        setError("El archivo supera el límite máximo de 5 MB para justificantes.");
+                        e.target.value = "";
+                        return;
+                      }
+                      setError("");
+                      setSustentoFile(f);
+                    }}
+                  />
+                  <span className="flex items-center gap-2 truncate text-slate-600 dark:text-slate-300">
+                    {sustentoFile ? (
+                      <>
+                        <FileCheck className="w-4 h-4 text-emerald-500 shrink-0" />
+                        <span className="font-bold text-emerald-700 dark:text-emerald-300 truncate">
+                          {sustentoFile.name} ({(sustentoFile.size / 1024).toFixed(0)} KB)
+                        </span>
+                      </>
+                    ) : (
+                      <span>Haz clic para adjuntar certificado médico o constancia en PDF/Imagen...</span>
+                    )}
+                  </span>
+                  <span className="font-extrabold text-blue-600 dark:text-blue-400 underline shrink-0">
+                    {sustentoFile ? "Cambiar" : "Examinar"}
+                  </span>
+                </label>
+
+                {sustentoFile && (
+                  <div className="flex items-center justify-end gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setPreviewOpen(true)}
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-indigo-50 dark:bg-indigo-950/50 border border-indigo-200 dark:border-indigo-800 text-indigo-700 dark:text-indigo-300 hover:bg-indigo-100 font-extrabold cursor-pointer"
+                    >
+                      <Eye className="w-3.5 h-3.5" />
+                      <span>Previsualizar sustento</span>
+                    </button>
+                  </div>
+                )}
+              </div>
+            </>
           )}
-          {/* TIPO DE SOLICITUD */}
-          <div>
-            <label className="block font-bold text-slate-700 dark:text-slate-200 mb-1">
-              Tipo de Solicitud *
-            </label>
-            <select
-              value={formData.tipo}
-              onChange={(e) => setFormData({ ...formData, tipo: e.target.value })}
-              className="w-full p-2.5 rounded-xl border border-slate-200 dark:border-white/10 bg-white dark:bg-slate-800 text-slate-800 dark:text-white focus:outline-hidden focus:border-[#1E3A8A]"
-            >
-              <option value="Solicitud de Permuta / Reemplazo">Solicitud de Permuta / Reemplazo</option>
-              <option value="Justificación de Tardanza (+15 min)">Justificación de Tardanza (+15 min)</option>
-              <option value="Inasistencia Inesperada (Descanso Médico)">Inasistencia Inesperada (Descanso Médico)</option>
-              <option value="Reprogramación de Clase por Feriado/Evento">Reprogramación de Clase por Feriado/Evento</option>
-            </select>
-          </div>
 
-          {/* CURSO AFECTADO */}
-          <div>
-            <label className="block font-bold text-slate-700 dark:text-slate-200 mb-1 flex items-center gap-1.5">
-              <BookOpen className="w-3.5 h-3.5 text-blue-600" />
-              Curso / Materia a Permutar *
-            </label>
-            <select
-              required
-              value={formData.cursoId}
-              onChange={handleCourseChange}
-              className="w-full p-2.5 rounded-xl border border-slate-200 dark:border-white/10 bg-white dark:bg-slate-800 text-slate-800 dark:text-white focus:outline-hidden focus:border-[#1E3A8A]"
-            >
-              {courses.map(course => (
-                <option key={course.id} value={course.id}>
-                  {course.id}: {course.asignatura} ({course.horario})
-                </option>
-              ))}
-            </select>
-          </div>
-
-          {/* HORARIO PROGRAMADO */}
-          <div>
-            <label className="block font-bold text-slate-700 dark:text-slate-200 mb-1 flex items-center gap-1.5">
-              <Clock className="w-3.5 h-3.5 text-blue-600" />
-              Horario Programado de la Sesión *
-            </label>
-            <input
-              type="text"
-              required
-              value={formData.horario}
-              onChange={(e) => setFormData({ ...formData, horario: e.target.value })}
-              placeholder="Ej. Lunes y Miércoles 08:00 - 10:00 AM"
-              className="w-full p-2.5 rounded-xl border border-slate-200 dark:border-white/10 bg-white dark:bg-slate-800 text-slate-800 dark:text-white focus:outline-hidden focus:border-[#1E3A8A]"
-            />
-          </div>
-
-          {/* DOCENTE SUPLENTE PROPUESTO (OPCIONAL) */}
-          <div>
-            <label className="block font-bold text-slate-700 dark:text-slate-200 mb-1">
-              Docente Suplente Sugerido (Opcional)
-            </label>
-            <select
-              value={formData.docentePropuesto}
-              onChange={(e) => setFormData({ ...formData, docentePropuesto: e.target.value })}
-              className="w-full p-2.5 rounded-xl border border-slate-200 dark:border-white/10 bg-white dark:bg-slate-800 text-slate-800 dark:text-white focus:outline-hidden focus:border-[#1E3A8A]"
-            >
-              <option value="">-- Dejar que Coordinación Académica asigne --</option>
-              {teachers.map(teacher => (
-                <option key={teacher.id} value={`Prof. ${teacher.nombres} ${teacher.apellidos}`}>
-                  {teacher.nombres} {teacher.apellidos} ({teacher.correo})
-                </option>
-              ))}
-            </select>
-          </div>
-
-          {/* MOTIVO DETALLADO */}
-          <div>
-            <label className="block font-bold text-slate-700 dark:text-slate-200 mb-1 flex items-center gap-1.5">
-              <FileText className="w-3.5 h-3.5 text-blue-600" />
-              Motivo o Sustento de la Solicitud *
-            </label>
-            <textarea
-              required
-              rows={3}
-              value={formData.motivo}
-              onChange={(e) => setFormData({ ...formData, motivo: e.target.value })}
-              placeholder="Detalle la razón de la permuta (evento académico, emergencia médica, sustentación, etc.)..."
-              className="w-full p-2.5 rounded-xl border border-slate-200 dark:border-white/10 bg-white dark:bg-slate-800 text-slate-800 dark:text-white focus:outline-hidden focus:border-[#1E3A8A]"
-            />
-          </div>
-
-          {/* ADJUNTO */}
-          <div>
-            <label className="block font-bold text-slate-700 dark:text-slate-200 mb-1 flex items-center gap-1.5">
-              <Upload className="w-3.5 h-3.5 text-blue-600" />
-              Documento de Sustento (PDF / Constancia)
-            </label>
-            <input
-              type="text"
-              value={formData.archivoNombre}
-              onChange={(e) => setFormData({ ...formData, archivoNombre: e.target.value })}
-              placeholder="nombre_del_archivo.pdf"
-              className="w-full p-2.5 rounded-xl border border-slate-200 dark:border-white/10 bg-white dark:bg-slate-800 text-slate-800 dark:text-white focus:outline-hidden focus:border-[#1E3A8A]"
-            />
-            <span className="text-[11px] text-slate-400 mt-1 block">
-              Simulación de adjunto en formato digital para auditoría.
-            </span>
-          </div>
-
-          {/* BOTONES */}
           <div className="flex items-center justify-end space-x-3 pt-4 border-t border-slate-100 dark:border-white/10">
             <button
               type="button"
@@ -308,12 +341,25 @@ export default function SolicitudPermutaModal({ isOpen, onClose, onSuccess, curr
               disabled={submitting}
               className="inline-flex items-center space-x-2 px-5 py-2.5 bg-[#1E3A8A] hover:bg-blue-800 disabled:opacity-50 text-white rounded-xl text-xs font-bold shadow-xs transition-colors cursor-pointer"
             >
-              <CheckCircle2 className="w-4 h-4" />
-              <span>{submitting ? "Enviando..." : "Enviar Solicitud a Coordinación"}</span>
+              {submitting ? (
+                <Loader2 className="w-4 h-4 animate-spin" />
+              ) : (
+                <CheckCircle2 className="w-4 h-4" />
+              )}
+              <span>{submitting ? "Subiendo y enviando..." : "Enviar Solicitud a Coordinación"}</span>
             </button>
           </div>
         </form>
       </div>
+
+      <FilePreviewModal
+        isOpen={previewOpen}
+        onClose={() => setPreviewOpen(false)}
+        title={`Sustento Adjunto — ${formData.tipo}`}
+        subtitle={`${formData.materia || ""} • Vista previa antes de enviar`}
+        fileName={sustentoFile?.name || "sustento.pdf"}
+        localFile={sustentoFile}
+      />
     </div>
   );
 }

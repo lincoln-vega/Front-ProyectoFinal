@@ -1,8 +1,10 @@
 import React, { useState, useEffect, useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { courseService } from '../../services/cursosServices';
 import { userService } from '../../services/api';
 import { Clock, Video, Calendar, Sparkles, BookOpen } from 'lucide-react';
 import { registerMeetEntry } from '../../services/asistencia';
+import { clasesVivoService } from '../../services/clasesVivoService';
 
 const DIAS_SEMANA = [
   'Lunes',
@@ -38,6 +40,7 @@ const matchesTeacherName = (courseName, userName) => {
 };
 
 export default function HorariosView() {
+  const navigate = useNavigate();
   const [listaCursos, setListaCursos] = useState([]);
   const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -67,7 +70,7 @@ export default function HorariosView() {
       } catch (err) {
         if (!cancelled) {
           console.error('Error al cargar cursos para el horario:', err);
-          setError(err.message || "Error al cargar los cursos desde InsForge.");
+          setError(err.message || "Error al cargar los cursos desde Supabase.");
         }
       } finally {
         if (!cancelled) {
@@ -104,17 +107,14 @@ export default function HorariosView() {
     });
   }, [listaCursos, userId, userName, userEmail, profile]);
 
-  const handleStartClass = async (curso) => {
+  const handleStartClass = (curso) => {
     if (!curso?.meetUrl) {
       alert("Este curso no tiene un enlace de Google Meet asignado.");
       return;
     }
-    window.open(curso.meetUrl, '_blank', 'noopener,noreferrer');
-    try {
-      await registerMeetEntry(curso.id);
-    } catch (e) {
-      console.warn("Registro de entrada en segundo plano:", e);
-    }
+    clasesVivoService.launchClassOptimistically(curso);
+    registerMeetEntry(curso.id).catch(() => {});
+    navigate(`/docente/aula-vivo/${curso.id}`, { state: { coursePreview: curso } });
   };
 
   const getCoursesForDay = (dia) => {

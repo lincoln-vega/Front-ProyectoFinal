@@ -83,8 +83,8 @@ export default function DocentesPage() {
       setUsers(allUsers || []);
       setDocentes(initialData);
     } catch (err) {
-      console.error("Error al cargar docentes desde InsForge:", err);
-      setError(err.message || "No se pudieron cargar los docentes desde InsForge.");
+      console.error("Error al cargar docentes desde Supabase:", err);
+      setError(err.message || "No se pudieron cargar los docentes desde Supabase.");
     } finally {
       setLoading(false);
     }
@@ -192,7 +192,7 @@ export default function DocentesPage() {
         });
       }
 
-      // Si se escribió una incidencia, persistirla realmente en la tabla incidents de InsForge
+      // Si se escribió una incidencia, persistirla realmente en la tabla incidents de Supabase
       if (incidenciaDesc.trim()) {
         await incidentService.saveIncident({
           id: `INC-${Date.now().toString().slice(-6)}`,
@@ -211,7 +211,7 @@ export default function DocentesPage() {
 
       await loadTeachers();
       handleCloseModal();
-      setFeedback({ message: "Docente, nómina e incidencias guardados correctamente en InsForge.", type: "success" });
+      setFeedback({ message: "Docente, nómina e incidencias guardados correctamente en Supabase.", type: "success" });
       setTimeout(() => setFeedback({ message: "", type: "" }), 4000);
     } catch (err) {
       console.error("Error al guardar docente:", err);
@@ -307,7 +307,7 @@ export default function DocentesPage() {
       )}
       {loading && (
         <p className="text-sm text-slate-500">
-          Consultando docentes en InsForge...
+          Consultando docentes en Supabase...
         </p>
       )}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
@@ -460,7 +460,7 @@ export default function DocentesPage() {
                   <textarea 
                     value={incidenciaDesc} 
                     onChange={e => setIncidenciaDesc(e.target.value)}
-                    placeholder="Ej. Tardanza justificada, observación de nómina, etc. (Se guardará en InsForge)"
+                    placeholder="Ej. Tardanza justificada, observación de nómina, etc. (Se guardará en Supabase)"
                     className="w-full px-3 py-2 text-sm border border-slate-200 dark:border-white/10 rounded-lg focus:ring-1 focus:ring-blue-500 focus:border-blue-500 outline-hidden h-20 resize-none bg-white/60 dark:bg-white/5 backdrop-blur-2xl/50 dark:text-white"
                   ></textarea>
                 </div>

@@ -29,8 +29,29 @@ import { academicActivitiesService } from "../services/academicActivitiesService
 import { chatAcademicService } from "../services/chatAcademicService";
 import { userService } from "../services/api";
 import { courseService } from "../services/cursosServices";
+import StudentTaskModal from "./student/StudentTaskModal";
+import StudentAnnouncementModal from "./student/StudentAnnouncementModal";
+import SearchableSelect from "./shared/SearchableSelect";
+import { StudentCycleProvider, useStudentCycle } from "../context/StudentCycleContext";
+import { clasesVivoService } from "../services/clasesVivoService";
 
 export default function StudentLayout() {
+  return (
+    <StudentCycleProvider>
+      <StudentLayoutInner />
+    </StudentCycleProvider>
+  );
+}
+
+function StudentLayoutInner() {
+  const {
+    selectedCycle,
+    availableStudentCycles,
+    selectedCycleId,
+    setSelectedCycleId,
+    selectActiveCycle,
+    isReadOnlyHistory
+  } = useStudentCycle();
   const navigate = useNavigate();
   const location = useLocation();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -38,6 +59,104 @@ export default function StudentLayout() {
   const [chatModalOpen, setChatModalOpen] = useState(false);
   const [libraryModalOpen, setLibraryModalOpen] = useState(false);
   const [helpModalOpen, setHelpModalOpen] = useState(false);
+  const [selectedTaskModal, setSelectedTaskModal] = useState(null);
+  const [liveTracker, setLiveTracker] = useState(() => clasesVivoService.getStudentTrackerState());
+
+  // Suscripción reactiva y vigilancia silenciosa en 2.º plano de la pestaña de Google Meet
+  useEffect(() => {
+    const unsub = clasesVivoService.subscribeStudentTracker(setLiveTracker);
+    return unsub;
+  }, []);
+
+  // Restaurar y sincronizar al instante el estado de clases activas (sin necesidad de F5)
+  useEffect(() => {
+    let cancelled = false;
+    const syncTrackerFromServer = () => {
+      clasesVivoService
+        .listarClasesActivas(selectedCycleId)
+        .then((res) => {
+          if (cancelled) return;
+          const sesiones = Array.isArray(res?.sesiones) ? res.sesiones : [];
+          const current = clasesVivoService.getStudentTrackerState();
+          if (current && !sesiones.some((s) => s.id === current.sesionId)) {
+            clasesVivoService.setStudentTrackerState(null);
+            return;
+          }
+          const yaUnida = sesiones.find((s) => Boolean(s.miAsistencia));
+          if (yaUnida) {
+            clasesVivoService.setStudentTrackerState({
+              sesionId: yaUnida.id,
+              cursoId: yaUnida.cursoId,
+              asignatura: yaUnida.asignatura,
+              docenteNombre: yaUnida.docenteNombre,
+              meetUrl: yaUnida.meetUrl,
+              estado: yaUnida.miAsistencia.estado,
+              horaRegistro: yaUnida.miAsistencia.horaRegistro,
+              minutosPermanencia: yaUnida.miAsistencia.minutosPermanencia || 1,
+              ventanaAbierta: clasesVivoService.isMeetWindowOpen(yaUnida.cursoId),
+            });
+          }
+        })
+        .catch(() => {});
+    };
+
+    syncTrackerFromServer();
+    const poll = setInterval(() => {
+      if (!document.hidden) syncTrackerFromServer();
+    }, 30000);
+    const unsub = clasesVivoService.subscribeLiveChanges((evt) => {
+      if (evt?.type === "CLASS_ENDED") {
+        const current = clasesVivoService.getStudentTrackerState();
+        if (
+          current &&
+          (current.sesionId === evt.sesionId || current.cursoId === evt.cursoId)
+        ) {
+          clasesVivoService.setStudentTrackerState(null);
+        }
+        return;
+      }
+      syncTrackerFromServer();
+    });
+    const onVis = () => {
+      if (!document.hidden) syncTrackerFromServer();
+    };
+    document.addEventListener("visibilitychange", onVis);
+    return () => {
+      cancelled = true;
+      clearInterval(poll);
+      unsub();
+      document.removeEventListener("visibilitychange", onVis);
+    };
+  }, [selectedCycleId, location.pathname]);
+
+  // Pulso cada 60s mientras `!meetWin.closed` y aviso inmediato si cerró la pestaña
+  useEffect(() => {
+    if (!liveTracker?.sesionId) return;
+    let closedReported = false;
+
+    const watchClose = setInterval(() => {
+      const win = clasesVivoService.getMeetWindow(liveTracker.cursoId);
+      if (win && win.closed && !closedReported) {
+        closedReported = true;
+        clasesVivoService.enviarLatido(liveTracker.sesionId, false).catch(() => {});
+      } else if (win && !win.closed) {
+        closedReported = false;
+      }
+    }, 3000);
+
+    const heartbeat = setInterval(() => {
+      const isOpen = clasesVivoService.isMeetWindowOpen(liveTracker.cursoId);
+      if (isOpen) {
+        clasesVivoService.enviarLatido(liveTracker.sesionId, true).catch(() => {});
+      }
+    }, 60000);
+
+    return () => {
+      clearInterval(watchClose);
+      clearInterval(heartbeat);
+    };
+  }, [liveTracker?.sesionId, liveTracker?.cursoId]);
+  const [selectedAnnouncementModal, setSelectedAnnouncementModal] = useState(null);
   const notifRef = useRef(null);
 
   const studentName = localStorage.getItem("userName") || "Lincoln Jhoel";
@@ -113,8 +232,7 @@ export default function StudentLayout() {
 
     loadStudentData();
 
-    const handleStorageUpdate = async () => {
-      await chatAcademicService.fetchMessages();
+    const handleStorageUpdate = () => {
       setStudentMessages(chatAcademicService.getMessagesForStudent(studentEmail));
     };
 
@@ -150,8 +268,8 @@ export default function StudentLayout() {
       }
 
       // Si el alumno no tiene cursos matriculados, solo ve simulacros generales ("SIM...")
-      const allTasks = academicActivitiesService.getTasks().filter((t) => t.estado === "Por entregar");
-      const filteredTasks = allTasks.filter((t) => {
+      const mergedTasks = academicActivitiesService.getStudentMergedTasks();
+      const studentTasksInCourses = mergedTasks.filter((t) => {
         const cid = String(t.cursoId || t.curso_id || "");
         if (cid.startsWith("SIM")) return true;
         if (enrolledIds.size === 0) return false;
@@ -162,6 +280,12 @@ export default function StudentLayout() {
         }
         return false;
       });
+      const filteredTasks = studentTasksInCourses.filter(
+        (t) => t.estadoAlumno === "Por entregar" || t.estadoAlumno === "Observado"
+      );
+      const gradedTasks = studentTasksInCourses.filter(
+        (t) => t.estadoAlumno === "Calificado" && t.nota !== null && t.nota !== undefined
+      );
 
       const allAnns = academicActivitiesService.getAnnouncements();
       const filteredAnns = allAnns.filter((a) => {
@@ -176,22 +300,69 @@ export default function StudentLayout() {
         return false;
       });
 
+      // Consultas / Mensajes recibidos con respuesta o nuevos
+      const studentMsgs = chatAcademicService.getMessagesForStudent(studentEmail, studentProfile?.id);
+      const msgNotifs = studentMsgs
+        .filter((m) => m.estado === "Respondido")
+        .slice(0, 3)
+        .map((m) => ({
+          id: `msg-${m.id}`,
+          title: `Respuesta de Docente: ${m.docenteNombre || "Profesor"}`,
+          course: `${m.curso} • ${m.respuesta?.slice(0, 40) || "Tu consulta ha sido atendida"}...`,
+          time: m.fechaRespuesta || "Reciente",
+          type: "message",
+          unread: true,
+          data: m
+        }));
+
+      // Obtener IDs de notificaciones previamente leídas del almacenamiento local
+      let readSet = new Set();
+      try {
+        const stored = JSON.parse(localStorage.getItem(`read_notifs_${studentEmail}`) || "[]");
+        readSet = new Set(stored);
+      } catch {}
+
       const combined = [
-        ...filteredTasks.map((t) => ({
-          id: `task-${t.id}`,
-          title: `Nueva Tarea: ${t.titulo}`,
-          course: `${t.curso} • Límite: ${t.fechaLimite}`,
-          time: t.fechaLimite,
-          type: "task",
-          unread: true
-        })),
-        ...filteredAnns.map((a) => ({
-          id: `ann-${a.id}`,
-          title: `Aviso: ${a.titulo}`,
-          course: `${a.curso} (${a.docente})`,
-          time: a.prioridad || "Importante",
-          type: "announcement",
-          unread: true
+        ...gradedTasks.map((t) => {
+          const notifId = `task-graded-${t.id}-${t.nota}`;
+          return {
+            id: notifId,
+            title: `Nota Publicada: ${t.titulo}`,
+            course: `${t.curso} • Obtuviste ${t.nota}/20`,
+            time: "Calificado",
+            type: "task",
+            unread: !readSet.has(notifId),
+            data: t
+          };
+        }),
+        ...filteredTasks.map((t) => {
+          const isObs = t.estadoAlumno === "Observado";
+          const notifId = isObs ? `task-obs-${t.id}` : `task-${t.id}`;
+          return {
+            id: notifId,
+            title: isObs ? `Corregir Entrega: ${t.titulo}` : `Nueva Tarea: ${t.titulo}`,
+            course: `${t.curso} • Límite: ${t.fechaLimite}`,
+            time: t.fechaLimite,
+            type: "task",
+            unread: !readSet.has(notifId),
+            data: t
+          };
+        }),
+        ...filteredAnns.map((a) => {
+          const notifId = `ann-${a.id}`;
+          return {
+            id: notifId,
+            title: `Aviso: ${a.titulo}`,
+            course: `${a.curso} (${a.docente})`,
+            time: a.prioridad || "Importante",
+            type: "announcement",
+            unread: !readSet.has(notifId),
+            data: a
+          };
+        }),
+        ...msgNotifs.map((m) => ({
+          ...m,
+          unread: !readSet.has(m.id)
         }))
       ];
 
@@ -214,12 +385,26 @@ export default function StudentLayout() {
     };
 
     syncNotifications();
-    academicActivitiesService.fetchTasks().then(syncNotifications);
+    academicActivitiesService.fetchStudentTasksWithSubmissions().then(syncNotifications);
     academicActivitiesService.fetchAnnouncements().then(syncNotifications);
+
+    const unsubLive = clasesVivoService.subscribeLiveChanges((evt) => {
+      if (
+        evt?.type === "TASK_CREATED" ||
+        evt?.type === "TASK_DELETED" ||
+        evt?.type === "TASK_SUBMITTED" ||
+        evt?.type === "TASK_GRADED" ||
+        evt?.type === "MATERIAL_PUBLISHED"
+      ) {
+        academicActivitiesService.fetchStudentTasksWithSubmissions().then(syncNotifications);
+        academicActivitiesService.fetchAnnouncements().then(syncNotifications);
+      }
+    });
 
     window.addEventListener("storage", syncNotifications);
     return () => {
       cancelled = true;
+      unsubLive();
       window.removeEventListener("storage", syncNotifications);
     };
   }, [studentProfile, availableCourses]);
@@ -300,8 +485,8 @@ export default function StudentLayout() {
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-[#0a0a0e] text-slate-900 dark:text-slate-100 flex flex-col font-sans transition-colors duration-500 overflow-x-hidden">
       
-      {/* 1. BARRA VERTICAL LATERAL (SLIM SIDEBAR DESKTOP) - ALTURA TOTAL 100% */}
-      <aside className="hidden md:flex flex-col fixed left-0 top-0 bottom-0 h-screen w-20 bg-[#0A1128] dark:bg-[#060814] border-r border-slate-800/80 z-40 text-white shadow-xl overflow-y-auto overflow-x-hidden transition-all">
+      {/* 1. BARRA VERTICAL LATERAL (SLIM SIDEBAR DESKTOP) - ANCLADA A 100DVH CON SALIR SIEMPRE VISIBLE */}
+      <aside className="hidden md:flex flex-col fixed inset-y-0 left-0 h-dvh w-20 bg-[#0A1128] dark:bg-[#060814] border-r border-slate-800/80 z-40 text-white shadow-xl overflow-hidden transition-all">
         {/* Brand Icon Superior en Sidebar */}
         <Link
           to="/estudiante/panel"
@@ -314,7 +499,7 @@ export default function StudentLayout() {
         </Link>
 
         {/* Enlaces Principales de Navegación Vertical */}
-        <nav className="flex-1 py-3 flex flex-col items-center space-y-2 shrink-0">
+        <nav className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden py-3 flex flex-col items-center space-y-2">
           {/* Cursos */}
           <NavLink
             to="/estudiante/panel"
@@ -397,8 +582,8 @@ export default function StudentLayout() {
           </button>
         </nav>
 
-        {/* Botón Salir Inferior */}
-        <div className="p-3 border-t border-white/10 flex flex-col items-center shrink-0">
+        {/* Botón Salir Inferior (siempre visible al pie del viewport) */}
+        <div className="p-3 border-t border-white/10 flex flex-col items-center shrink-0 mt-auto bg-[#0A1128] dark:bg-[#060814]">
           <button
             type="button"
             onClick={handleLogout}
@@ -466,27 +651,79 @@ export default function StudentLayout() {
                     <span className="text-xs font-extrabold text-slate-800 dark:text-white">
                       Notificaciones Académicas
                     </span>
-                    <span className="text-[10px] bg-amber-100 dark:bg-amber-950/60 text-amber-800 dark:text-amber-300 font-bold px-2 py-0.5 rounded-full">
-                      {notifications.filter((n) => n.unread).length} activas
-                    </span>
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const allIds = notifications.map((n) => n.id);
+                          try {
+                            localStorage.setItem(`read_notifs_${studentEmail}`, JSON.stringify(allIds));
+                          } catch {}
+                          setNotifications((prev) => prev.map((n) => ({ ...n, unread: false })));
+                        }}
+                        className="text-[10px] text-blue-600 dark:text-blue-400 hover:underline font-semibold cursor-pointer"
+                      >
+                        Marcar leídas
+                      </button>
+                      <span className="text-[10px] bg-amber-100 dark:bg-amber-950/60 text-amber-800 dark:text-amber-300 font-bold px-2 py-0.5 rounded-full">
+                        {notifications.filter((n) => n.unread).length} activas
+                      </span>
+                    </div>
                   </div>
 
                   <div className="divide-y divide-slate-100 dark:divide-white/5 max-h-72 overflow-y-auto">
                     {notifications.map((notif) => (
                       <div
                         key={notif.id}
-                        className="p-3.5 hover:bg-slate-50 dark:hover:bg-white/5 transition-colors cursor-pointer"
-                        onClick={() => setNotificationsOpen(false)}
+                        className="p-3.5 hover:bg-slate-50 dark:hover:bg-white/5 transition-colors cursor-pointer group"
+                        onClick={() => {
+                          setNotificationsOpen(false);
+                          
+                          // 1. Guardar de forma persistente que esta notificación fue leída
+                          try {
+                            const stored = JSON.parse(localStorage.getItem(`read_notifs_${studentEmail}`) || "[]");
+                            if (!stored.includes(notif.id)) {
+                              stored.push(notif.id);
+                              localStorage.setItem(`read_notifs_${studentEmail}`, JSON.stringify(stored));
+                            }
+                          } catch {}
+
+                          // 2. Desmarcar en el estado en tiempo real
+                          setNotifications((prev) =>
+                            prev.map((n) => (n.id === notif.id ? { ...n, unread: false } : n))
+                          );
+
+                          // 3. Acción interactiva según tipo
+                          if (notif.type === "task" && notif.data) {
+                            setSelectedTaskModal(notif.data);
+                          } else if (notif.type === "announcement" && notif.data) {
+                            setSelectedAnnouncementModal(notif.data);
+                          } else if (notif.type === "message" && notif.data) {
+                            // Preseleccionar el docente o remitente en el selector de chat
+                            const senderName = (notif.data.docenteNombre || "").toLowerCase();
+                            const targetIdx = contacts.teachers.findIndex((t) =>
+                              (t.nombre || "").toLowerCase().includes(senderName) ||
+                              senderName.includes((t.nombre || "").toLowerCase())
+                            );
+                            if (targetIdx !== -1) {
+                              setSelectedContactKey(`teacher-${targetIdx}`);
+                            }
+                            setChatModalOpen(true);
+                          } else if (notif.type === "class") {
+                            navigate("/estudiante/horarios");
+                          }
+                        }}
                       >
                         <div className="flex items-start gap-2.5">
                           <div className="p-1.5 rounded-lg bg-blue-50 dark:bg-blue-950/50 text-blue-600 dark:text-blue-400 mt-0.5 shrink-0">
                             {notif.type === "task" && <FileText className="w-4 h-4 text-amber-500" />}
                             {notif.type === "announcement" && <AlertCircle className="w-4 h-4 text-blue-500" />}
+                            {notif.type === "message" && <MessageSquare className="w-4 h-4 text-indigo-500" />}
                             {notif.type === "class" && <Video className="w-4 h-4 text-emerald-500" />}
                             {notif.type === "exam" && <Sparkles className="w-4 h-4 text-indigo-500" />}
                           </div>
                           <div className="flex-1 min-w-0">
-                            <p className="text-xs font-bold text-slate-800 dark:text-slate-100 truncate">
+                            <p className="text-xs font-bold text-slate-800 dark:text-slate-100 truncate group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
                               {notif.title}
                             </p>
                             <p className="text-[11px] text-slate-500 dark:text-slate-400 truncate">
@@ -554,8 +791,8 @@ export default function StudentLayout() {
 
         {/* MENÚ MÓVIL DESPLEGABLE */}
         {mobileMenuOpen && (
-          <div className="md:hidden bg-white/95 dark:bg-[#0a0a0e]/95 backdrop-blur-2xl border-b border-slate-200 dark:border-white/10 p-4 space-y-3 shadow-xl animate-fade-in">
-            <div className="pb-3 border-b border-slate-100 dark:border-white/10 flex items-center justify-between">
+          <div className="md:hidden bg-white/95 dark:bg-[#0a0a0e]/95 backdrop-blur-2xl border-b border-slate-200 dark:border-white/10 p-4 shadow-xl animate-fade-in max-h-[calc(100dvh-64px)] flex flex-col overflow-hidden">
+            <div className="pb-3 border-b border-slate-100 dark:border-white/10 flex items-center justify-between shrink-0">
               <div>
                 <div className="text-sm font-extrabold text-slate-900 dark:text-white">{studentName}</div>
                 <div className="text-xs text-slate-500 dark:text-slate-400">{studentEmail}</div>
@@ -565,7 +802,7 @@ export default function StudentLayout() {
               </span>
             </div>
 
-            <nav className="space-y-1">
+            <nav className="flex-1 min-h-0 overflow-y-auto py-2.5 space-y-1">
               <NavLink
                 to="/estudiante/panel"
                 onClick={() => setMobileMenuOpen(false)}
@@ -639,7 +876,7 @@ export default function StudentLayout() {
               </button>
             </nav>
 
-            <div className="pt-2 border-t border-slate-100 dark:border-white/10">
+            <div className="pt-3 border-t border-slate-100 dark:border-white/10 shrink-0 mt-auto">
               <button
                 type="button"
                 onClick={handleLogout}
@@ -655,7 +892,86 @@ export default function StudentLayout() {
 
       {/* 3. ÁREA DE CONTENIDO PRINCIPAL */}
       <main className="flex-1 md:pl-20 w-full transition-all">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-5">
+          {liveTracker && !isReadOnlyHistory && (
+            <div
+              role="status"
+              className="rounded-2xl border border-emerald-400/70 bg-gradient-to-r from-emerald-950/90 via-slate-900 to-slate-900 text-white px-4 py-3 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-md"
+            >
+              <div className="flex items-center gap-3">
+                <div className="w-8 h-8 rounded-xl bg-emerald-600/30 border border-emerald-400/50 flex items-center justify-center text-emerald-300 shrink-0">
+                  <CheckCircle2 className="w-4.5 h-4.5" />
+                </div>
+                <div className="text-xs">
+                  <div className="font-extrabold text-sm">
+                    Conectado a{" "}
+                    <span className="text-emerald-300">{liveTracker.asignatura}</span> • Asistencia
+                    en validación automática (2.º plano)
+                  </div>
+                  <div className="text-emerald-200/85 mt-0.5">
+                    Estado inicial: <strong>{liveTracker.estado}</strong>
+                    {liveTracker.horaRegistro
+                      ? ` (${new Date(liveTracker.horaRegistro).toLocaleTimeString("es-PE", {
+                          hour: "2-digit",
+                          minute: "2-digit",
+                        })})`
+                      : ""}{" "}
+                    • Permanencia validada:{" "}
+                    <strong>{liveTracker.minutosPermanencia || 1} min acumulados</strong>{" "}
+                    {clasesVivoService.isMeetWindowOpen(liveTracker.cursoId)
+                      ? "(Ventana Meet abierta)"
+                      : "(Reabre Meet para continuar acumulando permanencia)"}
+                  </div>
+                </div>
+              </div>
+
+              {liveTracker.meetUrl && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    clasesVivoService.openOrFocusMeetWindow(
+                      liveTracker.cursoId,
+                      liveTracker.meetUrl
+                    );
+                    clasesVivoService.enviarLatido(liveTracker.sesionId, true).catch(() => {});
+                  }}
+                  className="inline-flex items-center justify-center gap-1.5 bg-emerald-600 hover:bg-emerald-500 text-white font-extrabold text-xs px-3.5 py-2 rounded-xl cursor-pointer transition-colors shrink-0"
+                >
+                  <span>Enfocar / Reabrir Google Meet</span>
+                  <ExternalLink className="w-3.5 h-3.5" />
+                </button>
+              )}
+            </div>
+          )}
+          {isReadOnlyHistory && selectedCycle && (
+            <div
+              role="status"
+              className="rounded-2xl border border-amber-300 dark:border-amber-700/60 bg-amber-50/90 dark:bg-amber-950/40 px-4 py-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-xs animate-fade-in"
+            >
+              <div className="flex items-start sm:items-center gap-3">
+                <div className="p-2 rounded-xl bg-amber-500/20 text-amber-700 dark:text-amber-300 shrink-0">
+                  <Clock className="w-4 h-4" />
+                </div>
+                <div className="text-xs">
+                  <p className="font-extrabold text-amber-950 dark:text-amber-200">
+                    Modo Historial (Solo Lectura) — {selectedCycle.nombre}
+                  </p>
+                  <p className="text-amber-800 dark:text-amber-300/90 mt-0.5">
+                    Estás consultando un ciclo académico finalizado. Puedes revisar asignaturas, separatas, boletas y notas históricas, pero las salas en vivo y entregas están cerradas.
+                  </p>
+                </div>
+              </div>
+              {availableStudentCycles.some((c) => !c.isReadOnly) && (
+                <button
+                  type="button"
+                  onClick={selectActiveCycle}
+                  className="shrink-0 px-3.5 py-2 rounded-xl bg-amber-600 hover:bg-amber-700 text-white text-xs font-extrabold shadow-xs transition-colors cursor-pointer"
+                >
+                  Volver a mi ciclo actual
+                </button>
+              )}
+            </div>
+          )}
           <Outlet />
         </div>
       </main>
@@ -706,33 +1022,32 @@ export default function StudentLayout() {
               <label className="font-bold text-slate-700 dark:text-slate-200 block">
                 Selecciona el destinatario (docente o compañero de tu curso):
               </label>
-              <select
+              <SearchableSelect
                 value={selectedContactKey}
-                onChange={(e) => setSelectedContactKey(e.target.value)}
-                className="w-full p-2.5 rounded-xl border border-slate-300 dark:border-white/10 bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200 font-medium cursor-pointer"
-              >
-                {contacts.teachers.length > 0 && (
-                  <optgroup label="👨‍🏫 Mis Docentes Titulares">
-                    {contacts.teachers.map((t, idx) => (
-                      <option key={`teacher-${idx}`} value={`teacher-${idx}`}>
-                        {t.nombre} — {t.cursoNombre} ({t.area})
-                      </option>
-                    ))}
-                  </optgroup>
-                )}
-                {contacts.classmates.length > 0 && (
-                  <optgroup label="👥 Mis Compañeros de Curso">
-                    {contacts.classmates.map((c, idx) => (
-                      <option key={`classmate-${idx}`} value={`classmate-${idx}`}>
-                        {c.nombre} — {c.carrera} ({c.cursoNombre})
-                      </option>
-                    ))}
-                  </optgroup>
-                )}
-                {contacts.teachers.length === 0 && contacts.classmates.length === 0 && (
-                  <option value="">No hay contactos vinculados a tus asignaturas</option>
-                )}
-              </select>
+                onChange={setSelectedContactKey}
+                disabled={contacts.teachers.length === 0 && contacts.classmates.length === 0}
+                placeholder={
+                  contacts.teachers.length === 0 && contacts.classmates.length === 0
+                    ? "No hay contactos vinculados a tus asignaturas"
+                    : "Escribe nombre de tu docente, compañero o materia..."
+                }
+                options={[
+                  ...contacts.teachers.map((t, idx) => ({
+                    value: `teacher-${idx}`,
+                    label: t.nombre,
+                    sublabel: `${t.cursoNombre} (${t.area || "Cátedra"})`,
+                    searchText: `${t.correo || ""} ${t.cursoNombre || ""}`,
+                    group: "👨‍🏫 Mis Docentes Titulares"
+                  })),
+                  ...contacts.classmates.map((c, idx) => ({
+                    value: `classmate-${idx}`,
+                    label: c.nombre,
+                    sublabel: `${c.carrera || "Postulante"} • ${c.cursoNombre}`,
+                    searchText: `${c.correo || ""} ${c.carrera || ""} ${c.cursoNombre || ""}`,
+                    group: "👥 Mis Compañeros de Curso"
+                  }))
+                ]}
+              />
             </div>
 
             <div className="space-y-2 text-xs">
@@ -756,18 +1071,24 @@ export default function StudentLayout() {
               >
                 Cerrar
               </button>
-              <button
-                type="button"
-                disabled={isSubmittingQuestion}
-                onClick={handleSubmitQuestion}
-                className="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-extrabold shadow-md cursor-pointer disabled:opacity-50"
-              >
-                {isSubmittingQuestion
-                  ? "Enviando..."
-                  : selectedContactKey.startsWith("classmate-")
-                  ? "Enviar a Compañero"
-                  : "Enviar Consulta al Docente"}
-              </button>
+              {isReadOnlyHistory ? (
+                <span className="px-4 py-2 rounded-xl bg-amber-100 dark:bg-amber-950/50 text-amber-800 dark:text-amber-300 text-xs font-bold">
+                  Ciclo Finalizado (Solo lectura)
+                </span>
+              ) : (
+                <button
+                  type="button"
+                  disabled={isSubmittingQuestion}
+                  onClick={handleSubmitQuestion}
+                  className="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-extrabold shadow-md cursor-pointer disabled:opacity-50"
+                >
+                  {isSubmittingQuestion
+                    ? "Enviando..."
+                    : selectedContactKey.startsWith("classmate-")
+                    ? "Enviar a Compañero"
+                    : "Enviar Consulta al Docente"}
+                </button>
+              )}
             </div>
 
             {/* HISTORIAL DE CONSULTAS Y RESPUESTAS DEL DOCENTE */}
@@ -947,6 +1268,30 @@ export default function StudentLayout() {
           </div>
         </div>
       )}
+
+      {/* MODAL: ENTREGA INTERACTIVA DE TAREA */}
+      <StudentTaskModal
+        task={selectedTaskModal}
+        isOpen={Boolean(selectedTaskModal)}
+        isReadOnly={isReadOnlyHistory}
+        onClose={() => setSelectedTaskModal(null)}
+        onDeliver={async (taskId) => {
+          setNotifications((prev) =>
+            prev.map((n) =>
+              n.id === `task-${taskId}` || n.id === `task-obs-${taskId}`
+                ? { ...n, unread: false }
+                : n
+            )
+          );
+        }}
+      />
+
+      {/* MODAL: DETALLE DE AVISO / COMUNICADO ACADÉMICO */}
+      <StudentAnnouncementModal
+        announcement={selectedAnnouncementModal}
+        isOpen={Boolean(selectedAnnouncementModal)}
+        onClose={() => setSelectedAnnouncementModal(null)}
+      />
     </div>
   );
 }

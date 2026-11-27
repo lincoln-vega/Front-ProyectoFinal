@@ -1,54 +1,11 @@
-import { insforge } from "../lib/insforge";
+import { getApiAccessToken } from "../lib/supabase";
+import { getApiBaseUrl } from "../lib/apiUrl";
 
-const FUNCTION_NAMES = {
-  entry: "meet-entrada",
-  exit: "meet-salida",
-  audit: "meet-auditoria"
-};
-
-const getErrorMessage = (error) => {
-  const message = String(error?.message || error || "").toLowerCase();
-  if (message.includes("expired") || message.includes("sesión") || message.includes("session")) {
-    return "La sesión expiró. Inicia sesión nuevamente.";
-  }
-  if (message.includes("permission") || message.includes("permiso") || message.includes("unauthorized")) {
-    return "No tienes permisos para registrar asistencia en este curso.";
-  }
-  if (message.includes("active session") || message.includes("sesión activa")) {
-    return "Ya existe una sesión activa para este curso.";
-  }
-  if (message.includes("not found") || message.includes("no existe") || message.includes("curso")) {
-    return "El curso no existe o no pertenece al docente.";
-  }
-  if (message.includes("meet") || message.includes("enlace")) {
-    return "El curso no tiene un enlace de Google Meet válido.";
-  }
-  if (message.includes("entrada")) {
-    return "No existe una entrada para finalizar.";
-  }
-  return error?.message || "No se pudo completar la operación de asistencia.";
-};
-
-const throwFunctionError = (error, operation) => {
-  if (!error) return;
-  console.error(`[InsForge] ${operation}:`, error);
-  throw new Error(getErrorMessage(error));
-};
-
-const invokeMeetFunction = async (name, cursoId) => {
-  const { data, error } = await insforge.functions.invoke(name, {
-    body: {
-      curso_id: cursoId,
-      cursoId
-    }
-  });
-  throwFunctionError(error, name);
-  return data;
-};
-
-const unwrapResponse = (data) => {
-  if (Array.isArray(data)) return data[0] || null;
-  return data?.data || data?.result || data?.asistencia || data?.session || data || null;
+const authHeaders = () => {
+  const headers = { "Content-Type": "application/json" };
+  const token = getApiAccessToken();
+  if (token) headers.Authorization = `Bearer ${token}`;
+  return headers;
 };
 
 const normalizeAttendance = (record) => {
@@ -60,191 +17,118 @@ const normalizeAttendance = (record) => {
     entrada: record.entrada || record.horaEntrada || record.hora_entrada || record.started_at,
     salida: record.salida || record.horaSalida || record.hora_salida || record.ended_at,
     meetUrl: record.meetUrl || record.meet_url || record.url,
-    estado: record.estado || record.status,
+    estado: record.estado || record.estado_sesion || record.status,
     minutosEfectivos: record.minutosEfectivos ?? record.minutos_efectivos ?? record.effective_minutes
   };
 };
 
-export async function registerMeetEntry(cursoId) {
-  const userEmail = localStorage.getItem("userEmail") || "";
-  const userId = localStorage.getItem("userId") || "";
-  try {
-    const { data, error } = await insforge.database
-      .from("meet_attendance")
-      .insert([
-        {
-          curso_id: cursoId,
-          docente_id: userId,
-          docente_email: userEmail,
-          evento: "ENTRADA",
-          hora_entrada: new Date().toISOString(),
-          estado_sesion: "EN_PROGRESO"
-        }
-      ])
-      .select();
-    if (!error && data?.[0]) {
-      return normalizeAttendance(data[0]);
+async function requestAsistencia(path, options = {}) {
+  const res = await fetch(`${getApiBaseUrl()}${path}`, {
+    ...options,
+    headers: {
+      ...authHeaders(),
+      ...(options.headers || {})
     }
-  } catch (err) {
-    console.warn("[Asistencia] DB fallback a functions:", err);
+  });
+  const body = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    throw new Error(body?.detail || "No se pudo completar la operación de asistencia.");
   }
-  return normalizeAttendance(unwrapResponse(await invokeMeetFunction(FUNCTION_NAMES.entry, cursoId)));
+  return body;
+}
+
+export async function registerMeetEntry(cursoId) {
+  const row = await requestAsistencia("/asistencia/meet/entrada", {
+    method: "POST",
+    body: JSON.stringify({ cursoId })
+  });
+  return normalizeAttendance(row);
 }
 
 export async function registerMeetExit(cursoId) {
-  try {
-    const { data, error } = await insforge.database
-      .from("meet_attendance")
-      .update({
-        evento: "SALIDA",
-        hora_salida: new Date().toISOString(),
-        estado_sesion: "FINALIZADA"
-      })
-      .eq("curso_id", cursoId)
-      .eq("estado_sesion", "EN_PROGRESO")
-      .select();
-    if (!error && data?.[0]) {
-      return normalizeAttendance(data[0]);
-    }
-  } catch (err) {
-    console.warn("[Asistencia] DB exit fallback a functions:", err);
-  }
-  return normalizeAttendance(unwrapResponse(await invokeMeetFunction(FUNCTION_NAMES.exit, cursoId)));
+  const row = await requestAsistencia("/asistencia/meet/salida", {
+    method: "POST",
+    body: JSON.stringify({ cursoId })
+  });
+  return normalizeAttendance(row);
 }
 
 export async function getMeetAttendanceHistory(cursoId) {
-  try {
-    const { data, error } = await insforge.database
-      .from("meet_attendance")
-      .select("*")
-      .eq("curso_id", cursoId)
-      .order("created_at", { ascending: false });
-    if (!error && Array.isArray(data)) {
-      return data.map(normalizeAttendance);
-    }
-  } catch (err) {
-    console.warn("[Asistencia] DB history fallback a functions:", err);
-  }
-
-  try {
-    const data = await invokeMeetFunction(FUNCTION_NAMES.audit, cursoId);
-    const records = data?.historial || data?.history || data?.rows || data?.items || data?.data || data;
-    return (Array.isArray(records) ? records : [records].filter(Boolean)).map(normalizeAttendance);
-  } catch {
-    return [];
-  }
+  const rows = await requestAsistencia(`/asistencia/meet/historial/${encodeURIComponent(cursoId)}`);
+  return Array.isArray(rows) ? rows.map(normalizeAttendance) : [];
 }
 
-const ATTENDANCE_COLUMNS = "id, cursoId, asignatura, docenteId, docente, fecha, horaApertura, modalidad, asistentesPuntuales, tardanzas, ausentes, created_at";
-
-const throwIfError = (error, operation) => {
-  if (error) {
-    console.error(`[InsForge] ${operation}:`, error);
-    throw new Error(error.message || `No se pudo completar: ${operation}`);
-  }
-};
-
 export async function getStoredAttendances() {
-  const { data, error } = await insforge.database
-    .from("attendance_sessions")
-    .select(ATTENDANCE_COLUMNS)
-    .order("created_at", { ascending: false })
-    .limit(500);
-  throwIfError(error, "cargar asistencias");
-  return data || [];
+  const rows = await requestAsistencia("/asistencia/sesiones");
+  return Array.isArray(rows) ? rows : [];
 }
 
 export async function saveAttendanceRecord(record) {
-  try {
-    const { data, error } = await insforge.functions.invoke("marcar-asistencia", {
-      body: {
-        sesion_id: record.sesion_id || record.sesionId || "ATT-SES-001",
-        estudianteId: record.estudianteId || record.id || "USR-005",
+  const sesionId = record.sesion_id || record.sesionId;
+  if (sesionId) {
+    return requestAsistencia(`/asistencia/sesiones/${encodeURIComponent(sesionId)}/marcar`, {
+      method: "POST",
+      body: JSON.stringify({
+        estudianteId: record.estudianteId || record.id || "",
         estudiante: record.estudiante || record.nombre || "Estudiante",
         horaRegistro: record.horaRegistro || record.hora || new Date().toTimeString().slice(0, 5)
-      }
+      })
     });
-    if (!error) return data || record;
-  } catch (err) {
-    console.warn("[InsForge] Fallback a tabla attendance_sessions:", err);
   }
 
   const cursoId = record.cursoId || record.curso_id || "CRS-001";
-  const sessionDate = new Date().toISOString().split("T")[0];
-  const alumnoData = {
-    id: record.estudianteId || record.id || "USR-005",
-    nombre: record.estudiante || record.nombre || "Estudiante",
-    hora: record.horaRegistro || new Date().toTimeString().slice(0, 5)
+  const nuevaSesion = {
+    id: `ATT-${cursoId}-${Date.now().toString().slice(-6)}`,
+    cursoId,
+    asignatura: record.curso || record.asignatura || "Clase Virtual",
+    docenteId: record.docenteId || "USR-107",
+    docente: record.docente || "Docente a cargo",
+    fecha: new Date().toISOString().split("T")[0],
+    horaApertura: new Date().toTimeString().slice(0, 5),
+    modalidad: "Virtual en vivo",
+    asistentesPuntuales: [
+      {
+        estudianteId: record.estudianteId || record.id || "",
+        estudiante: record.estudiante || record.nombre || "Estudiante",
+        horaRegistro: record.horaRegistro || new Date().toTimeString().slice(0, 5)
+      }
+    ],
+    tardanzas: [],
+    ausentes: []
   };
-
-  const { data: activeSessions } = await insforge.database
-    .from("attendance_sessions")
-    .select(ATTENDANCE_COLUMNS)
-    .eq("cursoId", cursoId)
-    .order("created_at", { ascending: false })
-    .limit(1);
-
-  if (activeSessions && activeSessions.length > 0) {
-    const currentSession = activeSessions[0];
-    const puntuales = Array.isArray(currentSession.asistentesPuntuales) ? [...currentSession.asistentesPuntuales] : [];
-    if (!puntuales.some((p) => p.id === alumnoData.id)) {
-      puntuales.push(alumnoData);
-      await insforge.database
-        .from("attendance_sessions")
-        .update({ asistentesPuntuales: puntuales })
-        .eq("id", currentSession.id);
-    }
-    return currentSession;
-  } else {
-    const nuevaSesion = {
-      id: `ATT-${cursoId}-${Date.now().toString().slice(-6)}`,
-      cursoId,
-      asignatura: record.curso || record.asignatura || "Clase Virtual",
-      docenteId: record.docenteId || "USR-002",
-      docente: record.docente || "Docente a cargo",
-      fecha: sessionDate,
-      horaApertura: new Date().toTimeString().slice(0, 5),
-      modalidad: "Virtual",
-      asistentesPuntuales: [alumnoData],
-      tardanzas: [],
-      ausentes: []
-    };
-    await insforge.database.from("attendance_sessions").insert([nuevaSesion]);
-    return nuevaSesion;
-  }
+  await requestAsistencia("/asistencia/sesiones", {
+    method: "POST",
+    body: JSON.stringify(nuevaSesion)
+  });
+  return nuevaSesion;
 }
 
 export async function getTeacherAttendances(docenteId, fecha) {
-  let query = insforge.database
-    .from("attendance_sessions")
-    .select(ATTENDANCE_COLUMNS)
-    .order("created_at", { ascending: false })
-    .limit(500);
-  if (docenteId) query = query.eq("docenteId", docenteId);
-  if (fecha) query = query.eq("fecha", fecha);
-  const { data, error } = await query;
-  throwIfError(error, "cargar sesiones del docente");
-  return data || [];
+  const all = await getStoredAttendances();
+  return all.filter((s) => {
+    if (docenteId && s.docenteId !== docenteId) return false;
+    if (fecha && s.fecha !== fecha) return false;
+    return true;
+  });
 }
 
 export async function saveTeacherAttendance(record) {
   const session = {
-    id: `TATT-${record.cursoId}-${record.fecha}`,
+    id: `TATT-${record.cursoId}-${record.fecha}-${Date.now().toString().slice(-4)}`,
     cursoId: record.cursoId,
-    asignatura: record.curso,
+    asignatura: record.curso || record.asignatura || "Clase Virtual",
     docenteId: record.docenteId,
     docente: record.docente,
     fecha: record.fecha,
-    horaApertura: record.horaIngreso,
-    modalidad: "Virtual",
+    horaApertura: record.horaIngreso || new Date().toTimeString().slice(0, 5),
+    modalidad: "Virtual en vivo",
     asistentesPuntuales: [],
     tardanzas: [],
     ausentes: []
   };
-  const { data, error } = await insforge.database
-    .from("attendance_sessions")
-    .upsert([session])
-    .select(ATTENDANCE_COLUMNS);
-  throwIfError(error, "guardar sesión de clase");
-  return data?.[0] || session;
+  await requestAsistencia("/asistencia/sesiones", {
+    method: "POST",
+    body: JSON.stringify(session)
+  });
+  return session;
 }

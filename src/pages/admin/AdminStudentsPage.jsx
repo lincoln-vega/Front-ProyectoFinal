@@ -84,7 +84,7 @@ export default function AdminStudentsPage() {
     <div className="space-y-5">
       {notification && <Notification message={notification} onClose={() => setNotification(null)} />}
       {error && <p role="alert" className="rounded-lg border border-red-300 bg-red-50 p-3 text-sm text-red-700">{error}</p>}
-      {loading && <p className="text-sm text-slate-500">Consultando estudiantes en InsForge...</p>}
+      {loading && <p className="text-sm text-slate-500">Consultando estudiantes en Supabase...</p>}
 
       <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-2xs">
         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">

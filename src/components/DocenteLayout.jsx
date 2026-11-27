@@ -25,6 +25,7 @@ import SolicitudPermutaModal from "./docente/SolicitudPermutaModal";
 import DocenteChatModal from "./docente/DocenteChatModal";
 import { academicActivitiesService } from "../services/academicActivitiesService";
 import { chatAcademicService } from "../services/chatAcademicService";
+import { clasesVivoService } from "../services/clasesVivoService";
 
 export default function DocenteLayout() {
   const navigate = useNavigate();
@@ -33,8 +34,43 @@ export default function DocenteLayout() {
   const [notificationsOpen, setNotificationsOpen] = useState(false);
   const [isPermutaModalOpen, setIsPermutaModalOpen] = useState(false);
   const [isChatModalOpen, setIsChatModalOpen] = useState(false);
+  const [targetStudentMessageId, setTargetStudentMessageId] = useState(null);
   const [pendingChatCount, setPendingChatCount] = useState(0);
+  const [activeLiveSession, setActiveLiveSession] = useState(null);
   const notifRef = useRef(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    const syncLiveSession = async () => {
+      try {
+        const res = await clasesVivoService.obtenerClaseActiva();
+        if (!cancelled) setActiveLiveSession(res?.activa || null);
+      } catch {}
+    };
+    syncLiveSession();
+    const id = setInterval(() => {
+      if (!document.hidden) syncLiveSession();
+    }, 30000);
+    const unsub = clasesVivoService.subscribeLiveChanges((evt) => {
+      if (evt?.type === "CLASS_ENDED") {
+        setActiveLiveSession(null);
+        return;
+      }
+      if (evt?.type === "CLASS_STARTED") {
+        syncLiveSession();
+      }
+    });
+    const onVis = () => {
+      if (!document.hidden) syncLiveSession();
+    };
+    document.addEventListener("visibilitychange", onVis);
+    return () => {
+      cancelled = true;
+      clearInterval(id);
+      unsub();
+      document.removeEventListener("visibilitychange", onVis);
+    };
+  }, [location.pathname]);
 
   const userName = localStorage.getItem("userName") || "Docente";
   const userId = localStorage.getItem("userId") || "USR-107";
@@ -42,20 +78,25 @@ export default function DocenteLayout() {
 
   useEffect(() => {
     let cancelled = false;
-    const updateChatCount = async () => {
-      await chatAcademicService.fetchMessages();
+    const readCachedCount = () => {
       if (cancelled) return;
       const msgs = chatAcademicService.getMessagesForTeacher(userId, userName, userEmail);
       const pending = msgs.filter((m) => m.estado === "Pendiente").length;
       setPendingChatCount(pending);
     };
 
-    updateChatCount();
-    window.addEventListener("storage", updateChatCount);
-    const interval = setInterval(updateChatCount, 30000);
+    const fetchAndSyncChat = async () => {
+      if (document.hidden) return;
+      await chatAcademicService.fetchMessages();
+      readCachedCount();
+    };
+
+    fetchAndSyncChat();
+    window.addEventListener("storage", readCachedCount);
+    const interval = setInterval(fetchAndSyncChat, 30000);
     return () => {
       cancelled = true;
-      window.removeEventListener("storage", updateChatCount);
+      window.removeEventListener("storage", readCachedCount);
       clearInterval(interval);
     };
   }, [userId, userName, userEmail]);
@@ -105,40 +146,53 @@ export default function DocenteLayout() {
       const myMessages = chatAcademicService.getMessagesForTeacher(userId, userName, userEmail);
       const pendingMessages = myMessages.filter((m) => m.estado === "Pendiente");
 
+      // Obtener IDs de notificaciones previamente leídas del almacenamiento local
+      let readSet = new Set();
+      try {
+        const stored = JSON.parse(localStorage.getItem(`read_notifs_doc_${userEmail}`) || "[]");
+        readSet = new Set(stored);
+      } catch {}
+
       const messageNotifs = pendingMessages.map((m) => ({
         id: `msg-${m.id}`,
         title: `Consulta de Alumno: ${m.estudianteNombre}`,
         course: `${m.curso} • ${m.mensaje?.slice(0, 45) || "Nueva consulta"}...`,
         time: m.fecha || "Hoy",
         type: "mensaje",
-        unread: true
+        unread: !readSet.has(`msg-${m.id}`),
+        data: m
       }));
 
-      // 2. Entregas de tareas por parte de alumnos
+      // 2. Entregas individuales de tareas pendientes de calificar
       const tasks = academicActivitiesService.getTasks();
       const entregas = tasks
-        .filter((t) => t.estado === "Entregado")
-        .slice(0, 3)
-        .map((t) => ({
-          id: `task-entregada-${t.id}`,
-          title: `Tarea Entregada: ${t.titulo}`,
-          course: `${t.curso} • Alumno envió solución`,
-          time: t.fechaLimite || "Reciente",
-          type: "tarea",
-          unread: true
-        }));
+        .filter((t) => Number(t.pendientesCalificarCount) > 0)
+        .slice(0, 4)
+        .map((t) => {
+          const notifId = `task-por-calificar-${t.id}-${t.pendientesCalificarCount}`;
+          return {
+            id: notifId,
+            title: `Entregas por Calificar (${t.pendientesCalificarCount}): ${t.titulo}`,
+            course: `${t.curso} • ${t.entregasCount || 0} entrega(s) recibida(s)`,
+            time: t.fechaLimite || "Reciente",
+            type: "tarea",
+            unread: !readSet.has(notifId),
+            data: t
+          };
+        });
 
-      // 3. Tareas activas
+      // 3. Tareas activas publicadas
       const activeTasks = tasks
-        .filter((t) => t.estado !== "Entregado")
+        .filter((t) => Number(t.pendientesCalificarCount || 0) === 0)
         .slice(0, 2)
         .map((t) => ({
           id: `task-${t.id}`,
-          title: `Tarea Activa: ${t.titulo}`,
-          course: `${t.curso} • ${t.estado}`,
+          title: `Tarea Publicada: ${t.titulo}`,
+          course: `${t.curso} • ${t.entregasCount || 0} entrega(s)`,
           time: t.fechaLimite,
           type: "tarea",
-          unread: false
+          unread: false,
+          data: t
         }));
 
       const anns = academicActivitiesService.getAnnouncements();
@@ -175,9 +229,21 @@ export default function DocenteLayout() {
     academicActivitiesService.fetchTasks().then(syncNotifications);
     academicActivitiesService.fetchAnnouncements().then(syncNotifications);
 
+    const unsubLive = clasesVivoService.subscribeLiveChanges((evt) => {
+      if (
+        evt?.type === "TASK_SUBMITTED" ||
+        evt?.type === "TASK_GRADED" ||
+        evt?.type === "TASK_CREATED" ||
+        evt?.type === "TASK_DELETED"
+      ) {
+        academicActivitiesService.fetchTasks().then(syncNotifications);
+      }
+    });
+
     window.addEventListener("storage", syncNotifications);
     return () => {
       cancelled = true;
+      unsubLive();
       window.removeEventListener("storage", syncNotifications);
     };
   }, []);
@@ -185,8 +251,8 @@ export default function DocenteLayout() {
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-[#0a0a0e] text-slate-900 dark:text-slate-100 flex flex-col font-sans transition-colors duration-500 overflow-x-hidden">
       
-      {/* 1. BARRA VERTICAL LATERAL (SLIM SIDEBAR DESKTOP) - ESTILO V2 ESTUDIANTE */}
-      <aside className="hidden md:flex flex-col fixed left-0 top-0 bottom-0 h-screen w-20 bg-[#0A1128] dark:bg-[#060814] border-r border-slate-800/80 z-40 text-white shadow-xl overflow-y-auto overflow-x-hidden transition-all">
+      {/* 1. BARRA VERTICAL LATERAL (SLIM SIDEBAR DESKTOP) - ANCLADA A 100DVH CON SALIR SIEMPRE VISIBLE */}
+      <aside className="hidden md:flex flex-col fixed inset-y-0 left-0 h-dvh w-20 bg-[#0A1128] dark:bg-[#060814] border-r border-slate-800/80 z-40 text-white shadow-xl overflow-hidden transition-all">
         {/* Brand Icon Superior en Sidebar */}
         <Link
           to="/docente/panel"
@@ -199,7 +265,7 @@ export default function DocenteLayout() {
         </Link>
 
         {/* Enlaces Principales de Navegación Vertical */}
-        <nav className="flex-1 py-4 flex flex-col items-center space-y-3 shrink-0">
+        <nav className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden py-4 flex flex-col items-center space-y-3">
           {/* Mi Panel */}
           <NavLink
             to="/docente/panel"
@@ -276,8 +342,8 @@ export default function DocenteLayout() {
           </button>
         </nav>
 
-        {/* Botón Salir Inferior */}
-        <div className="p-3 border-t border-white/10 flex flex-col items-center shrink-0">
+        {/* Botón Salir Inferior (siempre visible al pie del viewport) */}
+        <div className="p-3 border-t border-white/10 flex flex-col items-center shrink-0 mt-auto bg-[#0A1128] dark:bg-[#060814]">
           <button
             type="button"
             onClick={handleLogout}
@@ -375,20 +441,67 @@ export default function DocenteLayout() {
                     <span className="text-xs font-extrabold text-slate-800 dark:text-white">
                       Notificaciones Docentes
                     </span>
-                    <span className="text-[10px] bg-blue-100 dark:bg-blue-950/60 text-blue-800 dark:text-blue-300 font-bold px-2 py-0.5 rounded-full">
-                      {notifications.filter((n) => n.unread).length} activas
-                    </span>
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const allIds = notifications.map((n) => n.id);
+                          try {
+                            localStorage.setItem(`read_notifs_doc_${userEmail}`, JSON.stringify(allIds));
+                          } catch {}
+                          setNotifications((prev) => prev.map((n) => ({ ...n, unread: false })));
+                        }}
+                        className="text-[10px] text-blue-600 dark:text-blue-400 hover:underline font-semibold cursor-pointer"
+                      >
+                        Marcar leídas
+                      </button>
+                      <span className="text-[10px] bg-blue-100 dark:bg-blue-950/60 text-blue-800 dark:text-blue-300 font-bold px-2 py-0.5 rounded-full">
+                        {notifications.filter((n) => n.unread).length} activas
+                      </span>
+                    </div>
                   </div>
 
                   <div className="divide-y divide-slate-100 dark:divide-white/5 max-h-72 overflow-y-auto">
                     {notifications.map((notif) => (
                       <div
                         key={notif.id}
-                        className="p-3.5 hover:bg-slate-50 dark:hover:bg-white/5 transition-colors cursor-pointer"
+                        className="p-3.5 hover:bg-slate-50 dark:hover:bg-white/5 transition-colors cursor-pointer group"
                         onClick={() => {
                           setNotificationsOpen(false);
+                          
+                          // Guardar que fue leída
+                          try {
+                            const stored = JSON.parse(localStorage.getItem(`read_notifs_doc_${userEmail}`) || "[]");
+                            if (!stored.includes(notif.id)) {
+                              stored.push(notif.id);
+                              localStorage.setItem(`read_notifs_doc_${userEmail}`, JSON.stringify(stored));
+                            }
+                          } catch {}
+
+                          // Desmarcar en el estado
+                          setNotifications((prev) =>
+                            prev.map((n) => (n.id === notif.id ? { ...n, unread: false } : n))
+                          );
+
+                          // Redirección contextual según el tipo de notificación
                           if (notif.type === "mensaje") {
+                            if (notif.data?.id) {
+                              setTargetStudentMessageId(notif.data.id);
+                            }
                             setIsChatModalOpen(true);
+                          } else if (notif.type === "tarea") {
+                            const cid = notif.data?.cursoId || notif.data?.curso_id;
+                            navigate(
+                              cid
+                                ? `/docente/cursos?cursoId=${encodeURIComponent(cid)}&tab=tareas`
+                                : "/docente/cursos?tab=tareas"
+                            );
+                          } else if (notif.type === "anuncio") {
+                            navigate("/docente/cursos?tab=anuncios");
+                          } else if (notif.type === "asistencia") {
+                            navigate("/docente/horarios");
+                          } else if (notif.type === "permuta") {
+                            setIsPermutaModalOpen(true);
                           }
                         }}
                       >
@@ -402,7 +515,7 @@ export default function DocenteLayout() {
                             {notif.type === "permuta" && <ArrowRightLeft className="w-4 h-4 text-indigo-500" />}
                           </div>
                           <div className="flex-1 min-w-0">
-                            <p className="text-xs font-bold text-slate-800 dark:text-slate-100 truncate">
+                            <p className="text-xs font-bold text-slate-800 dark:text-slate-100 truncate group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
                               {notif.title}
                             </p>
                             <p className="text-[11px] text-slate-500 dark:text-slate-400 truncate">
@@ -456,41 +569,40 @@ export default function DocenteLayout() {
 
       {/* 3. DRAWER MÓVIL (MENÚ RESPONSIVE) */}
       {mobileMenuOpen && (
-        <div className="fixed inset-0 z-50 md:hidden bg-slate-900/60 backdrop-blur-xs flex">
-          <div className="w-72 bg-[#0A1128] text-white p-5 flex flex-col justify-between h-full shadow-2xl animate-slide-right">
-            <div>
-              <div className="flex items-center justify-between pb-4 border-b border-white/10">
-                <div className="flex items-center space-x-2.5">
-                  <div className="w-9 h-9 rounded-xl bg-blue-600 flex items-center justify-center text-white">
-                    <School className="w-5 h-5 text-amber-300" />
-                  </div>
-                  <div>
-                    <h3 className="font-extrabold text-sm text-white">Academia Pre</h3>
-                    <p className="text-[10px] text-amber-300 font-semibold uppercase">Portal Docente</p>
-                  </div>
+        <div className="fixed inset-0 z-50 md:hidden bg-slate-900/60 backdrop-blur-xs flex h-dvh">
+          <div className="w-72 bg-[#0A1128] text-white p-5 flex flex-col h-dvh overflow-hidden shadow-2xl animate-slide-right">
+            <div className="flex items-center justify-between pb-4 border-b border-white/10 shrink-0">
+              <div className="flex items-center space-x-2.5">
+                <div className="w-9 h-9 rounded-xl bg-blue-600 flex items-center justify-center text-white">
+                  <School className="w-5 h-5 text-amber-300" />
                 </div>
-                <button
-                  type="button"
-                  onClick={() => setMobileMenuOpen(false)}
-                  className="p-1 rounded-lg hover:bg-white/10 text-slate-400 hover:text-white"
-                >
-                  <X className="w-5 h-5" />
-                </button>
-              </div>
-
-              {/* Perfil en Drawer */}
-              <div className="py-4 border-b border-white/10 flex items-center space-x-3">
-                <div className="w-10 h-10 rounded-xl bg-blue-600 text-white font-black text-sm flex items-center justify-center">
-                  {initials}
-                </div>
-                <div className="min-w-0">
-                  <p className="text-xs font-bold text-white truncate">{userName}</p>
-                  <p className="text-[10px] text-slate-400 truncate">{userEmail}</p>
+                <div>
+                  <h3 className="font-extrabold text-sm text-white">Academia Pre</h3>
+                  <p className="text-[10px] text-amber-300 font-semibold uppercase">Portal Docente</p>
                 </div>
               </div>
+              <button
+                type="button"
+                onClick={() => setMobileMenuOpen(false)}
+                className="p-1 rounded-lg hover:bg-white/10 text-slate-400 hover:text-white"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
 
-              {/* Navegación Móvil */}
-              <nav className="py-4 space-y-1.5">
+            {/* Perfil en Drawer */}
+            <div className="py-4 border-b border-white/10 flex items-center space-x-3 shrink-0">
+              <div className="w-10 h-10 rounded-xl bg-blue-600 text-white font-black text-sm flex items-center justify-center shrink-0">
+                {initials}
+              </div>
+              <div className="min-w-0">
+                <p className="text-xs font-bold text-white truncate">{userName}</p>
+                <p className="text-[10px] text-slate-400 truncate">{userEmail}</p>
+              </div>
+            </div>
+
+            {/* Navegación Móvil */}
+            <nav className="flex-1 min-h-0 overflow-y-auto py-4 space-y-1.5">
                 <NavLink
                   to="/docente/panel"
                   onClick={() => setMobileMenuOpen(false)}
@@ -578,10 +690,9 @@ export default function DocenteLayout() {
                   <ChevronRight className="w-4 h-4 text-slate-400" />
                 </button>
               </nav>
-            </div>
 
-            {/* Salir en Drawer */}
-            <div className="pt-4 border-t border-white/10">
+            {/* Salir en Drawer (siempre anclado abajo) */}
+            <div className="pt-4 border-t border-white/10 shrink-0 mt-auto">
               <button
                 type="button"
                 onClick={handleLogout}
@@ -598,6 +709,27 @@ export default function DocenteLayout() {
 
       {/* 4. CONTENIDO PRINCIPAL */}
       <main className="md:pl-20 flex-1 p-4 sm:p-6 md:p-8 max-w-7xl mx-auto w-full transition-all">
+        {activeLiveSession && (
+          <div className="mb-5 rounded-2xl border border-red-400/60 bg-gradient-to-r from-red-950/90 via-slate-900 to-slate-900 text-white px-4 py-3 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-lg">
+            <div className="flex items-center gap-3">
+              <span className="w-3 h-3 rounded-full bg-red-500 animate-pulse shrink-0" />
+              <div className="text-xs sm:text-sm">
+                <strong className="font-black">Clase en Vivo en Curso:</strong>{" "}
+                <span className="text-red-200 font-semibold">{activeLiveSession.asignatura}</span>{" "}
+                <span className="text-slate-400 text-xs">
+                  ({activeLiveSession.horaProgramadaInicio} – {activeLiveSession.horaProgramadaFin})
+                </span>
+              </div>
+            </div>
+            <Link
+              to={`/docente/aula-vivo/${activeLiveSession.cursoId}`}
+              className="inline-flex items-center justify-center gap-1.5 bg-red-600 hover:bg-red-500 text-white font-extrabold text-xs px-4 py-2 rounded-xl transition-colors shrink-0"
+            >
+              <span>Volver a la Cabina en Vivo</span>
+              <ChevronRight className="w-4 h-4" />
+            </Link>
+          </div>
+        )}
         <Outlet />
       </main>
 
@@ -616,10 +748,14 @@ export default function DocenteLayout() {
       {/* Modal de Consultas de Estudiantes */}
       <DocenteChatModal
         isOpen={isChatModalOpen}
-        onClose={() => setIsChatModalOpen(false)}
+        onClose={() => {
+          setIsChatModalOpen(false);
+          setTargetStudentMessageId(null);
+        }}
         docenteName={userName}
         docenteId={userId}
         docenteEmail={userEmail}
+        targetMessageId={targetStudentMessageId}
       />
     </div>
   );

@@ -11,6 +11,7 @@ import {
   FileText
 } from "lucide-react";
 import { userService, courseService } from "../../services/api";
+import SearchableSelect from "../shared/SearchableSelect";
 
 export default function ConfirmarReemplazoModal({
   isOpen,
@@ -215,19 +216,17 @@ export default function ConfirmarReemplazoModal({
                 <UserCheck className="w-4 h-4 text-blue-600 dark:text-blue-400" />
                 Docente de Reemplazo (Suplente) *
               </label>
-              <select
-                required
+              <SearchableSelect
                 value={selectedTeacherId}
-                onChange={(e) => setSelectedTeacherId(e.target.value)}
-                className="w-full p-2.5 rounded-xl border border-slate-200 dark:border-white/10 bg-white dark:bg-slate-800 text-slate-800 dark:text-white focus:outline-hidden focus:border-[#1E3A8A] focus:ring-1 focus:ring-[#1E3A8A]"
-              >
-                <option value="">-- Seleccionar docente suplente --</option>
-                {teachers.map((teacher) => (
-                  <option key={teacher.id} value={teacher.id}>
-                    {teacher.nombres} {teacher.apellidos} ({teacher.correo})
-                  </option>
-                ))}
-              </select>
+                onChange={setSelectedTeacherId}
+                placeholder="Buscar docente suplente por nombre, DNI o correo..."
+                options={teachers.map((teacher) => ({
+                  value: teacher.id,
+                  label: `${teacher.nombres} ${teacher.apellidos}`,
+                  sublabel: `${teacher.correo} • DNI: ${teacher.dni || "S/D"}`,
+                  searchText: `${teacher.dni || ""} ${teacher.correo || ""}`
+                }))}
+              />
               {selectedTeacher && (
                 <p className="mt-1 text-[11px] text-emerald-600 dark:text-emerald-400 flex items-center gap-1">
                   <CheckCircle2 className="w-3.5 h-3.5" />
@@ -242,19 +241,17 @@ export default function ConfirmarReemplazoModal({
                 <BookOpen className="w-4 h-4 text-blue-600 dark:text-blue-400" />
                 Curso Académico a Actualizar *
               </label>
-              <select
-                required
+              <SearchableSelect
                 value={selectedCourseId}
-                onChange={(e) => handleCourseChange(e.target.value)}
-                className="w-full p-2.5 rounded-xl border border-slate-200 dark:border-white/10 bg-white dark:bg-slate-800 text-slate-800 dark:text-white focus:outline-hidden focus:border-[#1E3A8A] focus:ring-1 focus:ring-[#1E3A8A]"
-              >
-                <option value="">-- Seleccionar curso --</option>
-                {courses.map((course) => (
-                  <option key={course.id} value={course.id}>
-                    {course.id}: {course.asignatura} ({course.docente})
-                  </option>
-                ))}
-              </select>
+                onChange={handleCourseChange}
+                placeholder="Buscar curso por nombre o código..."
+                options={courses.map((course) => ({
+                  value: course.id,
+                  label: `${course.asignatura} (${course.id})`,
+                  sublabel: `Titular: ${course.docente || "Por asignar"}`,
+                  searchText: `${course.id} ${course.docente || ""}`
+                }))}
+              />
             </div>
 
             {/* HORARIO PROGRAMADO */}

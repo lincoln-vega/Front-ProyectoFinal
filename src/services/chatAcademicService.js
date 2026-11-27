@@ -1,29 +1,10 @@
-// Servicio de mensajería académica bidireccional entre Docente y Estudiante (V2.0)
-// Integra persistencia en Backend FastAPI y PostgreSQL con fallback en localStorage
+// Servicio de mensajería académica bidireccional (conectado al Backend FastAPI + Supabase PostgreSQL)
 import { courseService } from "./cursosServices";
-import { userService, parseCourseList } from "./api";
+import { parseCourseList } from "./api";
 import { getApiBaseUrl } from "../lib/apiUrl";
-import { getApiAccessToken } from "../lib/insforge";
+import { getApiAccessToken } from "../lib/supabase";
 
-const CHAT_STORAGE_KEY = "academia_chat_messages_v2";
-
-const getBackendUrls = () => {
-  const urls = [];
-  try {
-    const primary = getApiBaseUrl();
-    if (primary) urls.push(primary.replace(/\/+$/, ""));
-  } catch {}
-  const fallbackEnv = import.meta.env.VITE_BACKEND_URL;
-  if (fallbackEnv && !urls.includes(fallbackEnv.replace(/\/+$/, ""))) {
-    urls.push(fallbackEnv.replace(/\/+$/, ""));
-  }
-  if (typeof window !== "undefined" && (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1")) {
-    if (!urls.some((u) => u.includes("localhost:8000") || u.includes("127.0.0.1:8000"))) {
-      urls.push("http://localhost:8000");
-    }
-  }
-  return urls;
-};
+const CHAT_STORAGE_KEY = "academia_chat_messages_cache";
 
 const getHeaders = () => {
   const headers = { "Content-Type": "application/json" };
@@ -35,141 +16,88 @@ const getHeaders = () => {
 };
 
 async function requestMensajes(path, options = {}) {
-  const urls = getBackendUrls();
-  const headers = getHeaders();
-  const opts = {
+  const res = await fetch(`${getApiBaseUrl()}${path}`, {
     ...options,
-    signal: options.signal || AbortSignal.timeout(3500),
+    signal: options.signal || AbortSignal.timeout(6000),
     headers: {
-      ...headers,
+      ...getHeaders(),
       ...(options.headers || {})
     }
-  };
-
-  for (const base of urls) {
-    try {
-      const fullUrl = `${base}${path}`;
-      const res = await fetch(fullUrl, opts);
-      if (res.ok) {
-        return await res.json();
-      }
-    } catch {
-      // Intentar con siguiente URL
-    }
+  });
+  if (!res.ok) {
+    const errBody = await res.json().catch(() => ({}));
+    throw new Error(errBody?.detail || `Error HTTP ${res.status} en ${path}`);
   }
-  return null;
+  return res.json();
 }
 
-const DEFAULT_MESSAGES = [
-  {
-    id: "MSG-001",
-    estudianteId: "USR-005",
-    estudianteNombre: "Juan Carlos Flores Mendoza",
-    estudianteCorreo: "estudiante@gmail.com",
-    estudianteCarrera: "Ingeniería de Sistemas (UNI)",
-    docenteId: "USR-107",
-    docenteNombre: "Pedro Martlon Chavez Quispe",
-    cursoId: "CRS-002",
-    curso: "Física Fundamental",
-    mensaje: "Profesor Chavez, buenas tardes. Tengo una consulta sobre dinámica lineal y el cálculo de la fuerza resultante en el plano inclinado del taller N° 3.",
-    fecha: "Hoy, 10:15 AM",
-    estado: "Respondido",
-    respuesta: "Estimado Juan Carlos, recuerda descomponer el peso en los ejes tangencial y normal; la normal equilibra a P*cos(theta). En la próxima clase resolveremos el ejercicio 4.",
-    fechaRespuesta: "Hoy, 10:45 AM"
-  },
-  {
-    id: "MSG-002",
-    estudianteId: "USR-108",
-    estudianteNombre: "Esteban Torres",
-    estudianteCorreo: "esteban@gmail.com",
-    estudianteCarrera: "Medicina Humana (UNMSM)",
-    docenteId: "USR-002",
-    docenteNombre: "Carmen Rosa Herrera Villanueva",
-    cursoId: "CRS-003",
-    curso: "Biología y Anatomía",
-    mensaje: "Doctora Herrera, buenas tardes. En el ciclo de Krebs y la cadena de transporte de electrones, ¿cuántos ATP netos se consideran para el prospecto de admisión de San Marcos?",
-    fecha: "Hoy, 09:20 AM",
-    estado: "Respondido",
-    respuesta: "Hola Esteban. Para el prospecto UNMSM se consideran 36 a 38 ATPs según la lanzadera activa (malato-aspartato vs glicerol-3-fosfato). Te lo detallo en la separata.",
-    fechaRespuesta: "Hoy, 09:55 AM"
-  },
-  {
-    id: "MSG-003",
-    estudianteId: "USR-3066",
-    estudianteNombre: "Ana Paula Vargas Chavez",
-    estudianteCorreo: "anapaula@gmail.com",
-    estudianteCarrera: "Derecho y Ciencias Políticas (UNMSM)",
-    docenteId: "USR-109",
-    docenteNombre: "Victoria Angelis Raggi Ruiz",
-    cursoId: "CRS-008",
-    curso: "Historia Universal",
-    mensaje: "Profesora Victoria, buenas tardes. ¿El tema del periodo de entreguerras y el ascenso de los totalitarismos entrará en el simulacro de este domingo?",
-    fecha: "Hoy, 08:45 AM",
-    estado: "Pendiente",
-    respuesta: null,
-    fechaRespuesta: null
-  },
-  {
-    id: "MSG-004",
-    estudianteId: "USR-108",
-    estudianteNombre: "Esteban Torres",
-    estudianteCorreo: "esteban@gmail.com",
-    estudianteCarrera: "Medicina Humana (UNMSM)",
-    docenteId: "USR-002",
-    docenteNombre: "Carmen Rosa Herrera Villanueva",
-    cursoId: "CRS-006",
-    curso: "Química General",
-    mensaje: "Doctora Herrera, en el taller de estequiometría: ¿en las reacciones redox debemos balancear por ion-electrón en medio ácido?",
-    fecha: "Ayer, 04:15 PM",
-    estado: "Pendiente",
-    respuesta: null,
-    fechaRespuesta: null
-  }
-];
+let _inFlightMessagesPromise = null;
+let _lastMessagesFetchAt = 0;
 
 export const chatAcademicService = {
   getMessages() {
     try {
       const stored = localStorage.getItem(CHAT_STORAGE_KEY);
       if (stored) {
-        return JSON.parse(stored);
+        const parsed = JSON.parse(stored);
+        if (Array.isArray(parsed)) return parsed;
       }
-    } catch (e) {
-      console.warn("[ChatAcademicService] Error leyendo mensajes locales:", e);
-    }
-    localStorage.setItem(CHAT_STORAGE_KEY, JSON.stringify(DEFAULT_MESSAGES));
-    return DEFAULT_MESSAGES;
+    } catch {}
+    return [];
   },
 
-  async fetchMessages() {
-    try {
-      const data = await requestMensajes("/mensajes/");
-      if (Array.isArray(data) && data.length > 0) {
-        const normalized = data.map((m) => ({
-          id: m.id,
-          estudianteId: m.estudianteId || m.estudiante_id,
-          estudianteNombre: m.estudianteNombre || m.estudiante_nombre,
-          estudianteCorreo: m.estudianteCorreo || m.estudiante_correo,
-          estudianteCarrera: m.estudianteCarrera || m.estudiante_carrera,
-          docenteId: m.docenteId || m.docente_id,
-          docenteNombre: m.docenteNombre || m.docente_nombre,
-          cursoId: m.cursoId || m.curso_id,
-          curso: m.curso,
-          mensaje: m.mensaje,
-          fecha: m.fecha,
-          estado: m.estado || "Pendiente",
-          respuesta: m.respuesta,
-          fechaRespuesta: m.fechaRespuesta || m.fecha_respuesta
-        }));
-
-        localStorage.setItem(CHAT_STORAGE_KEY, JSON.stringify(normalized));
-        window.dispatchEvent(new Event("storage"));
-        return normalized;
-      }
-    } catch (err) {
-      console.warn("[ChatAcademicService] Fallback a mensajes locales:", err);
+  async fetchMessages(force = false) {
+    const now = Date.now();
+    if (!force && _inFlightMessagesPromise) {
+      return _inFlightMessagesPromise;
     }
-    return this.getMessages();
+    if (!force && now - _lastMessagesFetchAt < 3000) {
+      return this.getMessages();
+    }
+
+    _inFlightMessagesPromise = (async () => {
+      try {
+        const data = await requestMensajes("/mensajes/");
+        _lastMessagesFetchAt = Date.now();
+        if (Array.isArray(data)) {
+          const normalized = data.map((m) => ({
+            id: m.id,
+            estudianteId: m.estudianteId || m.estudiante_id,
+            estudianteNombre: m.estudianteNombre || m.estudiante_nombre,
+            estudianteCorreo: m.estudianteCorreo || m.estudiante_correo,
+            estudianteCarrera: m.estudianteCarrera || m.estudiante_carrera,
+            docenteId: m.docenteId || m.docente_id,
+            docenteNombre: m.docenteNombre || m.docente_nombre,
+            cursoId: m.cursoId || m.curso_id,
+            curso: m.curso,
+            mensaje: m.mensaje,
+            fecha: m.fecha,
+            estado: m.estado || "Pendiente",
+            respuesta: m.respuesta,
+            fechaRespuesta: m.fechaRespuesta || m.fecha_respuesta,
+            destinatarioTipo: m.destinatarioTipo || m.destinatario_tipo,
+            destinatarioId: m.destinatarioId || m.destinatario_id,
+            destinatarioNombre: m.destinatarioNombre || m.destinatario_nombre,
+            destinatarioCorreo: m.destinatarioCorreo || m.destinatario_correo
+          }));
+
+          const nextRaw = JSON.stringify(normalized);
+          const prevRaw = localStorage.getItem(CHAT_STORAGE_KEY);
+          if (nextRaw !== prevRaw) {
+            localStorage.setItem(CHAT_STORAGE_KEY, nextRaw);
+            window.dispatchEvent(new Event("storage"));
+          }
+          return normalized;
+        }
+      } catch (err) {
+        console.warn("[ChatAcademicService] No se pudieron sincronizar mensajes desde el backend:", err.message);
+      } finally {
+        _inFlightMessagesPromise = null;
+      }
+      return this.getMessages();
+    })();
+
+    return _inFlightMessagesPromise;
   },
 
   getMessagesForTeacher(docenteId, docenteNombre = "", docenteEmail = "") {
@@ -185,32 +113,25 @@ export const chatAcademicService = {
     const normEmail = String(docenteEmail || "").toLowerCase().trim();
 
     return all.filter((m) => {
-      // 1. Coincidencia por ID de docente o destinatario
-      if (docenteId && (
-        (m.docenteId && String(m.docenteId).trim() === String(docenteId).trim()) ||
-        (m.destinatarioId && String(m.destinatarioId).trim() === String(docenteId).trim())
-      )) {
+      if (
+        docenteId &&
+        ((m.docenteId && String(m.docenteId).trim() === String(docenteId).trim()) ||
+          (m.destinatarioId && String(m.destinatarioId).trim() === String(docenteId).trim()))
+      ) {
         return true;
       }
-
-      // 2. Coincidencia por correo electrónico si está disponible
-      if (normEmail && (
-        (m.docenteCorreo && String(m.docenteCorreo).toLowerCase().trim() === normEmail) ||
-        (m.destinatarioCorreo && String(m.destinatarioCorreo).toLowerCase().trim() === normEmail)
-      )) {
+      if (
+        normEmail &&
+        ((m.docenteCorreo && String(m.docenteCorreo).toLowerCase().trim() === normEmail) ||
+          (m.destinatarioCorreo && String(m.destinatarioCorreo).toLowerCase().trim() === normEmail))
+      ) {
         return true;
       }
-
-      // 3. Coincidencia por tokens de nombre
       const targetName = m.destinatarioNombre || m.docenteNombre;
       const msgTokens = cleanTokens(targetName);
       if (searchTokens.length > 0 && msgTokens.length > 0) {
-        const hasTokenOverlap = searchTokens.some((st) =>
-          msgTokens.some((mt) => st.includes(mt) || mt.includes(st))
-        );
-        if (hasTokenOverlap) return true;
+        return searchTokens.some((st) => msgTokens.some((mt) => st.includes(mt) || mt.includes(st)));
       }
-
       return false;
     });
   },
@@ -220,23 +141,19 @@ export const chatAcademicService = {
     const normEmail = (studentEmail || "").toLowerCase().trim();
     const cleanId = String(studentId || "").trim();
     return all.filter((m) => {
-      if ((m.estudianteCorreo || "").toLowerCase().trim() === normEmail) return true;
-      if ((m.destinatarioCorreo || "").toLowerCase().trim() === normEmail) return true;
-      if (cleanId && (
-        String(m.estudianteId || "").trim() === cleanId ||
-        String(m.destinatarioId || "").trim() === cleanId
-      )) {
+      if (normEmail && (m.estudianteCorreo || "").toLowerCase().trim() === normEmail) return true;
+      if (normEmail && (m.destinatarioCorreo || "").toLowerCase().trim() === normEmail) return true;
+      if (
+        cleanId &&
+        (String(m.estudianteId || "").trim() === cleanId ||
+          String(m.destinatarioId || "").trim() === cleanId)
+      ) {
         return true;
       }
       return false;
     });
   },
 
-  /**
-   * Obtiene la agenda de contactos disponibles estrictamente para el estudiante:
-   * - Docentes Titulares: profesores de los cursos que el alumno efectivamente cursa.
-   * - Compañeros de Curso: alumnos que comparten los mismos cursos o misma carrera/área.
-   */
   getContactsForStudent(studentProfile, allCourses = [], allUsers = []) {
     if (!studentProfile) {
       return { teachers: [], classmates: [], studentCourses: [] };
@@ -254,12 +171,9 @@ export const chatAcademicService = {
     }
 
     const activeCourses = (allCourses || []).filter((c) => c.estado === "Activo");
-
-    // 1. Cursos en los que el estudiante está efectivamente inscrito en la BD
     const studentCourses = activeCourses.filter((course) => directIds.has(String(course.id).trim()));
     const studentCourseIds = new Set(studentCourses.map((c) => String(c.id).trim()));
 
-    // 2. Docentes titulares de esos cursos
     const teachersMap = new Map();
     studentCourses.forEach((c) => {
       const key = `${c.docenteId || c.docente}-${c.id}`;
@@ -277,30 +191,30 @@ export const chatAcademicService = {
     });
     const teachers = Array.from(teachersMap.values());
 
-    // 3. Compañeros de curso (estudiantes que comparten explícitamente algún curso inscrito)
-    const classmates = (allUsers || []).filter((u) => {
-      if (String(u.rol || "").toLowerCase() !== "estudiante") return false;
-      if (String(u.id) === String(studentProfile.id)) return false;
-      if (String(u.correo || "").toLowerCase() === String(studentProfile.correo || "").toLowerCase()) return false;
-      if (String(u.estado || "").toLowerCase() !== "activo") return false;
+    const classmates = (allUsers || [])
+      .filter((u) => {
+        if (String(u.rol || "").toLowerCase() !== "estudiante") return false;
+        if (String(u.id) === String(studentProfile.id)) return false;
+        if (String(u.correo || "").toLowerCase() === String(studentProfile.correo || "").toLowerCase()) return false;
+        if (String(u.estado || "").toLowerCase() !== "activo") return false;
 
-      const peerInscritos = parseCourseList(
-        u.cursosInscritos || u.cursos_inscritos || u.CursosInscritos
-      );
-      const peerCourseIds = new Set(
-        peerInscritos.map((c) => (typeof c === "object" && c !== null ? String(c.id).trim() : String(c).trim()))
-      );
-
-      return Array.from(studentCourseIds).some((cid) => peerCourseIds.has(cid));
-    }).map((peer) => ({
-      tipo: "companero",
-      id: peer.id,
-      nombre: `${peer.nombres || ""} ${peer.apellidos || ""}`.trim() || peer.correo,
-      correo: peer.correo,
-      carrera: peer.carreraObjetivo || peer.areaAcademica || "Estudiante",
-      cursoId: studentCourses[0]?.id || "CRS-GEN",
-      cursoNombre: studentCourses[0]?.asignatura || "Materia Compartida"
-    }));
+        const peerInscritos = parseCourseList(
+          u.cursosInscritos || u.cursos_inscritos || u.CursosInscritos
+        );
+        const peerCourseIds = new Set(
+          peerInscritos.map((c) => (typeof c === "object" && c !== null ? String(c.id).trim() : String(c).trim()))
+        );
+        return Array.from(studentCourseIds).some((cid) => peerCourseIds.has(cid));
+      })
+      .map((peer) => ({
+        tipo: "companero",
+        id: peer.id,
+        nombre: `${peer.nombres || ""} ${peer.apellidos || ""}`.trim() || peer.correo,
+        correo: peer.correo,
+        carrera: peer.carreraObjetivo || peer.areaAcademica || "Estudiante",
+        cursoId: studentCourses[0]?.id || "CRS-GEN",
+        cursoNombre: studentCourses[0]?.asignatura || "Materia Compartida"
+      }));
 
     return { teachers, classmates, studentCourses };
   },
@@ -309,14 +223,12 @@ export const chatAcademicService = {
     try {
       const courses = await courseService.getCourses();
       const activeCourses = (courses || []).filter((c) => c.estado === "Activo");
-
       let relevantCourses = activeCourses;
       if (Array.isArray(cursosInscritosIds) && cursosInscritosIds.length > 0) {
         const idSet = new Set(cursosInscritosIds.map(String));
         const filtered = activeCourses.filter((c) => idSet.has(String(c.id)));
         if (filtered.length > 0) relevantCourses = filtered;
       }
-
       return relevantCourses.map((c) => ({
         docenteId: c.docenteId || "DOC-TITULAR",
         docenteNombre: c.docente || "Docente Titular",
@@ -324,8 +236,7 @@ export const chatAcademicService = {
         cursoNombre: c.asignatura,
         area: c.area || "General"
       }));
-    } catch (err) {
-      console.warn("[ChatAcademicService] Fallback de docentes:", err);
+    } catch {
       return [];
     }
   },
@@ -366,62 +277,41 @@ export const chatAcademicService = {
       destinatarioCorreo: destinatarioCorreo || ""
     };
 
-    // 1. Guardar localmente de inmediato para reactividad instantánea
-    const all = this.getMessages();
-    const updated = [newMessage, ...all.filter((m) => m.id !== newMessage.id)];
-    localStorage.setItem(CHAT_STORAGE_KEY, JSON.stringify(updated));
-    window.dispatchEvent(new Event("storage"));
-
-    // 2. Persistir en el Backend FastAPI y PostgreSQL
-    try {
-      const saved = await requestMensajes("/mensajes/", {
-        method: "POST",
-        body: JSON.stringify(newMessage)
-      });
-      if (saved && saved.id) {
-        console.log(`✅ [Mensajes] Consulta "${saved.id}" enviada correctamente a "${newMessage.destinatarioNombre}" (Curso: ${newMessage.curso}).`);
-        return { ...newMessage, ...saved };
-      }
-    } catch (e) {
-      console.error(`❌ [Mensajes] Ocurrió un error al enviar la consulta en backend. Motivo: ${e.message}`);
-    }
-
-    console.log(`✅ [Mensajes] Consulta "${newMessage.id}" registrada correctamente (modo local).`);
-    return newMessage;
-  },
-
-  async replyMessage(messageId, respuestaTexto, docenteNombre = "Pedro Martlon Chavez Quispe") {
-    // 1. Actualizar localmente de inmediato
-    const all = this.getMessages();
-    const updated = all.map((m) => {
-      if (m.id === messageId) {
-        return {
-          ...m,
-          estado: "Respondido",
-          respuesta: respuestaTexto.trim(),
-          fechaRespuesta: "Hoy, " + new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
-          docenteNombre: docenteNombre || m.docenteNombre
-        };
-      }
-      return m;
+    const saved = await requestMensajes("/mensajes/", {
+      method: "POST",
+      body: JSON.stringify(newMessage)
     });
 
+    const finalMsg = { ...newMessage, ...(saved || {}) };
+    const all = this.getMessages();
+    const updated = [finalMsg, ...all.filter((m) => m.id !== finalMsg.id)];
     localStorage.setItem(CHAT_STORAGE_KEY, JSON.stringify(updated));
     window.dispatchEvent(new Event("storage"));
+    return finalMsg;
+  },
 
-    // 2. Persistir respuesta en Backend FastAPI
-    try {
-      await requestMensajes(`/mensajes/${encodeURIComponent(messageId)}/respuesta`, {
-        method: "PATCH",
-        body: JSON.stringify({
-          respuesta: respuestaTexto.trim(),
-          docenteNombre: docenteNombre
-        })
-      });
-    } catch (e) {
-      console.warn("[ChatAcademicService] Error actualizando respuesta en backend:", e);
-    }
+  async replyMessage(messageId, respuestaTexto, docenteNombre = "Docente") {
+    await requestMensajes(`/mensajes/${encodeURIComponent(messageId)}/respuesta`, {
+      method: "PATCH",
+      body: JSON.stringify({
+        respuesta: respuestaTexto.trim(),
+        docenteNombre
+      })
+    });
 
+    const updated = this.getMessages().map((m) =>
+      m.id === messageId
+        ? {
+            ...m,
+            estado: "Respondido",
+            respuesta: respuestaTexto.trim(),
+            fechaRespuesta: "Hoy, " + new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+            docenteNombre: docenteNombre || m.docenteNombre
+          }
+        : m
+    );
+    localStorage.setItem(CHAT_STORAGE_KEY, JSON.stringify(updated));
+    window.dispatchEvent(new Event("storage"));
     return updated;
   }
 };
