@@ -163,31 +163,36 @@ export default function DocenteLayout() {
         data: m
       }));
 
-      // 2. Entregas de tareas por parte de alumnos
+      // 2. Entregas individuales de tareas pendientes de calificar
       const tasks = academicActivitiesService.getTasks();
       const entregas = tasks
-        .filter((t) => t.estado === "Entregado")
-        .slice(0, 3)
-        .map((t) => ({
-          id: `task-entregada-${t.id}`,
-          title: `Tarea Entregada: ${t.titulo}`,
-          course: `${t.curso} • Alumno envió solución`,
-          time: t.fechaLimite || "Reciente",
-          type: "tarea",
-          unread: !readSet.has(`task-entregada-${t.id}`)
-        }));
+        .filter((t) => Number(t.pendientesCalificarCount) > 0)
+        .slice(0, 4)
+        .map((t) => {
+          const notifId = `task-por-calificar-${t.id}-${t.pendientesCalificarCount}`;
+          return {
+            id: notifId,
+            title: `Entregas por Calificar (${t.pendientesCalificarCount}): ${t.titulo}`,
+            course: `${t.curso} • ${t.entregasCount || 0} entrega(s) recibida(s)`,
+            time: t.fechaLimite || "Reciente",
+            type: "tarea",
+            unread: !readSet.has(notifId),
+            data: t
+          };
+        });
 
-      // 3. Tareas activas
+      // 3. Tareas activas publicadas
       const activeTasks = tasks
-        .filter((t) => t.estado !== "Entregado")
+        .filter((t) => Number(t.pendientesCalificarCount || 0) === 0)
         .slice(0, 2)
         .map((t) => ({
           id: `task-${t.id}`,
-          title: `Tarea Activa: ${t.titulo}`,
-          course: `${t.curso} • ${t.estado}`,
+          title: `Tarea Publicada: ${t.titulo}`,
+          course: `${t.curso} • ${t.entregasCount || 0} entrega(s)`,
           time: t.fechaLimite,
           type: "tarea",
-          unread: false
+          unread: false,
+          data: t
         }));
 
       const anns = academicActivitiesService.getAnnouncements();
@@ -224,9 +229,21 @@ export default function DocenteLayout() {
     academicActivitiesService.fetchTasks().then(syncNotifications);
     academicActivitiesService.fetchAnnouncements().then(syncNotifications);
 
+    const unsubLive = clasesVivoService.subscribeLiveChanges((evt) => {
+      if (
+        evt?.type === "TASK_SUBMITTED" ||
+        evt?.type === "TASK_GRADED" ||
+        evt?.type === "TASK_CREATED" ||
+        evt?.type === "TASK_DELETED"
+      ) {
+        academicActivitiesService.fetchTasks().then(syncNotifications);
+      }
+    });
+
     window.addEventListener("storage", syncNotifications);
     return () => {
       cancelled = true;
+      unsubLive();
       window.removeEventListener("storage", syncNotifications);
     };
   }, []);
@@ -473,7 +490,12 @@ export default function DocenteLayout() {
                             }
                             setIsChatModalOpen(true);
                           } else if (notif.type === "tarea") {
-                            navigate("/docente/cursos?tab=tareas");
+                            const cid = notif.data?.cursoId || notif.data?.curso_id;
+                            navigate(
+                              cid
+                                ? `/docente/cursos?cursoId=${encodeURIComponent(cid)}&tab=tareas`
+                                : "/docente/cursos?tab=tareas"
+                            );
                           } else if (notif.type === "anuncio") {
                             navigate("/docente/cursos?tab=anuncios");
                           } else if (notif.type === "asistencia") {
