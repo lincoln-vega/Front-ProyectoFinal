@@ -31,6 +31,7 @@ import { userService } from "../services/api";
 import { courseService } from "../services/cursosServices";
 import StudentTaskModal from "./student/StudentTaskModal";
 import StudentAnnouncementModal from "./student/StudentAnnouncementModal";
+import SearchableSelect from "./shared/SearchableSelect";
 import { StudentCycleProvider, useStudentCycle } from "../context/StudentCycleContext";
 import { clasesVivoService } from "../services/clasesVivoService";
 
@@ -1021,33 +1022,32 @@ function StudentLayoutInner() {
               <label className="font-bold text-slate-700 dark:text-slate-200 block">
                 Selecciona el destinatario (docente o compañero de tu curso):
               </label>
-              <select
+              <SearchableSelect
                 value={selectedContactKey}
-                onChange={(e) => setSelectedContactKey(e.target.value)}
-                className="w-full p-2.5 rounded-xl border border-slate-300 dark:border-white/10 bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200 font-medium cursor-pointer"
-              >
-                {contacts.teachers.length > 0 && (
-                  <optgroup label="👨‍🏫 Mis Docentes Titulares">
-                    {contacts.teachers.map((t, idx) => (
-                      <option key={`teacher-${idx}`} value={`teacher-${idx}`}>
-                        {t.nombre} — {t.cursoNombre} ({t.area})
-                      </option>
-                    ))}
-                  </optgroup>
-                )}
-                {contacts.classmates.length > 0 && (
-                  <optgroup label="👥 Mis Compañeros de Curso">
-                    {contacts.classmates.map((c, idx) => (
-                      <option key={`classmate-${idx}`} value={`classmate-${idx}`}>
-                        {c.nombre} — {c.carrera} ({c.cursoNombre})
-                      </option>
-                    ))}
-                  </optgroup>
-                )}
-                {contacts.teachers.length === 0 && contacts.classmates.length === 0 && (
-                  <option value="">No hay contactos vinculados a tus asignaturas</option>
-                )}
-              </select>
+                onChange={setSelectedContactKey}
+                disabled={contacts.teachers.length === 0 && contacts.classmates.length === 0}
+                placeholder={
+                  contacts.teachers.length === 0 && contacts.classmates.length === 0
+                    ? "No hay contactos vinculados a tus asignaturas"
+                    : "Escribe nombre de tu docente, compañero o materia..."
+                }
+                options={[
+                  ...contacts.teachers.map((t, idx) => ({
+                    value: `teacher-${idx}`,
+                    label: t.nombre,
+                    sublabel: `${t.cursoNombre} (${t.area || "Cátedra"})`,
+                    searchText: `${t.correo || ""} ${t.cursoNombre || ""}`,
+                    group: "👨‍🏫 Mis Docentes Titulares"
+                  })),
+                  ...contacts.classmates.map((c, idx) => ({
+                    value: `classmate-${idx}`,
+                    label: c.nombre,
+                    sublabel: `${c.carrera || "Postulante"} • ${c.cursoNombre}`,
+                    searchText: `${c.correo || ""} ${c.carrera || ""} ${c.cursoNombre || ""}`,
+                    group: "👥 Mis Compañeros de Curso"
+                  }))
+                ]}
+              />
             </div>
 
             <div className="space-y-2 text-xs">

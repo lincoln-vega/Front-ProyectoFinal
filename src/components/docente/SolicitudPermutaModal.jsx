@@ -13,6 +13,7 @@ import {
 import { courseService, incidentService, userService } from "../../services/api";
 import { uploadFileToStorage } from "../../lib/supabase";
 import FilePreviewModal from "../shared/FilePreviewModal";
+import SearchableSelect from "../shared/SearchableSelect";
 
 const MAX_JUSTIFICANTE_BYTES = 5 * 1024 * 1024; // 5 MB bucket justificantes-docentes
 
@@ -225,17 +226,17 @@ export default function SolicitudPermutaModal({ isOpen, onClose, onSuccess, curr
                     <BookOpen className="w-3.5 h-3.5 text-blue-600" />
                     Curso Afectado *
                   </label>
-                  <select
+                  <SearchableSelect
                     value={formData.cursoId}
-                    onChange={handleCourseChange}
-                    className="w-full p-2.5 rounded-xl border border-slate-200 dark:border-white/10 bg-white dark:bg-slate-800 text-slate-800 dark:text-white"
-                  >
-                    {courses.map((c) => (
-                      <option key={c.id} value={c.id}>
-                        {c.asignatura}
-                      </option>
-                    ))}
-                  </select>
+                    onChange={(val) => handleCourseChange({ target: { value: val } })}
+                    placeholder="Buscar curso afectado..."
+                    options={courses.map((c) => ({
+                      value: c.id,
+                      label: c.asignatura,
+                      sublabel: `${c.docente || ""} • ${c.id}`,
+                      searchText: `${c.id} ${c.docente || ""}`
+                    }))}
+                  />
                 </div>
               </div>
 
@@ -243,18 +244,17 @@ export default function SolicitudPermutaModal({ isOpen, onClose, onSuccess, curr
                 <label className="block font-bold text-slate-700 dark:text-slate-200 mb-1">
                   Docente de Reemplazo Sugerido (opcional):
                 </label>
-                <select
+                <SearchableSelect
                   value={formData.docentePropuesto}
-                  onChange={(e) => setFormData({ ...formData, docentePropuesto: e.target.value })}
-                  className="w-full p-2.5 rounded-xl border border-slate-200 dark:border-white/10 bg-white dark:bg-slate-800 text-slate-800 dark:text-white"
-                >
-                  <option value="">-- Dejar que Coordinación Académica asigne --</option>
-                  {teachers.map((teacher) => (
-                    <option key={teacher.id} value={`Prof. ${teacher.nombres} ${teacher.apellidos}`}>
-                      {teacher.nombres} {teacher.apellidos} ({teacher.correo})
-                    </option>
-                  ))}
-                </select>
+                  onChange={(val) => setFormData({ ...formData, docentePropuesto: val })}
+                  emptyOptionLabel="-- Dejar que Coordinación Académica asigne --"
+                  options={teachers.map((teacher) => ({
+                    value: `Prof. ${teacher.nombres} ${teacher.apellidos}`,
+                    label: `${teacher.nombres} ${teacher.apellidos}`,
+                    sublabel: teacher.correo,
+                    searchText: `${teacher.dni || ""} ${teacher.correo || ""}`
+                  }))}
+                />
               </div>
 
               <div>

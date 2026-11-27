@@ -23,6 +23,7 @@ import { clasesVivoService } from "../../services/clasesVivoService";
 import { exportToCSV } from "../../utils/exportUtils";
 import Notification from "../../components/admin/Notification";
 import ReportViewerModal from "../../components/shared/ReportViewerModal";
+import SearchableSelect from "../../components/shared/SearchableSelect";
 
 const REPORT_CATALOG = [
   {
@@ -417,21 +418,19 @@ export default function AdminReportesPage() {
               <Filter className="w-3 h-3 text-blue-600" />
               <span>Periodo / Ciclo Académico:</span>
             </label>
-            <select
+            <SearchableSelect
               value={selectedCicloId}
-              onChange={(e) => {
-                setSelectedCicloId(e.target.value);
+              onChange={(val) => {
+                setSelectedCicloId(val);
                 setSelectedCursoId("");
               }}
-              className="w-full p-2.5 rounded-xl border border-slate-300 dark:border-white/15 bg-white dark:bg-slate-900 text-slate-800 dark:text-white font-semibold"
-            >
-              <option value="">Todos los Ciclos (Consolidado)</option>
-              {ciclos.map((ci) => (
-                <option key={ci.id} value={ci.id}>
-                  {ci.nombre} ({ci.estado})
-                </option>
-              ))}
-            </select>
+              emptyOptionLabel="Todos los Ciclos (Consolidado)"
+              options={ciclos.map((ci) => ({
+                value: ci.id,
+                label: `${ci.nombre} (${ci.estado})`,
+                searchText: ci.codigo || ""
+              }))}
+            />
           </div>
 
           {(selectedReportType === "notas" || selectedReportType === "asistencia") && (
@@ -439,18 +438,17 @@ export default function AdminReportesPage() {
               <label className="font-bold text-slate-600 dark:text-slate-300 block mb-1">
                 Asignatura / Curso:
               </label>
-              <select
+              <SearchableSelect
                 value={selectedCursoId}
-                onChange={(e) => setSelectedCursoId(e.target.value)}
-                className="w-full p-2.5 rounded-xl border border-slate-300 dark:border-white/15 bg-white dark:bg-slate-900 text-slate-800 dark:text-white font-semibold"
-              >
-                <option value="">Todas las Asignaturas ({filteredCoursesByCycle.length})</option>
-                {filteredCoursesByCycle.map((c) => (
-                  <option key={c.id} value={c.id}>
-                    {c.asignatura} — {c.docente}
-                  </option>
-                ))}
-              </select>
+                onChange={setSelectedCursoId}
+                emptyOptionLabel={`Todas las Asignaturas (${filteredCoursesByCycle.length})`}
+                options={filteredCoursesByCycle.map((c) => ({
+                  value: c.id,
+                  label: c.asignatura,
+                  sublabel: `${c.docente || "Por asignar"} • ${c.id}`,
+                  searchText: `${c.docente || ""} ${c.id}`
+                }))}
+              />
             </div>
           )}
 
@@ -459,17 +457,17 @@ export default function AdminReportesPage() {
               <label className="font-bold text-slate-600 dark:text-slate-300 block mb-1">
                 Seleccionar Estudiante (Kardex Individual):
               </label>
-              <select
+              <SearchableSelect
                 value={selectedEstudianteId}
-                onChange={(e) => setSelectedEstudianteId(e.target.value)}
-                className="w-full p-2.5 rounded-xl border border-slate-300 dark:border-white/15 bg-white dark:bg-slate-900 text-slate-800 dark:text-white font-semibold"
-              >
-                {students.map((st) => (
-                  <option key={st.id} value={st.id}>
-                    {st.apellidos}, {st.nombres} — DNI: {st.dni || "S/D"} ({st.correo})
-                  </option>
-                ))}
-              </select>
+                onChange={setSelectedEstudianteId}
+                placeholder="Escribe apellido, nombre, DNI o correo..."
+                options={students.map((st) => ({
+                  value: st.id,
+                  label: `${st.apellidos}, ${st.nombres}`,
+                  sublabel: `DNI: ${st.dni || "S/D"} • ${st.correo}`,
+                  searchText: `${st.dni || ""} ${st.correo || ""} ${st.carreraObjetivo || ""}`
+                }))}
+              />
             </div>
           )}
 
@@ -478,18 +476,17 @@ export default function AdminReportesPage() {
               <label className="font-bold text-slate-600 dark:text-slate-300 block mb-1">
                 Docente Auditado:
               </label>
-              <select
+              <SearchableSelect
                 value={selectedDocenteId}
-                onChange={(e) => setSelectedDocenteId(e.target.value)}
-                className="w-full p-2.5 rounded-xl border border-slate-300 dark:border-white/15 bg-white dark:bg-slate-900 text-slate-800 dark:text-white font-semibold"
-              >
-                <option value="">Plana Docente Completa ({teachers.length})</option>
-                {teachers.map((doc) => (
-                  <option key={doc.id} value={doc.id}>
-                    {doc.apellidos}, {doc.nombres} (DNI: {doc.dni || "S/D"})
-                  </option>
-                ))}
-              </select>
+                onChange={setSelectedDocenteId}
+                emptyOptionLabel={`Plana Docente Completa (${teachers.length})`}
+                options={teachers.map((doc) => ({
+                  value: doc.id,
+                  label: `${doc.apellidos}, ${doc.nombres}`,
+                  sublabel: `DNI: ${doc.dni || "S/D"} • ${doc.correo}`,
+                  searchText: `${doc.dni || ""} ${doc.correo || ""}`
+                }))}
+              />
             </div>
           )}
 

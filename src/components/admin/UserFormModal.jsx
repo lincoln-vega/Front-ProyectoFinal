@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { X, AlertCircle, CheckCircle2, Globe, Eye, EyeOff, Lock } from "lucide-react";
 import { academicosService, DEFAULT_AREAS, DEFAULT_CARRERAS, getCareersForArea, matchArea } from "../../services/academicosService";
+import SearchableSelect from "../shared/SearchableSelect";
 
 const DOCUMENT_TYPES = [
   { id: "DNI", label: "DNI (Perú - 8 dígitos)", max: 8 },
@@ -600,24 +601,20 @@ export default function UserFormModal({
               <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
                 Área Académica
               </label>
-              <select
-                name="areaAcademica"
+              <SearchableSelect
                 value={formData?.areaAcademica || ""}
-                onChange={handleAreaChange}
                 disabled={loadingAcademicos && areaOptions.length === 0}
-                className="w-full px-3 py-2 border border-slate-200 dark:border-white/10 rounded-lg text-xs focus:ring-2 focus:ring-blue-500 focus:outline-hidden bg-white dark:bg-white/5 dark:text-white disabled:opacity-50"
-              >
-                <option value="" className="dark:bg-[#0a0a0e] dark:text-white">
-                  {loadingAcademicos && areaOptions.length === 0
-                    ? "-- Cargando áreas de la BD... --"
-                    : "-- Seleccione un Área --"}
-                </option>
-                {areaOptions.map((area) => (
-                  <option key={area} value={area} className="dark:bg-[#0a0a0e] dark:text-white">
-                    {area}
-                  </option>
-                ))}
-              </select>
+                onChange={(val) => handleAreaChange({ target: { value: val } })}
+                placeholder={
+                  loadingAcademicos && areaOptions.length === 0
+                    ? "Cargando áreas de la BD..."
+                    : "Seleccione o escriba un área..."
+                }
+                options={areaOptions.map((area) => ({
+                  value: area,
+                  label: area
+                }))}
+              />
             </div>
 
             {/* Selector dinámico de Carrera según Área */}
@@ -625,33 +622,29 @@ export default function UserFormModal({
               <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
                 Carrera / Objetivo *
               </label>
-              <select
-                name="carreraObjetivo"
+              <SearchableSelect
                 value={formData?.carreraObjetivo || ""}
-                onChange={handleChange}
-                onBlur={() => handleBlur("carreraObjetivo")}
-                required
-                aria-invalid={Boolean(careerObjectiveError)}
-                disabled={(!formData?.areaAcademica && careerOptions.length === 0) || (loadingAcademicos && careerOptions.length === 0)}
-                className={`w-full px-3 py-2 border rounded-lg text-xs focus:ring-2 focus:outline-hidden bg-white dark:bg-white/5 dark:text-white disabled:opacity-50 ${
-                  careerObjectiveError
-                    ? "border-red-400 dark:border-red-500 focus:ring-red-400"
-                    : "border-slate-200 dark:border-white/10 focus:ring-blue-500"
-                }`}
-              >
-                <option value="" className="dark:bg-[#0a0a0e] dark:text-white">
-                  {loadingAcademicos && careerOptions.length === 0
-                    ? "-- Cargando carreras de la BD... --"
+                error={Boolean(careerObjectiveError)}
+                disabled={
+                  (!formData?.areaAcademica && careerOptions.length === 0) ||
+                  (loadingAcademicos && careerOptions.length === 0)
+                }
+                onChange={(val) => {
+                  handleChange({ target: { name: "carreraObjetivo", value: val } });
+                  handleBlur("carreraObjetivo");
+                }}
+                placeholder={
+                  loadingAcademicos && careerOptions.length === 0
+                    ? "Cargando carreras de la BD..."
                     : formData?.areaAcademica
-                    ? "-- Seleccione Carrera --"
-                    : "-- Seleccione Área Primero --"}
-                </option>
-                {careerOptions.map((carrera) => (
-                  <option key={carrera} value={carrera} className="dark:bg-[#0a0a0e] dark:text-white">
-                    {carrera}
-                  </option>
-                ))}
-              </select>
+                    ? "Escribe para filtrar carrera..."
+                    : "Seleccione área primero"
+                }
+                options={careerOptions.map((carrera) => ({
+                  value: carrera,
+                  label: carrera
+                }))}
+              />
               {careerObjectiveError && (
                 <p className="mt-1 text-[11px] text-red-500 flex items-center gap-1">
                   <AlertCircle className="w-3 h-3 shrink-0" />
