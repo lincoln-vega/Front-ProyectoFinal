@@ -160,20 +160,20 @@ export default function SearchableSelect({
     : "";
 
   return (
-    <div ref={containerRef} className={`relative ${className}`}>
+    <div ref={containerRef} className={`relative ${isOpen ? "z-50" : ""} ${className}`}>
       {/* Campo principal interactivo: muestra el valor actual o permite escribir al abrirse */}
       <div
         onClick={() => {
           if (!isOpen) openDropdown();
         }}
-        className={`w-full flex items-center justify-between gap-1.5 px-3 py-2 rounded-xl border text-xs transition-all ${
+        className={`w-full flex items-center justify-between gap-1.5 px-3 py-2 rounded-xl border text-xs transition-all backdrop-blur-xl ${
           disabled
-            ? "opacity-55 cursor-not-allowed bg-slate-100 dark:bg-slate-800/50 border-slate-200 dark:border-white/10"
+            ? "opacity-55 cursor-not-allowed bg-slate-100/90 dark:bg-slate-800/60 border-slate-200 dark:border-white/10"
             : isOpen
-            ? "ring-2 ring-blue-500 border-blue-500 bg-white dark:bg-slate-900 cursor-text"
+            ? "ring-2 ring-blue-400 border-blue-400 bg-white/95 dark:bg-slate-900/90 shadow-lg cursor-text"
             : error
-            ? "border-rose-400 dark:border-rose-500 bg-white dark:bg-slate-900 cursor-pointer"
-            : "border-slate-300 dark:border-white/15 bg-white dark:bg-slate-900 hover:border-slate-400 dark:hover:border-white/25 cursor-pointer"
+            ? "border-rose-400 dark:border-rose-500 bg-white/90 dark:bg-slate-900/85 cursor-pointer"
+            : "border-slate-300/90 dark:border-white/20 bg-white/90 dark:bg-slate-900/80 hover:bg-white dark:hover:bg-slate-900/90 hover:border-slate-400 dark:hover:border-white/30 cursor-pointer"
         }`}
       >
         {isOpen ? (
@@ -234,14 +234,14 @@ export default function SearchableSelect({
         </div>
       </div>
 
-      {/* Lista desplegable filtrada en vivo */}
+      {/* Lista desplegable con efecto vidrio esmerilado (traslúcida densa, sin perder legibilidad) */}
       {isOpen && !disabled && (
         <div
           ref={listRef}
-          className="absolute left-0 right-0 mt-1.5 z-[60] max-h-60 overflow-y-auto rounded-xl border border-slate-200 dark:border-white/15 bg-white dark:bg-slate-900 shadow-2xl py-1 animate-fade-in"
+          className="absolute left-0 right-0 mt-1.5 z-[80] max-h-60 overflow-y-auto rounded-2xl border border-slate-300/80 dark:border-blue-400/25 bg-white/85 dark:bg-[#0f172a]/82 backdrop-blur-2xl backdrop-saturate-150 shadow-[0_22px_55px_-8px_rgba(2,6,23,0.82)] ring-1 ring-slate-900/5 dark:ring-white/15 py-1.5 animate-fade-in"
         >
           {filteredOptions.length === 0 ? (
-            <div className="px-3.5 py-4 text-center text-xs text-slate-400">
+            <div className="px-3.5 py-4 text-center text-xs text-slate-500 dark:text-slate-300">
               Sin coincidencias para “{query}”
             </div>
           ) : (
@@ -256,7 +256,7 @@ export default function SearchableSelect({
                 return (
                   <React.Fragment key={`${opt.value}-${idx}`}>
                     {showGroupHeader && (
-                      <div className="px-3 py-1.5 text-[10px] font-extrabold uppercase tracking-wider text-slate-400 dark:text-slate-500 bg-slate-50/80 dark:bg-white/[0.03] sticky top-0">
+                      <div className="px-3 py-1.5 text-[10px] font-extrabold uppercase tracking-wider text-slate-500 dark:text-blue-300/80 bg-slate-100/85 dark:bg-slate-950/75 backdrop-blur-md sticky top-0 border-y border-slate-200/60 dark:border-white/10">
                         {opt.group}
                       </div>
                     )}
@@ -265,12 +265,12 @@ export default function SearchableSelect({
                       data-opt-idx={idx}
                       onMouseEnter={() => setHighlightIdx(idx)}
                       onClick={() => handleSelect(opt.value)}
-                      className={`w-full text-left px-3 py-2 text-xs flex items-center justify-between gap-2 transition-colors cursor-pointer ${
+                      className={`w-full text-left px-3.5 py-2 text-xs flex items-center justify-between gap-2 transition-colors cursor-pointer ${
                         isHighlighted
-                          ? "bg-blue-50 dark:bg-blue-950/60 text-blue-900 dark:text-blue-200"
+                          ? "bg-blue-600/12 dark:bg-blue-500/25 text-blue-950 dark:text-white"
                           : isSelected
-                          ? "bg-slate-50 dark:bg-white/5 text-slate-900 dark:text-white"
-                          : "text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-white/5"
+                          ? "bg-slate-900/[0.05] dark:bg-white/10 text-slate-950 dark:text-white"
+                          : "text-slate-800 dark:text-slate-100 hover:bg-slate-900/[0.04] dark:hover:bg-white/10"
                       }`}
                     >
                       <div className="min-w-0 flex-1">
@@ -278,13 +278,13 @@ export default function SearchableSelect({
                           {opt.label}
                         </div>
                         {opt.sublabel && (
-                          <div className="text-[11px] text-slate-400 dark:text-slate-400 truncate">
+                          <div className="text-[11px] text-slate-500 dark:text-slate-300/85 truncate">
                             {opt.sublabel}
                           </div>
                         )}
                       </div>
                       {isSelected && (
-                        <Check className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400 shrink-0" />
+                        <Check className="w-3.5 h-3.5 text-blue-600 dark:text-amber-300 shrink-0" />
                       )}
                     </button>
                   </React.Fragment>

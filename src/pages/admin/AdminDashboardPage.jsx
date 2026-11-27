@@ -223,7 +223,7 @@ export default function AdminDashboardPage() {
           <div className="absolute right-24 -bottom-16 w-52 h-52 rounded-full bg-amber-400/10 blur-3xl" />
         </div>
 
-        <div className="relative z-10 flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+        <div className="relative z-30 flex flex-col lg:flex-row lg:items-center justify-between gap-4">
           <div className="space-y-1.5 max-w-2xl">
             <div className="flex flex-wrap items-center gap-2">
               <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-white/10 border border-white/15 text-[10px] font-extrabold uppercase tracking-wider text-amber-300">
@@ -252,7 +252,7 @@ export default function AdminDashboardPage() {
           </div>
 
           {/* Filtro rápido por Ciclo + Botón Actualizar perfectamente alineados */}
-          <div className="shrink-0 bg-slate-950/35 backdrop-blur-md px-3.5 py-2.5 rounded-2xl border border-white/10">
+          <div className="shrink-0 bg-slate-950/55 shadow-inner px-3.5 py-2.5 rounded-2xl border border-white/15">
             <span className="text-[10px] font-bold uppercase tracking-wider text-blue-200 block mb-1.5">
               Filtrar métricas por ciclo:
             </span>

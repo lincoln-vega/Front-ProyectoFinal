@@ -18,7 +18,7 @@ import {
   User,
   GraduationCap
 } from "lucide-react";
-import { pagoService } from "../../services/api";
+import { pagoService, configService } from "../../services/api";
 import { useStudentCycle } from "../../context/StudentCycleContext";
 
 export default function StudentPagosPage() {
@@ -36,6 +36,7 @@ export default function StudentPagosPage() {
   const [loadingPagos, setLoadingPagos] = useState(true);
   const [error, setError] = useState("");
   const [allPagos, setAllPagos] = useState([]);
+  const [instConfig, setInstConfig] = useState(null);
   const [selectedReceipt, setSelectedReceipt] = useState(null);
 
   useEffect(() => {
@@ -45,9 +46,13 @@ export default function StudentPagosPage() {
       try {
         setLoadingPagos(true);
         setError("");
-        const remotePagos = await pagoService.getPagos();
+        const [remotePagos, remoteConfig] = await Promise.all([
+          pagoService.getPagos(),
+          configService.getConfig().catch(() => null)
+        ]);
         if (!cancelled) {
           setAllPagos(Array.isArray(remotePagos) ? remotePagos : []);
+          if (remoteConfig) setInstConfig(remoteConfig);
         }
       } catch (err) {
         if (!cancelled) {
@@ -310,7 +315,8 @@ export default function StudentPagosPage() {
                 {selectedReceipt.comprobante}
               </h3>
               <p className="text-xs text-slate-500 dark:text-slate-400">
-                Academia Preuniversitaria S.A.C. • RUC: 20608912345
+                {instConfig?.nombre || "Academia Preuniversitaria Alto Rendimiento"} • RUC:{" "}
+                {instConfig?.ruc || "20609876543"}
               </p>
             </div>
 
