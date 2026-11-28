@@ -39,6 +39,30 @@ const PROGRAMAS_ACADEMICOS = [
   { nombre: "Repaso Integral San Marcos / UNI", costo: 600, cuotasSugeridas: 1 },
 ];
 
+function nextCorrelativeCode(items, field, prefix, padDigits = 3, baseStart = 1) {
+  const seen = new Set();
+  let maxNum = baseStart - 1;
+  const escapedPrefix = prefix.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const regex = new RegExp(`^${escapedPrefix}(\\d+)$`, "i");
+
+  for (const item of items || []) {
+    const val = String(item?.[field] || "").trim();
+    if (!val) continue;
+    seen.add(val);
+    const match = val.match(regex);
+    if (match) {
+      const n = parseInt(match[1], 10);
+      if (!Number.isNaN(n) && n > maxNum) maxNum = n;
+    }
+  }
+
+  let candidateNum = maxNum + 1;
+  while (seen.has(`${prefix}${String(candidateNum).padStart(padDigits, "0")}`)) {
+    candidateNum += 1;
+  }
+  return `${prefix}${String(candidateNum).padStart(padDigits, "0")}`;
+}
+
 export default function MatriculasPagosPage({ defaultTab = "matriculas" }) {
   const [tabActiva, setTabActiva] = useState(defaultTab); // 'matriculas' | 'pagos'
 
@@ -266,16 +290,18 @@ export default function MatriculasPagosPage({ defaultTab = "matriculas" }) {
         }
       }
 
-      const nuevoId = `MAT-2026-00${matriculas.length + 1}`;
+      const nuevoId = nextCorrelativeCode(matriculas, "id", "MAT-2026-", 3, 1);
       const abonoInicial = Number(formMatricula.primerAbono) || 0;
-      const montoTotal = Number(formMatricula.montoTotal);
-      const saldo = Math.max(0, montoTotal - abonoInicial);
+      const montoTotal = Number(formMatricula.montoTotal) || 0;
+      const saldoFinal = Math.max(0, montoTotal - abonoInicial);
 
-      let estado = "Pendiente";
-      if (saldo === 0) estado = "Pagado Total";
-      else if (abonoInicial > 0) estado = "Al día";
+      let estadoFinal = "Pendiente";
+      if (saldoFinal === 0) estadoFinal = "Pagado Total";
+      else if (abonoInicial > 0) estadoFinal = "Al día";
 
-      const nuevaMat = {
+      // Si hay abono inicial, registramos la matrícula en 0 de pagado primero porque
+      // POST /matriculas/pagos suma atómicamente el abono y actualiza el saldo en PostgreSQL.
+      const nuevaMatPayload = {
         id: nuevoId,
         estudianteId,
         estudiante: formMatricula.estudiante.trim(),
@@ -288,32 +314,41 @@ export default function MatriculasPagosPage({ defaultTab = "matriculas" }) {
         fechaMatricula: new Date().toISOString().split("T")[0],
         modalidadPago: formMatricula.modalidadPago,
         montoTotal: montoTotal,
-        montoPagado: abonoInicial,
-        saldoPendiente: saldo,
-        estado: estado,
+        montoPagado: abonoInicial > 0 ? 0 : 0,
+        saldoPendiente: montoTotal,
+        cursosInscritos: cursosSeleccionados,
+        estado: abonoInicial > 0 ? "Pendiente" : estadoFinal,
       };
 
-      await matriculaService.saveMatricula(nuevaMat);
-      const nuevasMatriculas = [nuevaMat, ...matriculas];
-      setMatriculas(nuevasMatriculas);
+      const savedMat = await matriculaService.saveMatricula(nuevaMatPayload);
+      const matRealId = savedMat?.id || nuevoId;
 
       // Si hubo abono inicial, generamos su pago automáticamente (PagoCreate)
       if (abonoInicial > 0) {
         const nuevoPago = {
-          id: `PAG-00${pagos.length + 1}`,
-          matriculaId: nuevoId,
-          estudiante: nuevaMat.estudiante,
+          id: nextCorrelativeCode(pagos, "id", "PAG-", 3, 1),
+          matriculaId: matRealId,
+          estudiante: nuevaMatPayload.estudiante,
           concepto: "Matrícula Inicial / Cuota 1",
           monto: abonoInicial,
           metodo: "Efectivo en Caja",
           operacion: `OP-INI-${Date.now().toString().slice(-5)}`,
-          comprobante: `B001-00${450 + pagos.length + 1}`,
+          comprobante: nextCorrelativeCode(pagos, "comprobante", "B001-", 5, 451),
           fecha: new Date().toISOString().split("T")[0],
           estado: "Aprobado",
         };
-        await pagoService.savePago(nuevoPago);
-        setPagos((current) => [nuevoPago, ...current]);
+        const savedPago = await pagoService.savePago(nuevoPago);
+        setPagos((current) => [savedPago || nuevoPago, ...current]);
       }
+
+      const nuevaMatFinal = {
+        ...(savedMat || nuevaMatPayload),
+        id: matRealId,
+        montoPagado: abonoInicial,
+        saldoPendiente: saldoFinal,
+        estado: estadoFinal,
+      };
+      setMatriculas((current) => [nuevaMatFinal, ...current]);
 
       setModalMatriculaOpen(false);
       resetStudentSelection();
@@ -329,7 +364,7 @@ export default function MatriculasPagosPage({ defaultTab = "matriculas" }) {
         montoTotal: PROGRAMAS_ACADEMICOS[0].costo,
         primerAbono: 400,
       });
-      showNotification(`¡Matrícula ${nuevoId} registrada exitosamente!`);
+      showNotification(`¡Matrícula ${matRealId} registrada exitosamente!`);
     } catch (error) {
       console.error("Error al guardar matrícula:", error);
       setMatriculaFormError(error.message || "No se pudo guardar la matrícula en el sistema.");
@@ -341,7 +376,7 @@ export default function MatriculasPagosPage({ defaultTab = "matriculas" }) {
     setFormPago({
       matriculaId: mat.id,
       concepto: `Cuota de Pensión (${mat.programa.split("-")[0].trim()})`,
-      monto: mat.saldoPendiente > 0 ? Math.min(mat.saldoPendiente, 400) : 0,
+      monto: Number(mat.saldoPendiente) > 0 ? Math.min(Number(mat.saldoPendiente), 400) : 0,
       metodo: "Yape / Plin",
       operacion: "",
       comprobanteTipo: "Boleta de Venta Electrónica",
@@ -365,34 +400,35 @@ export default function MatriculasPagosPage({ defaultTab = "matriculas" }) {
       return;
     }
 
-    const nuevoPagoId = `PAG-00${pagos.length + 1}`;
     const nuevoPago = {
-      id: nuevoPagoId,
+      id: nextCorrelativeCode(pagos, "id", "PAG-", 3, 1),
       matriculaId: mat.id,
       estudiante: mat.estudiante,
       concepto: formPago.concepto,
       monto: montoNum,
       metodo: formPago.metodo,
       operacion: formPago.operacion || `TRANS-${Date.now().toString().slice(-6)}`,
-      comprobante: `B001-00${450 + pagos.length + 1}`,
+      comprobante: nextCorrelativeCode(pagos, "comprobante", "B001-", 5, 451),
       fecha: new Date().toISOString().split("T")[0],
       estado: "Aprobado",
     };
 
-    // Actualizar matrícula
-    const nuevoPagado = mat.montoPagado + montoNum;
-    const nuevoSaldo = Math.max(0, mat.montoTotal - nuevoPagado);
+    const nuevoPagado = Number(mat.montoPagado || 0) + montoNum;
+    const nuevoSaldo = Math.max(0, Number(mat.montoTotal || 0) - nuevoPagado);
     const nuevoEstado = nuevoSaldo === 0 ? "Pagado Total" : "Al día";
 
-    const nuevasMatriculas = matriculas.map((m) =>
-      m.id === mat.id ? { ...m, montoPagado: nuevoPagado, saldoPendiente: nuevoSaldo, estado: nuevoEstado } : m
-    );
     try {
-      await pagoService.savePago(nuevoPago);
-      await saveMatriculasStorage(nuevasMatriculas);
-      setPagos((current) => [nuevoPago, ...current]);
+      const savedPago = await pagoService.savePago(nuevoPago);
+      setMatriculas((current) =>
+        current.map((m) =>
+          m.id === mat.id
+            ? { ...m, montoPagado: nuevoPagado, saldoPendiente: nuevoSaldo, estado: nuevoEstado }
+            : m
+        )
+      );
+      setPagos((current) => [savedPago || nuevoPago, ...current]);
       setModalPagoOpen(false);
-      showNotification(`Pago de S/. ${montoNum.toFixed(2)} registrado correctamente.`);
+      showNotification(`Pago ${savedPago?.id || nuevoPago.id} de S/. ${montoNum.toFixed(2)} registrado correctamente.`);
     } catch (error) {
       console.error("Error al guardar pago:", error);
       setPagoFormError(`No se pudo completar el pago: ${error.message}`);

@@ -42,9 +42,14 @@ export default function useCurse() {
   }, [refreshCourses]);
 
   const addCourse = async (courseData) => {
+    const maxCrsNum = (courses || []).reduce((maxAcc, c) => {
+      const m = String(c?.id || "").match(/^CRS-(\d+)$/i);
+      const n = m ? parseInt(m[1], 10) : 0;
+      return n > maxAcc ? n : maxAcc;
+    }, 0);
     const cleanId = (courseData.id && String(courseData.id).startsWith("CRS-"))
       ? courseData.id
-      : `CRS-${String(courses.length + 1).padStart(3, "0")}`;
+      : `CRS-${String(maxCrsNum + 1).padStart(3, "0")}`;
 
     const newCourse = {
       ciclovirtual: "Semestral",
