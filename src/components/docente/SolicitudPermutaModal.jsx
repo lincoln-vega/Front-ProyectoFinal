@@ -130,7 +130,12 @@ export default function SolicitudPermutaModal({ isOpen, onClose, onSuccess, curr
       }
 
       const currentIncidents = (await incidentService.getIncidents()) || [];
-      const newId = `INC-D${String(currentIncidents.length + 1).padStart(2, "0")}`;
+      const maxIncNum = currentIncidents.reduce((maxAcc, inc) => {
+        const digits = String(inc?.id || "").replace(/\D/g, "");
+        const parsed = digits ? parseInt(digits, 10) : 0;
+        return parsed > maxAcc ? parsed : maxAcc;
+      }, 0);
+      const newId = `INC-${String(maxIncNum + 1).padStart(3, "0")}`;
 
       const newIncident = {
         id: newId,
